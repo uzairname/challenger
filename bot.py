@@ -2,9 +2,11 @@ import hikari
 import tanjun
 import os
 
+import hikari
 from termcolor import colored
 
-def build_bot() -> GatewayBot:
+
+def build_bot() -> hikari.GatewayBot:
     TOKEN = os.environ.get("DISCORD_TOKEN")
     bot = hikari.GatewayBot(TOKEN)
 
@@ -18,11 +20,10 @@ def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
         tanjun.Client.from_gateway_bot(
             bot,
             mention_prefix=True,
-            set_global_commands=GUILD_ID
+            set_global_commands=False
         )
     ).add_prefix("!")
 
     print(colored('PELA: ', 'red') + "Log test")
 
     return client
-
