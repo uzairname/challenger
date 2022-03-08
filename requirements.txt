@@ -1,2 +1,4 @@
 hikari~=2.0.0.dev107
 termcolor~=1.1.0
+hikari-tanjun
+git+https://github.com/FasterSpeeding/Tanjun.git

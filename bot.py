@@ -24,7 +24,6 @@ def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
     ).add_prefix("!")
 
     client.load_modules("plugins.util")
-
-    print("PELA: Log test")
+    client.load_modules("plugins.embeds")
 
     return client
