@@ -1,2 +1,3 @@
 hikari~=2.0.0.dev107
 hikari-tanjun
+termcolor
