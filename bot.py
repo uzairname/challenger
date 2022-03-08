@@ -1,7 +1,7 @@
 import hikari
 import tanjun
-import os
 
+import os
 from termcolor import colored
 
 
@@ -19,10 +19,12 @@ def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
         tanjun.Client.from_gateway_bot(
             bot,
             mention_prefix=True,
-            set_global_commands=False
+            declare_global_commands=907729885726933043
         )
     ).add_prefix("!")
 
-    print(colored('PELA: ', 'red') + "Log test")
+    client.load_modules("plugins.util")
+
+    print("PELA: Log test")
 
     return client
