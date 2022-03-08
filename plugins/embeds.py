@@ -35,7 +35,7 @@ async def interactive_post(
     )
     await ctx.edit_initial_response("Click/Tap your choice below, then watch the embed update!", embed=client.metadata['embed'], components=[row, ])
     try:
-        async with bot.stream(InteractionCreateEvent, timeout=60).filter(('interaction.user.id', ctx.author.id)) as stream:
+        with bot.stream(InteractionCreateEvent, timeout=60).filter(('interaction.user.id', ctx.author.id)) as stream:
             async for event in stream:
                 await event.interaction.create_initial_response(
                     ResponseType.DEFERRED_MESSAGE_UPDATE,
@@ -57,7 +57,7 @@ async def title(ctx: SlashContext, bot: hikari.GatewayBot, client: tanjun.Client
     embed_dict, *_ = bot.entity_factory.serialize_embed(client.metadata['embed'])
     await ctx.edit_initial_response(content="Set Title for embed:", components=[])
     try:
-        async with bot.stream(hikari.GuildMessageCreateEvent, timeout=60).filter(('author', ctx.author)) as stream:
+        with bot.stream(hikari.GuildMessageCreateEvent, timeout=60).filter(('author', ctx.author)) as stream:
             async for event in stream:
                 embed_dict['title'] = event.content[:200]
                 client.metadata['embed'] = bot.entity_factory.deserialize_embed(embed_dict)
