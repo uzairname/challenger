@@ -1,5 +1,4 @@
 import os
-
 from bot import build_bot
 
 if os.name != "nt":
@@ -8,4 +7,4 @@ if os.name != "nt":
     uvloop.install()
 
 if __name__ == "__main__":
-    build_bot.run()
+    build_bot().run()
