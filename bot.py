@@ -1,17 +1,28 @@
 import hikari
+import tanjun
 import os
 
-from bcolors import bcolors
+from termcolor import colored
 
-bot = hikari.GatewayBot(os.environ.get("DISCORD_TOKEN"))
+def build_bot() -> GatewayBot:
+    TOKEN = os.environ.get("DISCORD_TOKEN")
+    bot = hikari.GatewayBot(TOKEN)
+
+    make_client(bot)
+
+    return bot
 
 
-@bot.listen()
-async def ping(event: hikari.GuildMessageCreateEvent) -> None:
-    if event.is_bot or not event.content:
-        return
-    if event.content.startswith("hi"):
-        await event.message.respond("hello")
+def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
+    client = (
+        tanjun.Client.from_gateway_bot(
+            bot,
+            mention_prefix=True,
+            set_global_commands=GUILD_ID
+        )
+    ).add_prefix("!")
 
-print(f"{bcolors.OKCYAN}PELA: " + "Log test")
-bot.run()
+    print(colored('PELA: ', 'red') + "Log test")
+
+    return client
+
