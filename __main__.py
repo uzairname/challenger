@@ -1,6 +1,6 @@
 import os
 
-from bot.py import build_bot
+from bot import build_bot
 
 if os.name != "nt":
     import uvloop

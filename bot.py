@@ -2,7 +2,6 @@ import hikari
 import tanjun
 import os
 
-import hikari
 from termcolor import colored
 
 
