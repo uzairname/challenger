@@ -1,6 +1,5 @@
 import hikari
 import tanjun
-import logging
 
 import os
 
@@ -18,7 +17,7 @@ def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
         tanjun.Client.from_gateway_bot(
             bot,
             mention_prefix=True,
-            declare_global_commands=907729885726933043 #pela guild id
+            declare_global_commands=True
         )
     ).add_prefix("!")
 
