@@ -23,7 +23,6 @@ def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
         )
     ).add_prefix("!")
 
-    client.load_modules("plugins.util")
-    client.load_modules("plugins.embeds")
+    client.load_modules("plugins.util", "plugins.embeds")
 
     return client
