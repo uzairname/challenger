@@ -10,9 +10,7 @@ from tanjun.abc import SlashContext
 
 component = tanjun.Component()
 
-embed = component.with_slash_command(
-    tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False))
-
+embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False))
 
 @embed.with_command
 @tanjun.as_slash_command("interactive-post", f"Build an Embed!")
@@ -35,8 +33,7 @@ async def interactive_post(
             .set_emoji("❌")
             .add_to_container()
     )
-    await ctx.edit_initial_response("Click/Tap your choice below, then watch the embed update!",
-                                    embed=client.metadata['embed'], components=[row, ])
+    await ctx.edit_initial_response("Click/Tap your choice below, then watch the embed update!", embed=client.metadata['embed'], components=[row, ])
     try:
         with bot.stream(InteractionCreateEvent, timeout=60).filter(('interaction.user.id', ctx.author.id)) as stream:
             async for event in stream:
@@ -50,8 +47,7 @@ async def interactive_post(
                 elif key == "📋":
                     await title(ctx, bot, client)
 
-                await ctx.edit_initial_response("Click/Tap your choice below, then watch the embed update!",
-                                                embed=client.metadata['embed'], components=[row])
+                await ctx.edit_initial_response("Click/Tap your choice below, then watch the embed update!", embed=client.metadata['embed'], components=[row])
     except asyncio.TimeoutError:
         await ctx.edit_initial_response("Waited for 60 seconds... Timeout.", embed=None, components=[])
 
@@ -69,7 +65,6 @@ async def title(ctx: SlashContext, bot: hikari.GatewayBot, client: tanjun.Client
                 return
     except asyncio.TimeoutError:
         await ctx.edit_initial_response("Waited for 60 seconds... Timeout.", embed=None, components=[])
-
 
 @tanjun.as_loader
 def load(client: tanjun.abc.Client) -> None:
