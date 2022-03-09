@@ -4,8 +4,11 @@ import tanjun
 import os
 
 
+INVITE_LINK="https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=544857254992&scope=bot%20applications.commands"
+
+
 def build_bot() -> hikari.GatewayBot:
-    TOKEN = os.environ.get("DISCORD_TOKEN")
+    TOKEN = os.environ.get("PELA_TOKEN")
     bot = hikari.GatewayBot(TOKEN)
 
     client = (
