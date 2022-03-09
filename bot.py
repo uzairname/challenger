@@ -4,15 +4,13 @@ import tanjun
 import os
 
 
+INVITE_LINK="https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=544857254992&scope=bot%20applications.commands"
+
+
 def build_bot() -> hikari.GatewayBot:
-    TOKEN = os.environ.get("DISCORD_TOKEN")
+    TOKEN = os.environ.get("PELA_TOKEN")
     bot = hikari.GatewayBot(TOKEN)
-    make_client(bot)
 
-    return bot
-
-
-def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
     client = (
         tanjun.Client.from_gateway_bot(
             bot,
@@ -23,4 +21,8 @@ def make_client(bot: hikari.GatewayBot) -> tanjun.Client:
 
     client.load_modules("plugins.util", "plugins.embeds", "plugins.suggestions")
 
-    return client
+    @bot.listen(hikari.StartedEvent)
+    async def bot_started(event: hikari.StartedEvent):
+        await bot.rest.edit_my_member(guild=907729885726933043, nickname=f"Pela ({os.environ.get('DSP')})")
+
+    return bot

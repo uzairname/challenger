@@ -7,7 +7,7 @@ component = tanjun.Component(name="hi_command")
 @component.with_slash_command
 @tanjun.as_slash_command("hi", "a", default_to_ephemeral=False)
 async def hi_test(ctx: tanjun.abc.Context) -> None:
-    await ctx.respond(f"Hi {ctx.author.mention}!{nl}More features coming soon")
+    await ctx.respond(f"Hi {ctx.author.mention}!{nl}This is the testing version. More features coming soon")
 
 
 @tanjun.as_loader
