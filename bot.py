@@ -16,7 +16,7 @@ def build_bot() -> hikari.GatewayBot:
         tanjun.Client.from_gateway_bot(
             bot,
             mention_prefix=True,
-            declare_global_commands=True
+            declare_global_commands=907729885726933043
         )
     ).add_prefix("!")
 
