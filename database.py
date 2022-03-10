@@ -3,8 +3,10 @@ import os
 import functools
 
 
+# postgres database functions
+
 def check_errors(func):
-    # for commands that take a context, respond with an error if it doesn't work
+    # for database error
     @functools.wraps(func)
     def wrapper_check_errors(*args, **kwargs):
         try:
@@ -25,18 +27,19 @@ def config_database():
     print("player elo: ", test_get_elo(conn, cur, "12345"))
     test_add_player(conn, cur, "12345678", "feap", "100")
 
-
-    #close connections
+    # close connections
     cur.close()
     conn.commit()
     if conn is not None:
         conn.close()
         print('Database connection closed.')
 
+
 @check_errors
 def test_add_player(conn, cur, new_user_id, new_username, new_elo):
     sql = "INSERT INTO players(user_id, username, elo) VALUES(%s, %s, %s)"
     cur.execute(sql, (new_user_id, new_username, new_elo,))
+
 
 @check_errors
 def test_get_elo(conn, cur, player_id):
@@ -45,6 +48,7 @@ def test_get_elo(conn, cur, player_id):
     cur.execute(sql, (player_id,))
 
     return cur.fetchall()
+
 
 def create_player_table(conn, cur):
     command = ("""
