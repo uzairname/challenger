@@ -2,7 +2,7 @@ from plugins._utils import *
 
 nl = "\n"
 
-component = tanjun.Component(name="hi_command")
+component = tanjun.Component(name="hi module")
 
 @component.with_slash_command
 @tanjun.as_slash_command("hi", "a", default_to_ephemeral=False)

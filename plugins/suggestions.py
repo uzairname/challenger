@@ -5,7 +5,7 @@ import hikari
 from hikari import Embed
 
 
-component = tanjun.Component()
+component = tanjun.Component(name="suggestions module")
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(
