@@ -1,4 +1,4 @@
-import tanjun
+from plugins._utils import *
 
 nl = "\n"
 

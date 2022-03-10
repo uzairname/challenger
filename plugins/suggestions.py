@@ -1,7 +1,7 @@
+from plugins._utils import *
+
 import asyncio
 import hikari
-import tanjun
-
 from hikari import Embed
 
 
@@ -31,6 +31,7 @@ async def suggest_command(ctx: tanjun.abc.Context, *, suggestion: str) -> None:
 @component.with_slash_command
 @tanjun.with_str_slash_option("message_id", "Message ID of the suggestion")
 @tanjun.as_slash_command("approve", "approve a suggestion!")
+@check_errors
 async def approve_command(ctx: tanjun.abc.Context, message_id: str) -> None:
     channel = await ctx.fetch_channel()
     msg = await ctx.rest.fetch_message(channel, int(message_id))
@@ -43,8 +44,8 @@ async def approve_command(ctx: tanjun.abc.Context, message_id: str) -> None:
     await msg.edit(embed=embed)
     await msg.remove_all_reactions()
     response = await ctx.respond("Done :ok_hand:", ensure_result=True)
+    await asyncio.sleep(3)
     await response.delete()
-
 
 
 @tanjun.as_loader
