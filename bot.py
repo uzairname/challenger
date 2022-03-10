@@ -3,7 +3,7 @@ import tanjun
 
 import logging
 import os
-from . import *
+from __init__ import *
 
 
 def build_bot() -> hikari.GatewayBot:
