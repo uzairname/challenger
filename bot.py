@@ -29,4 +29,3 @@ def build_bot() -> hikari.GatewayBot:
         logging.info("███ Bot is in a testing environment")
 
     return bot
-
