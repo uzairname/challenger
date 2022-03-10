@@ -1,4 +1,4 @@
-from plugins._utils import *
+from plugins.utils import *
 from __init__ import *
 
 nl = "\n"

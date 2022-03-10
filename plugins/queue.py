@@ -1,8 +1,7 @@
-from plugins._utils import *
+from plugins.utils import *
 
 
 component = tanjun.Component(name="queue module")
-
 
 
 @component.with_slash_command

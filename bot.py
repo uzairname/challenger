@@ -16,7 +16,7 @@ def build_bot() -> hikari.GatewayBot:
             mention_prefix=True,
         )
     )
-    client.load_modules("plugins.util", "plugins.suggestions", "plugins.queue")#, "plugins.embeds")
+    client.load_modules("plugins.util", "plugins.queue")#, "plugins.embeds")
 
     @bot.listen(hikari.StartedEvent)
     async def bot_started(event: hikari.StartedEvent):
@@ -26,16 +26,20 @@ def build_bot() -> hikari.GatewayBot:
             logging.info("███ Bot is in a testing environment")
             await bot.rest.edit_my_member(guild=GUILD_ID_TESTING, nickname=f"Pela ({os.environ.get('DSP')})")
 
-        for c in client.components:
-            print(c.name)
+        # for c in client.components:
+        #     for command in c.slash_commands:
+        #         print(command.name + " " + str(command.tracked_command_id))
 
-        await client.declare_global_commands(guild=GUILD_ID_TESTING, force=True)
+        await client.declare_global_commands(force=True)
 
-    @bot.listen(hikari.GuildAvailableEvent)
-    async def guild_available(event: hikari.GuildAvailableEvent):
-        guild_id = event.guild_id
-        pass
-        # await client.declare_global_commands(command_ids=None, guild=guild_id, force=True)
-        # await client.declare_global_commands([], guild=guild_id, force=True)
+        # for command in declared_commands:
+    #     #     print("declared " + command.name)
+    #
+    # @bot.listen(hikari.GuildAvailableEvent)
+    # async def guild_available(event: hikari.GuildAvailableEvent):
+    #     guild_id = event.guild_id
+    #     pass
+    #     # await client.declare_global_commands(command_ids=None, guild=guild_id, force=True)
+    #     # await client.declare_global_commands([], guild=guild_id, force=True)
 
     return bot

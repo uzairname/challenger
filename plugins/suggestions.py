@@ -1,8 +1,9 @@
-from plugins._utils import *
+from plugins.utils import *
 
 import asyncio
 import hikari
 from hikari import Embed
+
 
 
 component = tanjun.Component(name="suggestions module")
