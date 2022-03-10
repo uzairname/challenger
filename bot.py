@@ -13,20 +13,26 @@ def build_bot() -> hikari.GatewayBot:
     client = (
         tanjun.Client.from_gateway_bot(
             bot,
-            mention_prefix=True,
-            declare_global_commands=GUILD_ID
+            mention_prefix=True
         )
-    ).add_prefix("!")
+    )
 
-    client.load_modules("plugins.util", "plugins.suggestions")
+    client.load_modules("plugins.util")
 
     @bot.listen(hikari.StartedEvent)
     async def bot_started(event: hikari.StartedEvent):
         if os.environ.get('DSP') == "Production":
             logging.info("███ Bot is in the production environment")
             return
-        await bot.rest.edit_my_member(guild=907729885726933043, nickname=f"Pela ({os.environ.get('DSP')})")
+        await bot.rest.edit_my_member(guild=GUILD_ID, nickname=f"Pela ({os.environ.get('DSP')})")
         logging.info("███ Bot is in a testing environment")
 
-    return bot
 
+    @bot.listen(hikari.GuildAvailableEvent)
+    async def guild_available(event: hikari.GuildAvailableEvent):
+        guild_id = event.guild_id
+        await client.declare_global_commands(None, guild=guild_id, force=True)
+
+
+
+    return bot

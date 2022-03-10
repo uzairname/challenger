@@ -1,3 +1,4 @@
 hikari~=2.0.0.dev107
 hikari-tanjun
 git+https://github.com/FasterSpeeding/Tanjun.git
+psycopg2-binary
