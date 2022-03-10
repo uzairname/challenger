@@ -16,7 +16,7 @@ def build_bot() -> hikari.GatewayBot:
             mention_prefix=True,
         )
     )
-    client.load_modules("plugins.util", "plugins.suggestions")#, "plugins.embeds")
+    client.load_modules("plugins.util", "plugins.suggestions", "plugins.queue")#, "plugins.embeds")
 
     @bot.listen(hikari.StartedEvent)
     async def bot_started(event: hikari.StartedEvent):
@@ -24,12 +24,12 @@ def build_bot() -> hikari.GatewayBot:
             logging.info("███ Bot is in the production environment")
         else:
             logging.info("███ Bot is in a testing environment")
-            await bot.rest.edit_my_member(guild=GUILD_ID_PELA, nickname=f"Pela ({os.environ.get('DSP')})")
+            await bot.rest.edit_my_member(guild=GUILD_ID_TESTING, nickname=f"Pela ({os.environ.get('DSP')})")
 
         for c in client.components:
             print(c.name)
 
-        await client.declare_global_commands(guild=GUILD_ID_PELA)
+        await client.declare_global_commands(guild=GUILD_ID_TESTING, force=True)
 
     @bot.listen(hikari.GuildAvailableEvent)
     async def guild_available(event: hikari.GuildAvailableEvent):

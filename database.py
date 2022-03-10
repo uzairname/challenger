@@ -3,7 +3,39 @@ import os
 import functools
 
 
+# helper functions to do stuff
+# TODO
+
+def is_player_registered(user_id) -> bool:
+    raise NotImplementedError
+
+
+def is_player_queued(user_id) -> None:
+    raise NotImplementedError
+
+
+def register_player(user_id, username, elo) -> None:
+    raise NotImplementedError
+
+
+def add_player_to_queue(user_id) -> None:
+    raise NotImplementedError
+
+
+def add_match() -> None:
+    raise NotImplementedError
+
+
+def close_match(winner_id) -> None:
+    raise NotImplementedError
+
+
+
+
+
+
 # postgres database functions
+
 
 def check_errors(func):
     # for database error
