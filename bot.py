@@ -32,6 +32,7 @@ def build_bot() -> hikari.GatewayBot:
     async def guild_available(event: hikari.GuildAvailableEvent):
         guild_id = event.guild_id
         await client.declare_global_commands(None, guild=guild_id, force=True)
+        await client.declare_application_commands([], guild=guild_id, force=True)
 
 
 
