@@ -1,9 +1,14 @@
 import hikari
 import tanjun
 
+import time
+
 import logging
 import os
 from __init__ import *
+
+class Bot:
+    start_time = None
 
 def build_bot() -> hikari.GatewayBot:
     TOKEN = os.environ.get("PELA_TOKEN")
@@ -20,6 +25,9 @@ def build_bot() -> hikari.GatewayBot:
 
     @bot.listen(hikari.StartedEvent)
     async def bot_started(event: hikari.StartedEvent):
+
+        Bot.start_time = time.time()
+
         if os.environ.get('DSP') == "Production":
             logging.info("███ Bot is in the production environment")
             await client.declare_global_commands()
