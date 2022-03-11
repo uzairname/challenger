@@ -9,7 +9,7 @@ def check_errors(func):
     async def wrapper_check_errors(ctx: tanjun.abc.Context, *args, **kwargs):
         try:
             await func(ctx, *args, **kwargs)
-        except:
+        except BaseException:
             await ctx.respond("didnt work :(", ensure_result=True)
             logging.info("command failed: " + str(kwargs.values()))
     return wrapper_check_errors
