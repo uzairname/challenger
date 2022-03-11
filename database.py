@@ -14,32 +14,40 @@ def is_player_registered(user_id) -> bool:
     raise NotImplementedError
 
 
-def get_player_match(user_id): #returns none if not in a match. Or returns match ids of current matches
+def get_elo_by_player(user_id):
     raise NotImplementedError
 
 
-def get_matches_by_player(user_id, number): # returns most recent matches played by player
+def get_matches_by_player(user_id, number):
+    # returns most recent matches played by player
     raise NotImplementedError
 
 
-def register_player(user_id, username, elo) -> None:
+
+def add_player(user_id, username, elo) -> None:
     raise NotImplementedError
 
 
-def add_player_to_queue(user_id) -> None: #creates new match with 1 player, or adds to latest match
+def add_player_to_queue(user_id) -> int: #returns new match id
+    #if latest match has 2 players, creates new match with 1 player, or adds to latest match
+    #returns error if player already in queue
+    raise NotImplementedError
+
+def remove_player_from_queue(user_id):
+    raise NotImplementedError
+
+def create_match(player_ids, time) -> int: #returns new match id
     raise NotImplementedError
 
 
-def create_match(player_ids, time) -> int:
+def edit_match(match_id, result) -> None:
+    #update the match results
     raise NotImplementedError
 
 
-def close_match(match_id, result) -> None:
-    raise NotImplementedError
 
 
 # postgres database functions
-
 
 def check_errors(func):
     # for database error
