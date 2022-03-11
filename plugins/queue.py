@@ -41,13 +41,12 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 @tanjun.with_str_slash_option("result", "win, lose, or cancel")
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False)
 async def declare_match(ctx: tanjun.abc.SlashContext, result, match_id, best_of) -> None:
+
+    #
+
+
     await ctx.respond(f"{ctx.author.mention} you have declared the results")
     pass
-
-
-# @tanjun.with_str_slash_option("best of...", "optional, defaults to 1")
-# @tanjun.commands.with_str_slash_option("match id", "optional, defaults to your latest match", default="current")
-# @tanjun.with_str_slash_option("result", "win, lose, or cancel")
 
 
 
@@ -64,11 +63,9 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_id, best_of)
 # change old match (update both player's elo)
 
 #TODO other notes:
-# # change of less than 1 elo is dispayed as '<1" instead of 0
-# # displayed elo change is given as rounded. going from 6.7(7) to 5.4(5) is not 6.7-5.4(1), but 7-5(2)
-
-
-
+# Elo with a small scale factor, and relatively large K value to minimize grinding. approx. 5 games to stabilize elo at skill level
+#change of less than 1 elo is dispayed as '<1" instead of 0
+# displayed elo change is given as rounded. going from 6.7(7) to 5.4(5) is not 6.7-5.4(1), but 7-5(2)
 
 @tanjun.as_loader
 def load(client: tanjun.abc.Client) -> None:

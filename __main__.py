@@ -5,5 +5,5 @@ from database import *
 
 
 if __name__ == "__main__":
-    # config_database()
+    config_database()
     build_bot().run()

@@ -61,12 +61,13 @@ def check_errors(func):
     return wrapper_check_errors
 
 
-@check_errors
+
 def config_database():
     conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
     cur = conn.cursor()
 
     create_player_table(conn, cur)
+    create_match_table(conn, cur)
 
     print("player elo: ", test_get_elo(conn, cur, "12345"))
     test_add_player(conn, cur, "12345678", "feap", "100")
@@ -92,6 +93,20 @@ def test_get_elo(conn, cur, player_id):
     cur.execute(sql, (player_id,))
 
     return cur.fetchall()
+
+
+@check_errors
+def create_match_table(conn, cur):
+    command = ("""
+    CREATE TABLE IF NOT EXISTS players (
+        match_id SERIAL PRIMARY KEY,
+        player1 INT,
+        player2 INT,
+        outcome VARCHAR,
+        elo_change NUMERIC
+    )
+    """)
+    cur.execute(command)
 
 
 def create_player_table(conn, cur):
