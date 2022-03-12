@@ -5,6 +5,7 @@ import tanjun.abc
 
 from plugins.utils import *
 from __main__ import DB
+import asyncio
 
 
 DEFAULT_ELO = 50 #everyone's starting score
@@ -27,18 +28,53 @@ component = tanjun.Component(name="queue module")
 
 #join the queue (if new, register)
 @component.with_slash_command
-@tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
+@tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=False)
 async def join_q(ctx: tanjun.abc.Context) -> None:
+    player_id = ctx.author.id
     DB.create_connection()
-    DB.update_match(match_id=5, player1=2598237, player2=951132825803964447, outcome="player2")
-    DB.get_recent_matches()
+    match = DB.get_recent_matches().iloc[0,:]
+    # refresh
+    # return if player is already in latest match
+    # add player to first available slot, give warning if there are none
+    # refresh
+    # check if most recent match is full
+    # if so, announce 1v1 and make a new match
+    # if not, announce player joined
+
+    print("latest match:\n" + str(match))
+
+    if match["player1"] and match["player2"]: #should be redundant
+        DB.create_match()
+        match = DB.get_recent_matches().iloc[0,:]
+
+    if match["player1"] == player_id or match["player2"] == player_id:
+        response = await ctx.respond(f"{ctx.author.mention} you're already in the queue", ensure_result=True)
+        await asyncio.sleep(6)
+        await response.delete()
+        return
+
+    if not match["player1"]:
+        DB.update_match(match_id=match["match_id"], player1=player_id)
+    elif not match["player2"]:
+        DB.update_match(match_id=match["match_id"], player2=player_id)
+    else:
+        response = await ctx.respond(f"{ctx.author.mention} Try joining again")
+
+    response = await ctx.respond(f"{ctx.author.mention} you have silently joined the queue", ensure_result=True)
+
+    match = DB.get_recent_matches().iloc[0,:]
+    if match["player1"] and match["player2"]:
+        channel = ctx.get_channel()
+        await ctx.get_channel().send("Match " + str(match["match_id"]) + " started: " + str(match["player1"]) + " vs " + str(match['player2']))
+    else:
+        await ctx.get_channel().send("A player has joined match " + str(match["match_id"]))
+
     DB.close_connection()
 
-    # if latest match has 2 players, creates new match with 1 player, or adds to latest match
-    # returns error if player already in queue
+    await asyncio.sleep(6)
+    await response.delete()
 
-    await ctx.respond(f"{ctx.author.mention} you have silently joined the queue")
-    await ctx.get_channel().send("A player has joined match 1")
+    #catch errors here in case 3 people try to join at once
 
 
 #leave queue
@@ -59,6 +95,13 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 @tanjun.with_str_slash_option("result", "win, lose, or cancel")
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False)
 async def declare_match(ctx: tanjun.abc.SlashContext, result, match_id, best_of) -> None:
+
+    #check if match is finished
+    #check if player played in that match
+    #
+
+
+
     await ctx.respond(f"{ctx.author.mention} you have declared the results")
 
 

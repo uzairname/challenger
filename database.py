@@ -2,6 +2,7 @@ import psycopg2
 import os
 import functools
 import pandas as pd
+import numpy as np
 
 # helper functions to do stuff
 # TODO make this
@@ -63,18 +64,22 @@ class Database:
 
         command = """
             UPDATE matches
-            SET""" \
+            SET"""\
                   + if_notnull(player1, """
-            player1 = """ + str(player1) + """""") \
-                  + if_notnull(player2, """,
-            player2 = """ + str(player2) + """""") \
-                  + if_notnull(outcome, """,
-            outcome = '""" + str(outcome) + """'""") \
+            player1 = """ + str(player1) + """,""") \
+                  + if_notnull(player2, """
+            player2 = """ + str(player2) + """,""") \
+                  + if_notnull(outcome, """
+            outcome = '""" + str(outcome) + """',""") \
                   + if_notnull(elo_change, """
-            elo_change = """ + str(elo_change) + """""") \
-                  + """
+            elo_change = """ + str(elo_change) + """,""")
+
+        command = command[:-1] + """
             WHERE match_id = """ + str(match_id) + """
         """
+
+
+        print(command)
 
         self.cur.execute(command)
 
@@ -87,7 +92,7 @@ class Database:
         raise NotImplementedError
 
 
-    def get_recent_matches(self, player=None, number=1) -> []:
+    def get_recent_matches(self, player=None, number=1) -> pd.DataFrame:
         if player is not None:
             command = """
                 SELECT * FROM matches 
@@ -106,7 +111,7 @@ class Database:
         for c in self.cur.fetchall():
             columns.append(c[3])  #IDK if this is right!!!
 
-        return construct_df(columns=columns, rows=matches)
+        return construct_df(columns=columns, rows=matches, index_column="match_id")  #returns a pandas dataframe
 
 
 
@@ -155,12 +160,13 @@ def check_errors(func):
     return wrapper_check_errors
 
 
-def construct_df(columns, rows):
+def construct_df(columns, rows, index_column:str):
 
-    df = {}
+    df_data = {}
     for i in range(len(columns)):
-        df[columns[i]] = []
+        df_data[columns[i]] = []
         for row in rows:
-            df[columns[i]].append(row[i])
+            df_data[columns[i]].append(row[i])
 
-    return pd.DataFrame(df)
+    df = pd.DataFrame(df_data, index=df_data[index_column])
+    return df
