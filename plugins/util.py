@@ -1,3 +1,5 @@
+import asyncio
+
 from plugins.utils import *
 from __init__ import *
 
@@ -10,9 +12,10 @@ component = tanjun.Component(name="hi module")
 
 
 @component.with_slash_command
-@tanjun.as_slash_command("hi", "a", default_to_ephemeral=False)
+@tanjun.as_slash_command("hi", "a", default_to_ephemeral=True)
 async def hi_test(ctx: tanjun.abc.Context) -> None:
-    await ctx.respond(f"Hi {ctx.author.mention}!{nl}This is the testing version. More features coming soon")
+    await asyncio.sleep(6)
+    response = await ctx.respond(f"Hi {ctx.author.mention}!{nl}This is the testing version. More features coming soon", ensure_result=True)
 
 
 @component.with_slash_command

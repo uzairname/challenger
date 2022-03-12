@@ -29,12 +29,12 @@ def build_bot(token) -> hikari.GatewayBot:
 
         if os.environ.get('DSP') == "Production":
             logging.info("███ Bot is in the production environment")
+            await client.clear_application_commands()
             await client.declare_global_commands()
         else:
             logging.info("███ Bot is in a testing environment")
             await bot.rest.edit_my_member(guild=TESTING_GUILD_ID, nickname=f"Pela ({os.environ.get('DSP')})")
-            await client.clear_application_commands(guild=TESTING_GUILD_ID)
-            await client.declare_global_commands(guild=TESTING_GUILD_ID, force=True)
+            await client.declare_global_commands(guild=TESTING_GUILD_ID)
 
 
         # for c in client.components:
