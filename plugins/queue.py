@@ -1,7 +1,10 @@
 import math
+
+import hikari
 import tanjun.abc
 
 from plugins.utils import *
+from __main__ import DB
 
 
 DEFAULT_ELO = 50 #everyone's starting score
@@ -25,31 +28,41 @@ component = tanjun.Component(name="queue module")
 #join the queue (if new, register)
 @component.with_slash_command
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
-@check_errors
 async def join_q(ctx: tanjun.abc.Context) -> None:
+    DB.create_connection()
+    DB.update_match(match_id=5, player1=2598237, player2=951132825803964447, outcome="player2")
+    DB.get_recent_matches()
+    DB.close_connection()
+
+    # if latest match has 2 players, creates new match with 1 player, or adds to latest match
+    # returns error if player already in queue
+
     await ctx.respond(f"{ctx.author.mention} you have silently joined the queue")
+    await ctx.get_channel().send("A player has joined match 1")
+
+
+#leave queue
+@component.with_slash_command
+@tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True)
+@check_errors
+async def leave_q(ctx: tanjun.abc.Context) -> None:
+    await ctx.respond(f"{ctx.author.mention} you have silently left the queue")
+    await ctx.get_channel().send("A player has left match 1")
 
 
 
 # declare the match results, or update them. When declaring for the first time, the match will have no "result" or "elo change"
 # when editing, the elo change will either be reversed or made 0 if cancelled
-
-
 @component.with_slash_command
 @tanjun.with_str_slash_option("best_of", "optional, defaults to 1", default="1")
 @tanjun.with_str_slash_option("match_id", "optional, defaults to your latest match", default="current")
 @tanjun.with_str_slash_option("result", "win, lose, or cancel")
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False)
 async def declare_match(ctx: tanjun.abc.SlashContext, result, match_id, best_of) -> None:
-
-    #
-
-
     await ctx.respond(f"{ctx.author.mention} you have declared the results")
-    pass
 
 
-
+#leave
 
 
 #TODO commands:

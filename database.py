@@ -1,7 +1,7 @@
 import psycopg2
 import os
 import functools
-
+import pandas as pd
 
 # helper functions to do stuff
 # TODO make this
@@ -9,45 +9,139 @@ import functools
 #table of matches:
 #columns: Match id, players(list of ids), result
 
+class Database:
 
-def is_player_registered(user_id) -> bool:
-    raise NotImplementedError
+    def __init__(self):
+        self.conn = None
+        self.cur = None
+
+    def create_connection(self):
+        self.conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+        self.cur = self.conn.cursor()
+        print('Database connection opened.')
+
+    def close_connection(self):
+        self.cur.close()
+        self.conn.commit()
+        if self.conn is not None:
+            self.conn.close()
+            print('Database connection closed.')
+
+    def setup(self):
+
+        # command = """ALTER TABLE matches
+        # ALTER COLUMN elo_change TYPE FLOAT,
+        # ALTER COLUMN player1 TYPE BIGINT,
+        # ALTER COLUMN player2 TYPE BIGINT;
+        # """
+
+        # self.cur.execute(command)
+
+        # create_player_table(self.conn, self.cur)
+        # create_match_table(self.conn, self.cur)
+
+        # print("player elo: ", test_get_elo(conn, cur, "12345"))
+        # test_add_player(self.conn, self.cur, "12345678", "feap", "100")
+
+        self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
+        self.update_match(match_id=3, elo_change=32)
+
+    #Functions below:
+
+    def create_match(self):
+        command = """INSERT INTO matches (player1) VALUES(NULL)"""
+        self.cur.execute(command)
 
 
-def get_elo_by_player(user_id):
-    raise NotImplementedError
+    def update_match(self, match_id, player1=None, player2=None, outcome=None, elo_change=None):
+
+        def if_notnull(x, string):
+            if not x is None:
+                return string
+            else:
+                return """"""
+
+        command = """
+            UPDATE matches
+            SET""" \
+                  + if_notnull(player1, """
+            player1 = """ + str(player1) + """""") \
+                  + if_notnull(player2, """,
+            player2 = """ + str(player2) + """""") \
+                  + if_notnull(outcome, """,
+            outcome = '""" + str(outcome) + """'""") \
+                  + if_notnull(elo_change, """
+            elo_change = """ + str(elo_change) + """""") \
+                  + """
+            WHERE match_id = """ + str(match_id) + """
+        """
+
+        self.cur.execute(command)
+
+    def get_elo_by_player(self, user_id):
+        command = "SELECT elo FROM players WHERE user_id=%s;"
+        self.cur.execute(command, (user_id,))
+        return self.cur.fetchall()
+
+    def is_player_registered(self, user_id) -> bool:
+        raise NotImplementedError
 
 
-def get_matches_by_player(user_id, number):
-    # returns most recent matches played by player
-    raise NotImplementedError
+    def get_recent_matches(self, player=None, number=1) -> []:
+        if player is not None:
+            command = """
+                SELECT * FROM matches 
+                WHERE player1=""" + str(player) + """ or player2=""" + str(player) + """
+                LIMIT """ + str(number) + """
+            """
+        else:
+            command = """ SELECT * FROM matches ORDER BY match_id DESC LIMIT 1 """
+
+        self.cur.execute(command)
+        matches = self.cur.fetchall()
+
+        command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'matches' """
+        self.cur.execute(command)
+        columns = []
+        for c in self.cur.fetchall():
+            columns.append(c[3])  #IDK if this is right!!!
+
+        return construct_df(columns=columns, rows=matches)
 
 
 
-def add_player(user_id, username, elo) -> None:
-    raise NotImplementedError
+    def add_player(self, new_user_id, new_username, new_elo):
+        command = "INSERT INTO players(user_id, username, elo) VALUES(%s, %s, %s)"
+        self.cur.execute(command, (new_user_id, new_username, new_elo,))
 
 
-def add_player_to_queue(user_id) -> int: #returns new match id
-    #if latest match has 2 players, creates new match with 1 player, or adds to latest match
-    #returns error if player already in queue
-    raise NotImplementedError
-
-def remove_player_from_queue(user_id):
-    raise NotImplementedError
-
-def create_match(player_ids, time) -> int: #returns new match id
-    raise NotImplementedError
+    def add_player_to_queue(self, user_id) -> int: #returns new match id
+        raise NotImplementedError
 
 
-def edit_match(match_id, result) -> None:
-    #update the match results
-    raise NotImplementedError
+    def create_match_table(self):
+        command = ("""
+        CREATE TABLE IF NOT EXISTS matches (
+            match_id SERIAL PRIMARY KEY,
+            time_started TIMESTAMP,
+            player1 BIGINT,
+            player2 BIGINT,
+            outcome VARCHAR,
+            elo_change FLOAT
+        )
+        """)
+        self.cur.execute(command)
 
+    def create_player_table(self):
+        command = ("""
+            CREATE TABLE IF NOT EXISTS players (
+                user_id INT PRIMARY KEY,
+                username VARCHAR,
+                elo VARCHAR
+            )
+            """)
+        self.cur.execute(command)
 
-
-
-# postgres database functions
 
 def check_errors(func):
     # for database error
@@ -61,110 +155,12 @@ def check_errors(func):
     return wrapper_check_errors
 
 
+def construct_df(columns, rows):
 
-def config_database():
-    conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
-    cur = conn.cursor()
+    df = {}
+    for i in range(len(columns)):
+        df[columns[i]] = []
+        for row in rows:
+            df[columns[i]].append(row[i])
 
-    """ALTER TABLE matches 
-    ALTER COLUMN player1 SET DATA TYPE
-    ALTER COLUMN player2 SET DATA TYPE 
-    """
-
-    # create_player_table(conn, cur)
-    # create_match_table(conn, cur)
-
-    # print("player elo: ", test_get_elo(conn, cur, "12345"))
-    # test_add_player(conn, cur, "12345678", "feap", "100")
-
-
-    test_update_match(conn, cur, match_id=3, player1=111, player2=222, outcome="NEW OUTCOME")
-
-    test_update_match(conn, cur, match_id=3, elo_change=32)
-
-
-    # close connections
-    cur.close()
-    conn.commit()
-    if conn is not None:
-        conn.close()
-        print('Database connection closed.')
-
-
-@check_errors
-def test_add_player(conn, cur, new_user_id, new_username, new_elo):
-    command = "INSERT INTO players(user_id, username, elo) VALUES(%s, %s, %s)"
-    cur.execute(command, (new_user_id, new_username, new_elo,))
-
-
-@check_errors
-def test_get_elo(conn, cur, player_id):
-    command = f"SELECT elo FROM players WHERE user_id=%s;"
-
-    cur.execute(command, (player_id,))
-
-    return cur.fetchall()
-
-def test_create_match(conn, cur, player1=None, player2=None, outcome=None, elo_change=None):
-    command = """INSERT INTO matches (player1, player2, outcome, elo_change) VALUES(%s, %s, %s, %s)"""
-    cur.execute(command, (player1, player2, outcome, elo_change))
-
-
-def test_update_match(conn, cur, match_id, player1=None, player2=None, outcome=None, elo_change=None):
-
-    def if_notnull(x, string):
-        if not x is None:
-            return string
-        else:
-            return """"""
-
-    command = """
-        UPDATE matches
-        SET"""\
-        + if_notnull(player1, """
-        player1 = """ + str(player1) + """""")\
-        + if_notnull(player2, """,
-        player2 = """ + str(player2) + """""")\
-        + if_notnull(outcome, """,
-        outcome = '""" + str(outcome) + """'""")\
-        + if_notnull(elo_change, """
-        elo_change = """ + str(elo_change) + """""")\
-        + """
-        WHERE match_id = """ + str(match_id) + """
-    """
-    print(command)
-
-
-    # command = """
-    #     UPDATE matches
-    #     SET player1 = '""" + str(player1) + """'
-    #     SET player2 = '""" + str(player2) + """'
-    #     SET outcome = '""" + outcome + """'
-    #     SET elo_change = '""" + elo_change + """'
-    #     WHERE match_id = '""" + match_id + """'
-    #     """
-
-    cur.execute(command)
-
-def create_match_table(conn, cur):
-    command = ("""
-    CREATE TABLE IF NOT EXISTS matches (
-        match_id SERIAL PRIMARY KEY,
-        player1 INT,
-        player2 INT,
-        outcome VARCHAR,
-        elo_change NUMERIC
-    )
-    """)
-    cur.execute(command)
-
-
-def create_player_table(conn, cur):
-    command = ("""
-        CREATE TABLE IF NOT EXISTS players (
-            user_id INT PRIMARY KEY,
-            username VARCHAR,
-            elo VARCHAR
-        )
-        """)
-    cur.execute(command)
+    return pd.DataFrame(df)

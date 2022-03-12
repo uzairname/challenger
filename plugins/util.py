@@ -26,7 +26,6 @@ async def hi_test(ctx: tanjun.abc.Context) -> None:
 async def uptime(ctx:tanjun.abc.Context) -> None:
     time_diff = time.time() - Bot.start_time
     await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/60, 2)) + " minutes")
-    # await ctx.respond(f"This is the invite link: " + INVITE_LINK)
 
 
 @tanjun.as_loader
