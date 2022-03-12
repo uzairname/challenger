@@ -1,18 +1,22 @@
 import hikari
 import tanjun
 
+import time
+
 import logging
 import os
 from __init__ import *
 
-def build_bot() -> hikari.GatewayBot:
-    TOKEN = os.environ.get("PELA_TOKEN")
-    bot = hikari.GatewayBot(TOKEN)
+class Bot:
+    start_time = None
+
+def build_bot(token) -> hikari.GatewayBot:
+    bot = hikari.GatewayBot(token)
 
     client = (
         tanjun.Client.from_gateway_bot(
             bot,
-            mention_prefix=True,
+            mention_prefix=True
         )
     )
 
@@ -20,13 +24,17 @@ def build_bot() -> hikari.GatewayBot:
 
     @bot.listen(hikari.StartedEvent)
     async def bot_started(event: hikari.StartedEvent):
+
+        Bot.start_time = time.time()
+
         if os.environ.get('DSP') == "Production":
             logging.info("███ Bot is in the production environment")
             await client.declare_global_commands()
         else:
             logging.info("███ Bot is in a testing environment")
             await bot.rest.edit_my_member(guild=TESTING_GUILD_ID, nickname=f"Pela ({os.environ.get('DSP')})")
-            await client.declare_global_commands(guild=TESTING_GUILD_ID)
+            await client.clear_application_commands(guild=TESTING_GUILD_ID)
+            await client.declare_global_commands(guild=TESTING_GUILD_ID, force=True)
 
 
         # for c in client.components:

@@ -1,9 +1,12 @@
 import os
 from bot import build_bot
 import logging
-from database import *
+from database import Database
 
+DB = Database()
 
 if __name__ == "__main__":
-    config_database()
-    build_bot().run()
+    DB.create_connection()
+    DB.setup()
+    DB.close_connection()
+    build_bot(os.environ.get("PELA_TOKEN")).run()
