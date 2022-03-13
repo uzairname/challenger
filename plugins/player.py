@@ -17,19 +17,19 @@ component = tanjun.Component(name="player module")
 @component.with_slash_command
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
 async def register(ctx: tanjun.abc.Context) -> None:
-    # DB.open_connection()
-    # #check whether player is registered
-    # user_id = ctx.author.id
-    #
-    # player_info = DB.get_players(user_id=user_id)
-    # if not player_info.empty:
-    #     DB.update_player(user_id, username=ctx.author.username)
-    #     await ctx.respond("You have already registered. Updated username")
-    #
-    # DB.add_player(user_id)
-    # DB.update_player(user_id, username=ctx.author.username, elo=DEFAULT_ELO, time_registered=datetime.fromtimestamp(time.time()))
-    #
-    # DB.close_connection()
+    DB.open_connection()
+    #check whether player is registered
+    user_id = ctx.author.id
+
+    player_info = DB.get_players(user_id=user_id)
+    if not player_info.empty:
+        DB.update_player(user_id, username=ctx.author.username)
+        await ctx.respond("You have already registered. Updated username")
+
+    DB.add_player(user_id)
+    DB.update_player(user_id, username=ctx.author.username, elo=DEFAULT_ELO, time_registered=datetime.fromtimestamp(time.time()))
+
+    DB.close_connection()
 
     await ctx.respond("You have registered.")
 
