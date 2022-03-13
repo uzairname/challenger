@@ -29,19 +29,18 @@ class Database:
             print('Database connection closed.')
 
     def setup(self):
+        self.open_connection()
+
+
 
         # command = """ALTER TABLE players
-        #     ALTER COLUMN user_id TYPE BIGINT
         # """
         #
         # self.cur.execute(command)
 
-        # command = """
-        #     SELECT * FROM matches
-        #     WHERE match_id = 15
-        # """
-        # self.cur.execute(command)
-        # print(self.cur.fetchall())
+
+
+        self.update_match(match_id=36, player1=None)
 
 
 
@@ -51,7 +50,7 @@ class Database:
 
         # print("player elo: ", test_get_elo(conn, cur, "12345"))
         # self.add_player(882323)
-        self.update_player(882323, time_registered=datetime.fromtimestamp(round(time.time())))
+        self.update_player(882323, elo=243, time_registered=datetime.fromtimestamp(round(time.time())))
 
 
         # self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
@@ -63,7 +62,7 @@ class Database:
         # plyrs = self.get_players(top_by_elo=3)
         # print(plyr + "\n" + plyrs)
 
-        pass
+        self.close_connection()
 
 
     def create_match(self):
@@ -76,12 +75,17 @@ class Database:
         command = """
             UPDATE matches
             SET"""
-
         for column in kwargs.keys():
             if not column in self.matches_columns:
                 continue
             command = command + """
-            """ + str(column) + """ = '""" + str(kwargs[column]) + """',"""
+            """ + str(column) + """ = """
+
+            if kwargs[column]:
+                val = """'""" + str(kwargs[column]) + """'"""
+            else:
+                val = "NULL"
+            command = command + val + ""","""
 
         command = command[:-1] + """
             WHERE match_id = """ + str(match_id) + """
@@ -90,17 +94,18 @@ class Database:
         print("update_match:\n" + str(command))
         self.cur.execute(command)
 
+
     def get_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
 
         command = """SELECT * FROM matches
-            """
+            WHERE"""
         if match_id:
-            command = command + """WHERE match_id=""" + str(match_id) + """
+            command = command + """match_id=""" + str(match_id) + """
             AND """
         if player:
             command = command + """(player1=""" + str(player) + """ or player2=""" + str(player) + """)
-            AND """
-        command = command[:-4] + """ORDER BY match_id DESC
+            AND"""
+        command = command.rsplit("\n", 1)[0]+ """ ORDER BY match_id DESC
             LIMIT """ + str(number) + """"""
 
         print("█get recent matches: match id:" + str(match_id) + " player: " + str(player) + "\n" + str(command))
@@ -108,13 +113,15 @@ class Database:
         self.cur.execute(command)
         matches = self.cur.fetchall()
 
-        print("AAAAAAAAAAAAmatches: " + str(matches))
+        print("matches: " + str(matches))
 
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'matches' """
         self.cur.execute(command)
         columns = []
         for c in self.cur.fetchall():
             columns.append(c[3])  # IDK if this is right!!!
+
+        print(columns)
 
         return construct_df(columns=columns, rows=matches, index_column="match_id")  # returns a pandas dataframe
 
@@ -125,20 +132,25 @@ class Database:
         self.cur.execute(command, (user_id,))
 
 
-    def update_player(self, user_id, **kwargs):
+    def update_player(self, player_id, **kwargs):
 
         command = """
             UPDATE players
             SET"""
-
         for column in kwargs.keys():
             if not column in self.players_columns:
                 continue
             command = command + """
-            """ + str(column) + """ = '""" + str(kwargs[column]) + """',"""
+            """ + str(column) + """ = """
+
+            if kwargs[column]:
+                val = """'""" + str(kwargs[column]) + """'"""
+            else:
+                val = "NULL"
+            command = command + val + ""","""
 
         command = command[:-1] + """
-            WHERE user_id = """ + str(user_id) + """
+            WHERE user_id = """ + str(player_id) + """
         """
 
         print("update_player:\n" + str(command))
@@ -165,13 +177,15 @@ class Database:
         self.cur.execute(command)
         player = self.cur.fetchall()
 
-        print("player: " + str(player))
+        player = player
 
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'players' """
         self.cur.execute(command)
         columns = []
         for c in self.cur.fetchall():
             columns.append(c[3])  #IDK if this is right!!!
+
+        columns = columns
 
         return construct_df(columns=columns, rows=player, index_column="user_id")  #returns a pandas dataframe
 
@@ -195,13 +209,18 @@ class Database:
         """)
         self.cur.execute(command)
 
-    players_columns = ["user_id", "username", "elo", "time_registered"]
+
+    class roles:
+        STAFF="staff"
+        LILAPELA="lilapela"
+    players_columns = ["user_id", "username", "elo", "time_registered", "role"]
     def create_player_table(self):
         command = ("""
             CREATE TABLE IF NOT EXISTS players (
-                user_id INT PRIMARY KEY,
+                user_id BIGINT PRIMARY KEY,
                 username VARCHAR,
-                elo FLOAT
+                elo FLOAT,
+                role VARCHAR
             )
             """)
         self.cur.execute(command)
