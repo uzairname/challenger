@@ -4,11 +4,6 @@ import functools
 import pandas as pd
 import numpy as np
 
-# helper functions to do stuff
-# TODO make this
-
-#table of matches:
-#columns: Match id, players(list of ids), result
 
 class Database:
 
@@ -45,54 +40,34 @@ class Database:
         # print("player elo: ", test_get_elo(conn, cur, "12345"))
         # test_add_player(self.conn, self.cur, "12345678", "feap", "100")
 
+
         self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
         self.update_match(match_id=3, elo_change=32)
 
+        match4p = self.get_recent_matches(match_id=4).iloc[0,:]["player1"]
+        print(type(match4p))
 
-
-        try:
-            a = self.get_recent_matches(player=4619427).loc[0, :]
-            print("a:  " + str(a))
-        except :
-            print("█error")
-    #Functions below:
 
     def create_match(self):
         command = """INSERT INTO matches (player1) VALUES(NULL)"""
         self.cur.execute(command)
 
-    def if_notnull(self, x, string):
-        if not x is None:
-            return string
-        else:
-            return """"""
-
-    def update_match(self, match_id, player1=None, player2=None, outcome=None, p1_declared=None, p2_declared=None, elo_change=None):
+    def update_match(self, match_id, **kwargs):
 
         command = """
             UPDATE matches
-            SET"""\
-                  + self.if_notnull(player1, """
-            player1 = """ + str(player1) + """,""") \
-            \
-                  + self.if_notnull(player2, """
-            player2 = """ + str(player2) + """,""") \
-            \
-                  + self.if_notnull(outcome, """
-            outcome = '""" + str(outcome) + """',""") \
-            \
-                  + self.if_notnull(p1_declared, """
-            p1_declared = '""" + str(p1_declared) + """',""") \
-            \
-                  + self.if_notnull(p2_declared, """
-            p2_declared = '""" + str(p2_declared) + """',""") \
-            \
-                  + self.if_notnull(elo_change, """
-            elo_change = """ + str(elo_change) + """,""")
+            SET"""
+
+        for column in kwargs.keys():
+            if not column in self.matches_columns:
+                continue
+            command = command + """
+            """ + str(column) + """ = '""" + str(kwargs[column]) + """',"""
 
         command = command[:-1] + """
             WHERE match_id = """ + str(match_id) + """
         """
+        print(command)
 
         self.cur.execute(command)
 
@@ -142,15 +117,17 @@ class Database:
         self.cur.execute(command, (new_user_id, new_username, new_elo,))
 
 
+    matches_columns = ["match_id", "player1", "player2", "outcome", "p1_declared", "p2_declared", "time_started", "elo_change"]
     def create_match_table(self):
         command = ("""
         CREATE TABLE IF NOT EXISTS matches (
             match_id SERIAL PRIMARY KEY,
-            time_started TIMESTAMP,
             player1 BIGINT,
             player2 BIGINT,
             outcome VARCHAR,
-            declared_by VARCHAR,
+            p1_declared VARCHAR,
+            p2_declared VARCHAR
+            time_started TIMESTAMP,
             elo_change FLOAT
         )
         """)
