@@ -34,17 +34,13 @@ class Database:
 
 
         # command = """ALTER TABLE players
-        #     ADD COLUMN role VARCHAR
         # """
         #
         # self.cur.execute(command)
 
-        # command = """
-        #     SELECT * FROM matches
-        #     WHERE match_id = 15
-        # """
-        # self.cur.execute(command)
-        # print(self.cur.fetchall())
+
+
+        self.update_match(match_id=36, player1=None)
 
 
 
@@ -54,7 +50,7 @@ class Database:
 
         # print("player elo: ", test_get_elo(conn, cur, "12345"))
         # self.add_player(882323)
-        self.update_player(882323, time_registered=datetime.fromtimestamp(round(time.time())))
+        self.update_player(882323, elo=243, time_registered=datetime.fromtimestamp(round(time.time())))
 
 
         # self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
@@ -79,12 +75,17 @@ class Database:
         command = """
             UPDATE matches
             SET"""
-
         for column in kwargs.keys():
             if not column in self.matches_columns:
                 continue
             command = command + """
-            """ + str(column) + """ = '""" + str(kwargs[column]) + """',"""
+            """ + str(column) + """ = """
+
+            if kwargs[column]:
+                val = """'""" + str(kwargs[column]) + """'"""
+            else:
+                val = "NULL"
+            command = command + val + ""","""
 
         command = command[:-1] + """
             WHERE match_id = """ + str(match_id) + """
@@ -131,20 +132,25 @@ class Database:
         self.cur.execute(command, (user_id,))
 
 
-    def update_player(self, user_id, **kwargs):
+    def update_player(self, player_id, **kwargs):
 
         command = """
             UPDATE players
             SET"""
-
         for column in kwargs.keys():
             if not column in self.players_columns:
                 continue
             command = command + """
-            """ + str(column) + """ = '""" + str(kwargs[column]) + """',"""
+            """ + str(column) + """ = """
+
+            if kwargs[column]:
+                val = """'""" + str(kwargs[column]) + """'"""
+            else:
+                val = "NULL"
+            command = command + val + ""","""
 
         command = command[:-1] + """
-            WHERE user_id = """ + str(user_id) + """
+            WHERE user_id = """ + str(player_id) + """
         """
 
         print("update_player:\n" + str(command))

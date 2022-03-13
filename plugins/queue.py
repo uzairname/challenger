@@ -32,8 +32,9 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 
     match = DB.get_matches().iloc[0, :]
 
-    #should be redundant
+    #assuming latest match shoud never have 2 ppl, this should never happen
     if match["player1"] and match["player2"]:
+        await ctx.get_channel().send("Match was full, creating new match")
         DB.create_match()
         match = DB.get_matches().iloc[0, :]
 
@@ -70,10 +71,7 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 #leave queue
 @component.with_slash_command
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True)
-@check_errors
 async def leave_q(ctx: tanjun.abc.Context) -> None:
-
-    response = "Success"
 
     player_id = ctx.author.id
     DB.open_connection()
@@ -87,14 +85,20 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 
     match = DB.get_matches().iloc[0,:]
 
+    response = "You've left the queue"
     if match["player1"] and match["player2"]:
         response = "Queue is already full, match should've started" # assuming latest match never has 2 ppl, this should never happen
+        DB.close_connection()
+        return
     if match["player1"] == player_id:
         DB.update_match(match["match_id"], player1 = None)
-    elif match["player2"] == player_id:
+        await ctx.get_channel().send("A player has left match " + str(match["match_id"]))
+    elif match["player2"] == player_id:  #Assuming player1 can't leave the match after player2 joins, this should never happen
         DB.update_match(match["match_id"], player2 = None)
+        await ctx.get_channel().send("player 2 left " + str(match["match_id"]))
     else:
-        response = f"You are not queued for the next match"
+        response = f"You're not queued for the next match"
+
     DB.close_connection()
 
     await ctx.respond(response)
@@ -106,7 +110,6 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True)
 async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> None:
 
-    response = "sucessful"
     DB.open_connection()
 
     player_info = DB.get_players(user_id=ctx.author.id)
@@ -117,22 +120,22 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
 
     print("staff : " + str(isStaff))
 
-    # try:
-    def get_match():
-        if isStaff:
-            return DB.get_matches(match_id=match_number) #don't filter by player if staff
-        elif match_number == "latest": #they didn't specify a match number
-            return DB.get_matches(player=ctx.author.id).iloc[0,:]
-        else:
-            return DB.get_matches(player=ctx.author.id, match_id=match_number).iloc[0,:]
-    match = get_match()
-    match_id = match["match_id"]
-    print("█MATCH: \n" + str(match))
-    # except:
-    #     print("error in getting match")
-    #     await ctx.respond("No match found")
-    #     DB.close_connection()
-    #     return
+    try:
+        def get_match():
+            if isStaff:
+                return DB.get_matches(match_id=match_number) #don't filter by player if staff
+            elif match_number == "latest": #they didn't specify a match number
+                return DB.get_matches(player=ctx.author.id).iloc[0,:]
+            else:
+                return DB.get_matches(player=ctx.author.id, match_id=match_number).iloc[0,:]
+        match = get_match()
+        match_id = match["match_id"]
+        print("█MATCH: \n" + str(match))
+    except:
+        print("error in getting match")
+        await ctx.respond("No match found")
+        DB.close_connection()
+        return
 
     #check if match is full
     if match["player1"] is None or match["player2"] is None:
@@ -168,14 +171,11 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         desired_outcome=result
         DB.update_match(match_id=match_id, outcome=result)
 
-
-
-
     old_outcome = match["outcome"]
     match = get_match()
 
     response = "Declared results for match " + str(match_id)
-    desired_outcome
+
     if old_outcome != desired_outcome:
         if isStaff:
             await ctx.get_channel().send("Match " + str(match_id) + " results declared by staff: " + str(desired_outcome))
