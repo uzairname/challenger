@@ -16,6 +16,8 @@ component = tanjun.Component(name="hi module")
 async def hi_test(ctx: tanjun.abc.Context) -> None:
     await asyncio.sleep(6)
     response = await ctx.respond(f"Hi {ctx.author.mention}!{nl}This is the testing version. More features coming soon", ensure_result=True)
+    await asyncio.sleep(6)
+    await response.delete()
 
 
 @component.with_slash_command

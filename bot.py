@@ -34,7 +34,11 @@ def build_bot(token) -> hikari.GatewayBot:
         else:
             logging.info("███ Bot is in a testing environment")
             await bot.rest.edit_my_member(guild=TESTING_GUILD_ID, nickname=f"Pela ({os.environ.get('DSP')})")
-            await client.declare_global_commands(guild=TESTING_GUILD_ID)
+
+            commands = await client.declare_global_commands(guild=TESTING_GUILD_ID)
+            for c in client.components:
+                for command in c.slash_commands:
+                    print(command.name + " " + str(command.tracked_command_id))
 
 
         # for c in client.components:

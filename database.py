@@ -33,10 +33,10 @@ class Database:
     def setup(self):
 
         # command = """ALTER TABLE matches
-        #     ADD declared_by VARCHAR,
-        #     ADD time_started TIMESTAMP
+        #     ADD p1_declared VARCHAR,
+        #     ADD p2_declared VARCHAR
         # """
-
+        #
         # self.cur.execute(command)
 
         # create_player_table(self.conn, self.cur)
@@ -62,7 +62,7 @@ class Database:
         self.cur.execute(command)
 
 
-    def update_match(self, match_id, player1=None, player2=None, outcome=None, declared_by=None, elo_change=None):
+    def update_match(self, match_id, player1=None, player2=None, outcome=None, p1_declared=None, p2_declared=None, elo_change=None):
 
         def if_notnull(x, string):
             if not x is None:
@@ -82,8 +82,11 @@ class Database:
                   + if_notnull(outcome, """
             outcome = '""" + str(outcome) + """',""") \
             \
-                  + if_notnull(declared_by, """
-            declared_by = '""" + str(declared_by) + """',""") \
+                  + if_notnull(p1_declared, """
+            p1_declared = '""" + str(p1_declared) + """',""") \
+            \
+                  + if_notnull(p2_declared, """
+            p2_declared = '""" + str(p2_declared) + """',""") \
             \
                   + if_notnull(elo_change, """
             elo_change = """ + str(elo_change) + """,""")
@@ -102,9 +105,13 @@ class Database:
     def is_player_registered(self, user_id) -> bool:
         raise NotImplementedError
 
-
-    def get_recent_matches(self, player=None, number=1) -> pd.DataFrame:
-        if player is not None:
+    def get_recent_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
+        if match_id is not None:
+            command = """
+                SELECT * FROM matches
+                WHERE match_id=""" + str(match_id) + """
+            """
+        elif player is not None:
             command = """
                 SELECT * FROM matches
                 WHERE player1=""" + str(player) + """ or player2=""" + str(player) + """
