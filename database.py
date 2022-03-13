@@ -2,6 +2,7 @@ import psycopg2
 import os
 import functools
 import pandas as pd
+import numpy as np
 
 # helper functions to do stuff
 # TODO make this
@@ -11,11 +12,13 @@ import pandas as pd
 
 class Database:
 
-    def __init__(self):
-        self.conn = None
-        self.cur = None
+    conn = None
+    cur = None
 
-    def create_connection(self):
+    def __init__(self):
+        pass
+
+    def open_connection(self):
         self.conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
         self.cur = self.conn.cursor()
         print('Database connection opened.')
@@ -30,11 +33,10 @@ class Database:
     def setup(self):
 
         # command = """ALTER TABLE matches
-        # ALTER COLUMN elo_change TYPE FLOAT,
-        # ALTER COLUMN player1 TYPE BIGINT,
-        # ALTER COLUMN player2 TYPE BIGINT;
+        #     ADD p1_declared VARCHAR,
+        #     ADD p2_declared VARCHAR
         # """
-
+        #
         # self.cur.execute(command)
 
         # create_player_table(self.conn, self.cur)
@@ -46,6 +48,13 @@ class Database:
         self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
         self.update_match(match_id=3, elo_change=32)
 
+
+
+        try:
+            a = self.get_recent_matches(player=4619427).loc[0, :]
+            print("a:  " + str(a))
+        except :
+            print("█error")
     #Functions below:
 
     def create_match(self):
@@ -53,7 +62,7 @@ class Database:
         self.cur.execute(command)
 
 
-    def update_match(self, match_id, player1=None, player2=None, outcome=None, elo_change=None):
+    def update_match(self, match_id, player1=None, player2=None, outcome=None, p1_declared=None, p2_declared=None, elo_change=None):
 
         def if_notnull(x, string):
             if not x is None:
@@ -63,16 +72,26 @@ class Database:
 
         command = """
             UPDATE matches
-            SET""" \
+            SET"""\
                   + if_notnull(player1, """
-            player1 = """ + str(player1) + """""") \
-                  + if_notnull(player2, """,
-            player2 = """ + str(player2) + """""") \
-                  + if_notnull(outcome, """,
-            outcome = '""" + str(outcome) + """'""") \
+            player1 = """ + str(player1) + """,""") \
+            \
+                  + if_notnull(player2, """
+            player2 = """ + str(player2) + """,""") \
+            \
+                  + if_notnull(outcome, """
+            outcome = '""" + str(outcome) + """',""") \
+            \
+                  + if_notnull(p1_declared, """
+            p1_declared = '""" + str(p1_declared) + """',""") \
+            \
+                  + if_notnull(p2_declared, """
+            p2_declared = '""" + str(p2_declared) + """',""") \
+            \
                   + if_notnull(elo_change, """
-            elo_change = """ + str(elo_change) + """""") \
-                  + """
+            elo_change = """ + str(elo_change) + """,""")
+
+        command = command[:-1] + """
             WHERE match_id = """ + str(match_id) + """
         """
 
@@ -86,19 +105,26 @@ class Database:
     def is_player_registered(self, user_id) -> bool:
         raise NotImplementedError
 
-
-    def get_recent_matches(self, player=None, number=1) -> []:
-        if player is not None:
+    def get_recent_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
+        if match_id is not None:
             command = """
-                SELECT * FROM matches 
+                SELECT * FROM matches
+                WHERE match_id=""" + str(match_id) + """
+            """
+        elif player is not None:
+            command = """
+                SELECT * FROM matches
                 WHERE player1=""" + str(player) + """ or player2=""" + str(player) + """
+                ORDER BY match_id DESC
                 LIMIT """ + str(number) + """
             """
         else:
-            command = """ SELECT * FROM matches ORDER BY match_id DESC LIMIT 1 """
+            command = """ SELECT * FROM matches ORDER BY match_id DESC LIMIT """ + str(number)
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
+
+        print("matches: " + str(matches))
 
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'matches' """
         self.cur.execute(command)
@@ -106,7 +132,7 @@ class Database:
         for c in self.cur.fetchall():
             columns.append(c[3])  #IDK if this is right!!!
 
-        return construct_df(columns=columns, rows=matches)
+        return construct_df(columns=columns, rows=matches, index_column="match_id")  #returns a pandas dataframe
 
 
 
@@ -127,6 +153,7 @@ class Database:
             player1 BIGINT,
             player2 BIGINT,
             outcome VARCHAR,
+            declared_by VARCHAR,
             elo_change FLOAT
         )
         """)
@@ -155,12 +182,13 @@ def check_errors(func):
     return wrapper_check_errors
 
 
-def construct_df(columns, rows):
+def construct_df(columns, rows, index_column:str):
 
-    df = {}
+    df_data = {}
     for i in range(len(columns)):
-        df[columns[i]] = []
+        df_data[columns[i]] = []
         for row in rows:
-            df[columns[i]].append(row[i])
+            df_data[columns[i]].append(row[i])
 
-    return pd.DataFrame(df)
+    df = pd.DataFrame(df_data, index=df_data[index_column])
+    return df
