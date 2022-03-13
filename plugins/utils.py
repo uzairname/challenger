@@ -1,6 +1,7 @@
 import functools
 import logging
 import tanjun
+import asyncio
 
 
 def check_errors(func):
