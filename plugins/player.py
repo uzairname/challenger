@@ -15,11 +15,9 @@ component = tanjun.Component(name="player module")
 
 
 @component.with_slash_command
-@tanjun.with_str_slash_option("username", "optional, set a custom username")
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
-async def register(ctx: tanjun.abc.Context, username=None) -> None:
+async def register(ctx: tanjun.abc.Context) -> None:
     DB.open_connection()
-
     #check whether player is registered
     user_id = ctx.author.id
 
@@ -31,6 +29,9 @@ async def register(ctx: tanjun.abc.Context, username=None) -> None:
     DB.add_player(user_id)
     DB.update_player(user_id, username=ctx.author.username, elo=DEFAULT_ELO, time_registered=datetime.fromtimestamp(time.time()))
 
+    DB.close_connection()
+
+    await ctx.respond("You have registered.")
 
 
 
@@ -48,13 +49,14 @@ def calc_elo_change(winner_elo, loser_elo): #winner's elo change. It's negative 
     return elo
 
 
-def update_player_elo(player1, player2, new_result, old_result):
+def update_players_elo(player1, player2, new_result, old_result):
     pass
     #old result is usually 0.
     #calculate elo for old result, then subtract it.
     #calculate elo for new result, then add it.
 
     #player 1 lost and has -1.   they should win (loss should've given -3, win should've given +5). new elo is -1--3+5 = 7.
+
 
 @tanjun.as_loader
 def load(client: tanjun.abc.Client) -> None:
