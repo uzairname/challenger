@@ -89,7 +89,6 @@ class results:
 @tanjun.with_str_slash_option("match_number", "optional, defaults to your latest match", default="latest")
 @tanjun.with_str_slash_option("result", "result", choices={"won":results.WIN, "lost":results.LOSE, "cancel":results.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True)
-@check_errors
 async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> None:
 
     response = "sucessful"
@@ -108,18 +107,19 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         DB.update_match(match_id=match_number, declared_by="Staff")
         response = "Staff declared winner"
 
-    try:
-        def refresh():
-            if match_number == "latest":
-                return DB.get_recent_matches(player=ctx.author.id).iloc[0,:]
-            else:
-                return DB.get_recent_matches(player=ctx.author.id, match_id=match_number).iloc[0,:]
-        match = refresh()
-        print("█MATCH: \n" + str(match))
-    except:
-        await ctx.respond("No match found")
-        DB.close_connection()
-        return
+    # try:
+    print("█uarcug,.rc'pgr,.")
+    def refresh():
+        if match_number == "latest":
+            return DB.get_recent_matches(player=ctx.author.id).iloc[0,:]
+        else:
+            return DB.get_recent_matches(player=ctx.author.id, match_id=match_number).iloc[0,:]
+    match = refresh()
+    print("█MATCH: \n" + str(match))
+    # except:
+    #     await ctx.respond("No match found")
+    #     DB.close_connection()
+    #     return
 
 
     #check if match is full
@@ -153,17 +153,33 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         if result == results.CANCEL:
             DB.update_match(match_id=match_id, p2_declared=results.CANCEL)
 
+    response = "Declared results for match " + str(match_id)
+
     match = refresh()
-    DB.close_connection()
+
+    old_outcome = match["outcome"]
 
     if match["p1_declared"] and match["p2_declared"]:
         if match["p1_declared"] == match["p2_declared"]:
-            winner = match["player1"]
-            await ctx.get_channel().send("Match " + str(match_id) + " results: " + str(winner))
+            new_outcome = match["p1_declared"]
+            if old_outcome != new_outcome:
+                await ctx.get_channel().send("Match " + str(match_id) + " results: " + str(new_outcome))
+                DB.update_match(match_id, outcome=new_outcome)
+            else:
+                response = "Match outcome is already " + str(new_outcome)
 
-    response = await ctx.respond(response, ensure_result=True)
+    DB.close_connection()
+    await ctx.respond(response, ensure_result=True)
 
-#leave
+
+def update_player_elo(player1, player2, new_result, old_result):
+    pass
+    #old result is usually 0.
+    #calculate elo for old result, then subtract it.
+    #calculate elo for new result, then add it.
+
+    #player 1 lost and has -1.   they should win (loss should've given -3, win should've given +5). new elo is -1--3+5 = 7.
+
 
 
 #TODO commands:
