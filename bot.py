@@ -16,7 +16,7 @@ def build_bot(token) -> hikari.GatewayBot:
 
     client = (tanjun.Client.from_gateway_bot(bot))
 
-    client.load_modules("plugins.util", "plugins.queue", "plugins.suggestions")  #, "plugins.embeds")
+    client.load_modules("plugins.util", "plugins.queue", "plugins.suggestions", "plugins.player")  #, "plugins.embeds")
 
     @bot.listen(hikari.StartedEvent)
     async def bot_started(event: hikari.StartedEvent):
