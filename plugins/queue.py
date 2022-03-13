@@ -34,15 +34,18 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 
     print("latest match:\n" + str(match))
 
-    if match["player1"] and match["player2"]: #should be redundant
-        DB.create_match()
-        match = DB.get_matches().iloc[0, :]
 
     if match["player1"] == player_id or match["player2"] == player_id:
         response = await ctx.respond(f"{ctx.author.mention} you're already in the queue", ensure_result=True)
         await asyncio.sleep(6)
         await response.delete()
         return
+
+
+    if match["player1"] and match["player2"]: #should be redundant
+        DB.create_match()
+        match = DB.get_matches().iloc[0, :]
+
 
     if not match["player1"]:
         DB.update_match(match_id=match["match_id"], player1=player_id)
@@ -104,19 +107,18 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         DB.update_match(match_id=match_number, declared_by="Staff")
         response = "Staff declared winner"
 
-    # try:
-    print("█uarcug,.rc'pgr,.")
-    def refresh():
-        if match_number == "latest":
-            return DB.get_matches(player=ctx.author.id).iloc[0, :]
-        else:
-            return DB.get_matches(player=ctx.author.id, match_id=match_number).iloc[0, :]
-    match = refresh()
-    print("█MATCH: \n" + str(match))
-    # except:
-    #     await ctx.respond("No match found")
-    #     DB.close_connection()
-    #     return
+    try:
+        def refresh():
+            if match_number == "latest":
+                return DB.get_matches(player=ctx.author.id).iloc[0,:]
+            else:
+                return DB.get_matches(player=ctx.author.id, match_id=match_number).iloc[0,:]
+        match = refresh()
+        print("█MATCH: \n" + str(match))
+    except:
+        await ctx.respond("No match found")
+        DB.close_connection()
+        return
 
 
     #check if match is full

@@ -31,12 +31,20 @@ class Database:
     def setup(self):
 
         # command = """ALTER TABLE players
-        #     ADD COLUMN username VARCHAR,
-        #     ADD COLUMN elo FLOAT,
-        #     ADD COLUMN time_registered TIMESTAMP
+        #     ALTER COLUMN user_id TYPE BIGINT
         # """
         #
         # self.cur.execute(command)
+
+        # command = """
+        #     SELECT * FROM matches
+        #     WHERE match_id = 15
+        # """
+        # self.cur.execute(command)
+        # print(self.cur.fetchall())
+
+
+
 
         # create_player_table(self.conn, self.cur)
         # create_match_table(self.conn, self.cur)
@@ -83,28 +91,24 @@ class Database:
         self.cur.execute(command)
 
     def get_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
-        command = """
-                SELECT * FROM matches
+
+        command = """SELECT * FROM matches
             """
         if match_id:
-            command = command + """
-                WHERE match_id=""" + str(match_id) + """
-            """
+            command = command + """WHERE match_id=""" + str(match_id) + """
+            AND """
         if player:
-            command = command + """
-                WHERE player1=""" + str(player) + """ or player2=""" + str(player) + """
-            """
-        command = command + """
-                ORDER BY match_id DESC
-                LIMIT """ + str(number) + """
-            """
+            command = command + """(player1=""" + str(player) + """ or player2=""" + str(player) + """)
+            AND """
+        command = command[:-4] + """ORDER BY match_id DESC
+            LIMIT """ + str(number) + """"""
 
         print("█get recent matches: match id:" + str(match_id) + " player: " + str(player) + "\n" + str(command))
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
 
-        print("matches: " + str(matches))
+        print("AAAAAAAAAAAAmatches: " + str(matches))
 
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'matches' """
         self.cur.execute(command)
