@@ -61,34 +61,33 @@ class Database:
         command = """INSERT INTO matches (player1) VALUES(NULL)"""
         self.cur.execute(command)
 
+    def if_notnull(self, x, string):
+        if not x is None:
+            return string
+        else:
+            return """"""
 
     def update_match(self, match_id, player1=None, player2=None, outcome=None, p1_declared=None, p2_declared=None, elo_change=None):
-
-        def if_notnull(x, string):
-            if not x is None:
-                return string
-            else:
-                return """"""
 
         command = """
             UPDATE matches
             SET"""\
-                  + if_notnull(player1, """
+                  + self.if_notnull(player1, """
             player1 = """ + str(player1) + """,""") \
             \
-                  + if_notnull(player2, """
+                  + self.if_notnull(player2, """
             player2 = """ + str(player2) + """,""") \
             \
-                  + if_notnull(outcome, """
+                  + self.if_notnull(outcome, """
             outcome = '""" + str(outcome) + """',""") \
             \
-                  + if_notnull(p1_declared, """
+                  + self.if_notnull(p1_declared, """
             p1_declared = '""" + str(p1_declared) + """',""") \
             \
-                  + if_notnull(p2_declared, """
+                  + self.if_notnull(p2_declared, """
             p2_declared = '""" + str(p2_declared) + """',""") \
             \
-                  + if_notnull(elo_change, """
+                  + self.if_notnull(elo_change, """
             elo_change = """ + str(elo_change) + """,""")
 
         command = command[:-1] + """
@@ -106,20 +105,23 @@ class Database:
         raise NotImplementedError
 
     def get_recent_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
-        if match_id is not None:
-            command = """
+        command = """
                 SELECT * FROM matches
+            """
+        if match_id:
+            command = command + """
                 WHERE match_id=""" + str(match_id) + """
             """
-        elif player is not None:
-            command = """
-                SELECT * FROM matches
+        if player:
+            command = command + """
                 WHERE player1=""" + str(player) + """ or player2=""" + str(player) + """
+            """
+        command = command + """
                 ORDER BY match_id DESC
                 LIMIT """ + str(number) + """
             """
-        else:
-            command = """ SELECT * FROM matches ORDER BY match_id DESC LIMIT """ + str(number)
+
+        print("get recent matches: match id:" + str(match_id) + " player: " + str(player) + "\n" + str(command))
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
@@ -135,14 +137,9 @@ class Database:
         return construct_df(columns=columns, rows=matches, index_column="match_id")  #returns a pandas dataframe
 
 
-
     def add_player(self, new_user_id, new_username, new_elo):
         command = "INSERT INTO players(user_id, username, elo) VALUES(%s, %s, %s)"
         self.cur.execute(command, (new_user_id, new_username, new_elo,))
-
-
-    def add_player_to_queue(self, user_id) -> int: #returns new match id
-        raise NotImplementedError
 
 
     def create_match_table(self):
