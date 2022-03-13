@@ -25,11 +25,18 @@ def build_bot(token) -> hikari.GatewayBot:
 
         if os.environ.get('DSP') == "Production":
             logging.info("███ Bot is in the production environment")
-            await client.declare_global_commands(force=True)
+            commands = await client.declare_global_commands(force=True)
+            for command in commands:
+                print("declared " + command.name)
         else:
             logging.info("███ Bot is in a testing environment")
             await bot.rest.edit_my_member(guild=TESTING_GUILD_ID, nickname=f"Pela ({os.environ.get('DSP')})")
-            await client.declare_global_commands(guild=TESTING_GUILD_ID, force=True)
+            await client.declare_application_commands([], guild=951529009697652736, force=True)
+            commands = await client.declare_global_commands(guild=TESTING_GUILD_ID, force=True)
+            for command in commands:
+                print("declared " + command.name)
+
+
 
     # async def guild_available(event: hikari.GuildAvailableEvent):
     #     guild_id = event.guild_id
