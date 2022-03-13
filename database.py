@@ -91,7 +91,7 @@ class Database:
             WHERE match_id = """ + str(match_id) + """
         """
 
-        print("update_match:\n" + str(command))
+        print("█GET MATCH: " +match_id + ", kwargs: " + str(kwargs)  +"\n" + str(command))
         self.cur.execute(command)
 
 
@@ -108,7 +108,7 @@ class Database:
         command = command.rsplit("\n", 1)[0]+ """ ORDER BY match_id DESC
             LIMIT """ + str(number) + """"""
 
-        print("█get recent matches: match id:" + str(match_id) + " player: " + str(player) + "\n" + str(command))
+        print("█GET MATCHES: by player: " + str(player) + ", id: " + str(match_id) + ", number: " + str(number) + "\n" + str(command))
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
@@ -153,7 +153,7 @@ class Database:
             WHERE user_id = """ + str(player_id) + """
         """
 
-        print("update_player:\n" + str(command))
+        print("█UPDATE PLAYER: " + str(player_id) + ", kwargs: " + str(kwargs) + "\n" + str(command))
         self.cur.execute(command)
 
 
@@ -172,7 +172,7 @@ class Database:
                 LIMIT """ + str(top_by_elo) + """
             """
 
-        print("█get players user id : " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n" + str(command))
+        print("█GET PLAYER: " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n" + str(command))
 
         self.cur.execute(command)
         player = self.cur.fetchall()
