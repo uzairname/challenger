@@ -1,8 +1,11 @@
+import time
+
 import psycopg2
 import os
 import functools
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 
 class Database:
@@ -27,9 +30,10 @@ class Database:
 
     def setup(self):
 
-        # command = """ALTER TABLE matches
-        #     ADD p1_declared VARCHAR,
-        #     ADD p2_declared VARCHAR
+        # command = """ALTER TABLE players
+        #     ADD COLUMN username VARCHAR,
+        #     ADD COLUMN elo FLOAT,
+        #     ADD COLUMN time_registered TIMESTAMP
         # """
         #
         # self.cur.execute(command)
@@ -38,19 +42,26 @@ class Database:
         # create_match_table(self.conn, self.cur)
 
         # print("player elo: ", test_get_elo(conn, cur, "12345"))
-        # test_add_player(self.conn, self.cur, "12345678", "feap", "100")
+        # self.add_player(882323)
+        self.update_player(882323, time_registered=datetime.fromtimestamp(round(time.time())))
 
 
-        self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
-        self.update_match(match_id=3, elo_change=32)
+        # self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
+        # self.update_match(match_id=3, elo_change=32)
 
-        match4p = self.get_recent_matches(match_id=4).iloc[0,:]["player1"]
-        print(type(match4p))
+        # plyr = self.get_players(user_id=1423456)
+        # print("plyr: " + str(plyr.empty))
+        #
+        # plyrs = self.get_players(top_by_elo=3)
+        # print(plyr + "\n" + plyrs)
+
+        pass
 
 
     def create_match(self):
         command = """INSERT INTO matches (player1) VALUES(NULL)"""
         self.cur.execute(command)
+
 
     def update_match(self, match_id, **kwargs):
 
@@ -67,19 +78,11 @@ class Database:
         command = command[:-1] + """
             WHERE match_id = """ + str(match_id) + """
         """
-        print(command)
 
+        print("update_match:\n" + str(command))
         self.cur.execute(command)
 
-    def get_elo_by_player(self, user_id):
-        command = "SELECT elo FROM players WHERE user_id=%s;"
-        self.cur.execute(command, (user_id,))
-        return self.cur.fetchall()
-
-    def is_player_registered(self, user_id) -> bool:
-        raise NotImplementedError
-
-    def get_recent_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
+    def get_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
         command = """
                 SELECT * FROM matches
             """
@@ -96,7 +99,7 @@ class Database:
                 LIMIT """ + str(number) + """
             """
 
-        print("get recent matches: match id:" + str(match_id) + " player: " + str(player) + "\n" + str(command))
+        print("█get recent matches: match id:" + str(match_id) + " player: " + str(player) + "\n" + str(command))
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
@@ -107,14 +110,69 @@ class Database:
         self.cur.execute(command)
         columns = []
         for c in self.cur.fetchall():
+            columns.append(c[3])  # IDK if this is right!!!
+
+        return construct_df(columns=columns, rows=matches, index_column="match_id")  # returns a pandas dataframe
+
+
+
+    def add_player(self, user_id):
+        command = "INSERT INTO players(user_id) VALUES(%s)"
+        self.cur.execute(command, (user_id,))
+
+
+    def update_player(self, user_id, **kwargs):
+
+        command = """
+            UPDATE players
+            SET"""
+
+        for column in kwargs.keys():
+            if not column in self.players_columns:
+                continue
+            command = command + """
+            """ + str(column) + """ = '""" + str(kwargs[column]) + """',"""
+
+        command = command[:-1] + """
+            WHERE user_id = """ + str(user_id) + """
+        """
+
+        print("update_player:\n" + str(command))
+        self.cur.execute(command)
+
+
+    def get_players(self, user_id=None, top_by_elo=None):
+
+        command = """
+                SELECT * FROM players
+            """
+        if user_id:
+            command = command + """
+                WHERE user_id=""" + str(user_id) + """
+            """
+        elif top_by_elo:
+            command = command + """
+                ORDER BY elo DESC
+                LIMIT """ + str(top_by_elo) + """
+            """
+
+        print("█get players user id : " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n" + str(command))
+
+        self.cur.execute(command)
+        player = self.cur.fetchall()
+
+        print("player: " + str(player))
+
+        command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'players' """
+        self.cur.execute(command)
+        columns = []
+        for c in self.cur.fetchall():
             columns.append(c[3])  #IDK if this is right!!!
 
-        return construct_df(columns=columns, rows=matches, index_column="match_id")  #returns a pandas dataframe
+        return construct_df(columns=columns, rows=player, index_column="user_id")  #returns a pandas dataframe
 
 
-    def add_player(self, new_user_id, new_username, new_elo):
-        command = "INSERT INTO players(user_id, username, elo) VALUES(%s, %s, %s)"
-        self.cur.execute(command, (new_user_id, new_username, new_elo,))
+
 
 
     matches_columns = ["match_id", "player1", "player2", "outcome", "p1_declared", "p2_declared", "time_started", "elo_change"]
@@ -133,12 +191,13 @@ class Database:
         """)
         self.cur.execute(command)
 
+    players_columns = ["user_id", "username", "elo", "time_registered"]
     def create_player_table(self):
         command = ("""
             CREATE TABLE IF NOT EXISTS players (
                 user_id INT PRIMARY KEY,
                 username VARCHAR,
-                elo VARCHAR
+                elo FLOAT
             )
             """)
         self.cur.execute(command)
@@ -157,7 +216,7 @@ def check_errors(func):
 
 
 def construct_df(columns, rows, index_column:str):
-
+    #returns pandas dataframe column names and 2d array
     df_data = {}
     for i in range(len(columns)):
         df_data[columns[i]] = []
