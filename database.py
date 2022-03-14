@@ -91,7 +91,7 @@ class Database:
             WHERE match_id = """ + str(match_id) + """
         """
 
-        print("█GET MATCH: " +match_id + ", kwargs: " + str(kwargs)  +"\n" + str(command))
+        print("█GET MATCH: " + str(match_id) + ", kwargs: " + str(kwargs)  +"\n" + str(command))
         self.cur.execute(command)
 
 
@@ -124,7 +124,6 @@ class Database:
         print(columns)
 
         return construct_df(columns=columns, rows=matches, index_column="match_id")  # returns a pandas dataframe
-
 
 
     def add_player(self, user_id):
