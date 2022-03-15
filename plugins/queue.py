@@ -245,7 +245,22 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     response = ""
     for player_id in players.index:
         player = players.loc[player_id]
-        response = response + str(player["username"]) + ": " + str(player["elo"]) + "\n"
+        response = response + str(player["username"]) + ": " + str(round(player["elo"])) + "\n"
+
+    await ctx.respond(response)
+    DB.close_connection()
+
+
+@component.with_slash_command
+@tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=False)
+async def get_match(ctx: tanjun.abc.Context) -> None:
+    player_id = ctx.author.id
+    DB.open_connection()
+
+    player_info = DB.get_players(player_id).iloc[0,:]
+
+    response = "Stats for " + str(player_info["username"]) + ":\n" +\
+        "elo: " + str(round(player_info["elo"]))
 
     await ctx.respond(response)
     DB.close_connection()
