@@ -32,8 +32,11 @@ class Database:
         self.open_connection()
 
 
-
-        # command = """ALTER TABLE players
+        #
+        # command = """ALTER TABLE matches
+        #     DROP COLUMN elo_change,
+        #     ADD COLUMN p1_elo FLOAT,
+        #     ADD COLUMN p2_elo FLOAT
         # """
         #
         # self.cur.execute(command)
@@ -77,6 +80,7 @@ class Database:
             SET"""
         for column in kwargs.keys():
             if not column in self.matches_columns:
+                print("column not found: " + str(column))
                 continue
             command = command + """
             """ + str(column) + """ = """
@@ -91,7 +95,7 @@ class Database:
             WHERE match_id = """ + str(match_id) + """
         """
 
-        print("update_match:\n" + str(command))
+        print("█UPDATE MATCH: " + str(match_id) + ", kwargs: " + str(kwargs)  +"\n")
         self.cur.execute(command)
 
 
@@ -100,20 +104,18 @@ class Database:
         command = """SELECT * FROM matches
             WHERE"""
         if match_id:
-            command = command + """match_id=""" + str(match_id) + """
-            AND """
+            command = command + """ match_id=""" + str(match_id) + """
+            AND"""
         if player:
-            command = command + """(player1=""" + str(player) + """ or player2=""" + str(player) + """)
+            command = command + """ (player1=""" + str(player) + """ or player2=""" + str(player) + """)
             AND"""
         command = command.rsplit("\n", 1)[0]+ """ ORDER BY match_id DESC
             LIMIT """ + str(number) + """"""
 
-        print("█get recent matches: match id:" + str(match_id) + " player: " + str(player) + "\n" + str(command))
+        print("█GET MATCHES: by player: " + str(player) + ", id: " + str(match_id) + ", number: " + str(number) + "\n")
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
-
-        print("matches: " + str(matches))
 
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'matches' """
         self.cur.execute(command)
@@ -121,10 +123,10 @@ class Database:
         for c in self.cur.fetchall():
             columns.append(c[3])  # IDK if this is right!!!
 
-        print(columns)
+        df = construct_df(columns=columns, rows=matches, index_column="match_id")
+        print(df)
 
-        return construct_df(columns=columns, rows=matches, index_column="match_id")  # returns a pandas dataframe
-
+        return df  # returns a pandas dataframe
 
 
     def add_player(self, user_id):
@@ -139,6 +141,7 @@ class Database:
             SET"""
         for column in kwargs.keys():
             if not column in self.players_columns:
+                print("Column not found: " + str(column))
                 continue
             command = command + """
             """ + str(column) + """ = """
@@ -153,7 +156,7 @@ class Database:
             WHERE user_id = """ + str(player_id) + """
         """
 
-        print("update_player:\n" + str(command))
+        print("█UPDATE PLAYER: " + str(player_id) + ", kwargs: " + str(kwargs) + "\n")
         self.cur.execute(command)
 
 
@@ -172,7 +175,7 @@ class Database:
                 LIMIT """ + str(top_by_elo) + """
             """
 
-        print("█get players user id : " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n" + str(command))
+        print("█GET PLAYER: " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n")
 
         self.cur.execute(command)
         player = self.cur.fetchall()
@@ -186,14 +189,16 @@ class Database:
             columns.append(c[3])  #IDK if this is right!!!
 
         columns = columns
+        df = construct_df(columns=columns, rows=player, index_column="user_id")
+        print(df)
 
-        return construct_df(columns=columns, rows=player, index_column="user_id")  #returns a pandas dataframe
+        return df  #returns a pandas dataframe
 
 
 
 
 
-    matches_columns = ["match_id", "player1", "player2", "outcome", "p1_declared", "p2_declared", "time_started", "elo_change"]
+    matches_columns = ["match_id", "player1", "player2", "outcome", "p1_declared", "p2_declared", "time_started", "p1_elo", "p2_elo"]
     def create_match_table(self):
         command = ("""
         CREATE TABLE IF NOT EXISTS matches (
@@ -204,7 +209,8 @@ class Database:
             p1_declared VARCHAR,
             p2_declared VARCHAR
             time_started TIMESTAMP,
-            elo_change FLOAT
+            p1_elo FLOAT,
+            p2_elo FLOAT
         )
         """)
         self.cur.execute(command)
