@@ -8,27 +8,27 @@ import numpy as np
 from datetime import datetime
 
 
+def check_errors(func):
+    # for database error
+    @functools.wraps(func)
+    def wrapper_check_errors(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("error in database: " + str(error))
+
+    return wrapper_check_errors
+
+
 class Database:
 
     conn = None
     cur = None
 
     def __init__(self):
-        pass
+        self.guild_id:int #might be set every time connection is opened
 
-    def open_connection(self):
-        self.conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
-        self.cur = self.conn.cursor()
-        print('Database connection opened.')
-
-    def close_connection(self):
-        self.cur.close()
-        self.conn.commit()
-        if self.conn is not None:
-            self.conn.close()
-            print('Database connection closed.')
-
-    def setup(self):
+    def setup(self): #TODO different db for every server
         self.open_connection()
 
 
@@ -60,11 +60,10 @@ class Database:
 
         self.close_connection()
 
-
+    #matches
     def create_match(self):
         command = """INSERT INTO matches (player1) VALUES(NULL)"""
         self.cur.execute(command)
-
 
     def update_match(self, match_id, **kwargs):
 
@@ -88,11 +87,10 @@ class Database:
             WHERE match_id = """ + str(match_id) + """
         """
 
-        print("█UPDATE MATCH: " + str(match_id) + ", kwargs: " + str(kwargs)  +"\n")
+        print("█UPDATE MATCH for guild " + str(self.guild_id) + ": " + str(match_id) + "kwargs: " + str(kwargs)  +"\n")
         self.cur.execute(command)
 
-
-    def get_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame:
+    def get_matches(self, player=None, match_id=None, is_full:bool=False, number=1) -> pd.DataFrame: #TODO implement isfull
 
         command = """SELECT * FROM matches
             WHERE"""
@@ -102,10 +100,13 @@ class Database:
         if player:
             command = command + """ (player1=""" + str(player) + """ or player2=""" + str(player) + """)
             AND"""
+        if is_full:
+            command = command + """ (player1 IS NOT NULL AND player2 IS NOT NULL)
+            AND"""
         command = command.rsplit("\n", 1)[0]+ """ ORDER BY match_id DESC
             LIMIT """ + str(number) + """"""
 
-        print("█GET MATCHES: by player: " + str(player) + ", id: " + str(match_id) + ", number: " + str(number) + "\n")
+        print("█GET MATCHES from guild: " + str(self.guild_id) + ": by player: " + str(player) + ", id: " + str(match_id) + ", number: " + str(number) + "\n")
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
@@ -122,6 +123,8 @@ class Database:
         return df  # returns a pandas dataframe
 
 
+
+    #players
     def add_player(self, user_id):
         command = "INSERT INTO players(user_id) VALUES(%s)"
         self.cur.execute(command, (user_id,))
@@ -187,10 +190,12 @@ class Database:
         return df  #returns a pandas dataframe
 
 
+    #queues
 
 
 
     matches_columns = ["match_id", "player1", "player2", "outcome", "p1_declared", "p2_declared", "time_started", "p1_elo", "p2_elo"]
+    @check_errors
     def create_match_table(self):
         command = ("""
         CREATE TABLE IF NOT EXISTS matches (
@@ -223,17 +228,29 @@ class Database:
             """)
         self.cur.execute(command)
 
+    @check_errors
+    def create_queue_table(self):
+        command = ("""
+            CREATE TABLE IF NOT EXISTS queues (
+            )
+            """)
+        self.cur.execute(command)
 
-def check_errors(func):
-    # for database error
-    @functools.wraps(func)
-    def wrapper_check_errors(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except (Exception, psycopg2.DatabaseError) as error:
-            print("test add player: " + str(error))
 
-    return wrapper_check_errors
+    def open_connection(self, guild_id=None):
+        self.guild_id = guild_id
+        self.conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+        self.cur = self.conn.cursor()
+        print('Database connection opened.')
+
+    def close_connection(self):
+        self.cur.close()
+        self.conn.commit()
+        if self.conn is not None:
+            self.conn.close()
+            print('Database connection closed.')
+
+
 
 
 def construct_df(columns, rows, index_column:str):

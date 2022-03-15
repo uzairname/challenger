@@ -2,6 +2,7 @@ import os
 from bot import build_bot
 import logging
 from database import Database
+from __init__ import *
 
 DB = Database()
 

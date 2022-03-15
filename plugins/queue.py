@@ -4,18 +4,17 @@ from plugins.utils import *
 from __main__ import DB
 
 
-
-
 component = tanjun.Component(name="queue module")
 
-#join the queue (if new, register)
+
+#join the queue
 @component.with_slash_command
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
 async def join_q(ctx: tanjun.abc.Context) -> None:
 
     DB.open_connection()
 
-    #check if player is registered
+    #Ensure player is registered
     player_id = ctx.author.id
     player_info = DB.get_players(user_id=player_id)
     if player_info.empty:
@@ -23,21 +22,21 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         DB.close_connection()
         return
 
+    #get queue info
     match = DB.get_matches().iloc[0,:]
-
-    #assuming latest match shoud never have 2 ppl, this should never happen
-    if match["player1"] and match["player2"]:
+    #ensure queue isn't full
+    if match["player1"] and match["player2"]: #assuming latest match shoud never have 2 ppl, this should never happen
         await ctx.get_channel().send("Match was full, creating new match")
         DB.create_match()
         match = DB.get_matches().iloc[0, :]
 
-    #check whether player is in the latest match
+    #check whether player is already in the queue
     if match["player1"] == player_id or match["player2"] == player_id:
         await ctx.respond(f"{ctx.author.mention} you're already in the queue")
         DB.close_connection()
         return
 
-    logging.info("Adding player to match")
+    #add player to queue along with relevant info
     player_elo = DB.get_players(user_id=player_id).iloc[0,:]["elo"]
     if not match["player1"]:
         DB.update_match(match_id=match["match_id"], player1=player_id, p1_elo=player_elo)
@@ -103,7 +102,7 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 
 @component.with_slash_command
 @tanjun.with_str_slash_option("match_number", "optional, defaults to your latest match", default="latest")
-@tanjun.with_str_slash_option("result", "result", choices={"won":results.WIN, "lost":results.LOSE, "cancel":results.CANCEL, "player 1":results.PLAYER1, "player 2":results.PLAYER2})
+@tanjun.with_str_slash_option("result", "result", choices={"won":results.WIN, "lost":results.LOSE, "cancel":results.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True)
 async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> None:
 
@@ -114,18 +113,13 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
     print("player info:\n" + str(player_info))
     print("\n" + str(player_info["role"]))
 
-    isStaff = False
-
-    print("staff : " + str(isStaff))
-
     try:
         def get_selected_match():
-            if isStaff:
-                return DB.get_matches(match_id=match_number).iloc[0,:] #don't filter by player if staff
-            elif match_number == "latest": #they didn't specify a match number
-                return DB.get_matches(player=player_id).iloc[0,:]
+            if match_number == "latest": #they didn't specify a match number
+                return DB.get_matches(player=player_id).iloc[0,:] #TODO by default make sure match is full
             else:
                 return DB.get_matches(player=player_id, match_id=match_number).iloc[0,:]
+
         match = get_selected_match() #the current match
         match_id = match["match_id"]
         print("█MATCH: \n" + str(match))
@@ -135,13 +129,15 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         DB.close_connection()
         return
 
-    #check if match is full
+    #check if match is full, won't be needed
     if match["player1"] is None or match["player2"] is None:
         await ctx.respond("Your match hasn't started")
         DB.close_connection()
         return
 
     async def update_players_elo(old_result, new_result):
+
+        #note: changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the recursive algorithm might take a while
 
         p1_elo = match["p1_elo"] #elo before the match. This is set when match is created, and never changed (unless player elo from a match before it changes)
         p2_elo = match["p2_elo"]
@@ -156,7 +152,6 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
     #set the new outcome based on player declare or staff declare
     old_outcome = match["outcome"]
     new_outcome = old_outcome
-    dec_outcome = result if isStaff else None
 
     if result==results.CANCEL:
         dec_outcome = result
@@ -164,27 +159,26 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         win_res = results.PLAYER1
         lose_res = results.PLAYER2
         if result == results.WIN:
-            dec_outcome=win_res
+            dec_outcome = win_res
         elif result == results.LOSE:
-            dec_outcome=lose_res
-        DB.update_match(match_id=match_id, p1_declared=dec_outcome)
+            dec_outcome = lose_res
+        DB.update_match(match_id=match_id, p1_declared=dec_outcome) #if dec_outcome isn't initialized yet, error in command input
     elif match["player2"] == ctx.author.id:
         win_res = results.PLAYER2
         lose_res = results.PLAYER1
         if result == results.WIN:
-            dec_outcome=win_res
+            dec_outcome = win_res
         elif result == results.LOSE:
-            dec_outcome=lose_res
+            dec_outcome = lose_res
         DB.update_match(match_id=match_id, p2_declared=dec_outcome)
+    else:
+        pass #invalid result
 
-    if isStaff:
+    #refresh match and check whether both declares are equal
+    match = get_selected_match()
+    if match["p1_declared"] == match["p2_declared"]:
         new_outcome = dec_outcome
-        response = "Declared by staff: " + str(new_outcome)
-    else: #check whether both declares are equal
-        match = get_selected_match()
-        if match["p1_declared"] == match["p2_declared"]:
-            new_outcome = dec_outcome
-        response = "Declared: you " + result + " match " + str(match_id)
+    response = "Declared: you " + result + " match " + str(match_id)
 
     if old_outcome != new_outcome:
 
@@ -213,6 +207,12 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
     await ctx.respond(response)
 
 
+@component.with_slash_command
+@tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
+async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
+
+    raise NotImplementedError
+
 
 
 @component.with_slash_command
@@ -223,10 +223,9 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 
     DB.open_connection()
 
-    match = DB.get_matches(player=player_id).iloc[0,:]
+    match = DB.get_matches(player=player_id, is_full=True).iloc[0,:]
 
     print("outcome: " + str(match["outcome"]))
-
 
     if match["outcome"]==results.PLAYER1:
         winner_id = match["player1"]
@@ -239,24 +238,25 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     else:
         result = "undecided"
 
-    await ctx.respond("Winner: " + result)
-
+    await ctx.respond("Match " + str(match["match_id"]) + " winner: " + result)
 
 
 
 @component.with_slash_command
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
-async def get_match(ctx: tanjun.abc.Context) -> None:
+async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     DB.open_connection()
     players = DB.get_players(top_by_elo=20)
 
-    response = ""
+    response = "Leaderboard:\n"
+    place = 0
     for player_id in players.index:
+        place = place + 1
         player = players.loc[player_id]
-        response = response + str(player["username"]) + ": " + str(round(player["elo"])) + "\n"
+        response = response + str(place) + ": " + str(player["username"]) + ": " + str(round(player["elo"])) + "\n"
 
-    await ctx.respond(response)
+    await ctx.respond(response, delete_after=200)
     DB.close_connection()
 
 
@@ -271,7 +271,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     response = "Stats for " + str(player_info["username"]) + ":\n" +\
         "elo: " + str(round(player_info["elo"]))
 
-    await ctx.respond(response)
+    await ctx.respond(response, delete_after=200)
     DB.close_connection()
 
 

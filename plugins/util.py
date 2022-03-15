@@ -12,6 +12,22 @@ component = tanjun.Component(name="hi module")
 
 
 @component.with_slash_command
+@tanjun.with_str_slash_option("guild", "a")
+@tanjun.as_slash_command("open", "test, delete", default_to_ephemeral=True)
+async def open_test(ctx: tanjun.abc.Context, guild) -> None:
+    DB.open_connection(guild_id=guild)
+    await ctx.respond("done")
+
+
+@component.with_slash_command
+@tanjun.as_slash_command("get", "test, delete", default_to_ephemeral=True)
+async def get_test(ctx: tanjun.abc.Context) -> None:
+    DB.get_matches()
+    await ctx.respond("done")
+
+
+
+@component.with_slash_command
 @tanjun.as_slash_command("hi", "a", default_to_ephemeral=True)
 async def hi_test(ctx: tanjun.abc.Context) -> None:
     await asyncio.sleep(6)

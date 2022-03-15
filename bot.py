@@ -11,6 +11,8 @@ class Bot:
     start_time = None
 
 
+
+
 def build_bot(token) -> hikari.GatewayBot:
     bot = hikari.GatewayBot(token)
 
@@ -35,10 +37,7 @@ def build_bot(token) -> hikari.GatewayBot:
             for command in commands:
                 print("declared " + command.name)
 
-
-
     # async def guild_available(event: hikari.GuildAvailableEvent):
     #     guild_id = event.guild_id
-    #     await client.declare_global_commands(guild=guild_id, force=True)
 
     return bot

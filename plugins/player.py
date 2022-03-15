@@ -25,7 +25,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
     if not player_info.empty:
         DB.update_player(user_id, username=ctx.author.username)
-        await ctx.respond("You've already registered. Successfully updated your info")
+        await ctx.respond("You've already registered. Updated your info")
         DB.close_connection()
         return
 
