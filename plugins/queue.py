@@ -140,10 +140,10 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
 
     async def update_players_elo(old_result, new_result):
 
-        p1_elo = match["p1_elo"] #elo before the match
+        p1_elo = match["p1_elo"] #elo before the match. This is set when match is created, and never changed (unless player elo from a match before it changes)
         p2_elo = match["p2_elo"]
 
-        elo_change = calc_elo_change(p1_elo, p2_elo, new_result) - calc_elo_change(p1_elo, p2_elo, old_result)
+        elo_change = calc_elo_change(p1_elo, p2_elo, new_result)
 
         DB.update_player(player_id=match["player1"], elo=p1_elo + elo_change[0])
         DB.update_player(player_id=match["player2"], elo=p2_elo + elo_change[1])
@@ -233,6 +233,22 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     await ctx.respond("Winner: " + result)
 
 
+
+
+@component.with_slash_command
+@tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
+async def get_match(ctx: tanjun.abc.Context) -> None:
+
+    DB.open_connection()
+    players = DB.get_players(top_by_elo=20)
+
+    response = ""
+    for player_id in players.index:
+        player = players.loc[player_id]
+        response = response + str(player["username"]) + ": " + str(player["elo"]) + "\n"
+
+    await ctx.respond(response)
+    DB.close_connection()
 
 
 

@@ -33,17 +33,11 @@ class Database:
 
 
         #
-        # command = """ALTER TABLE matches
-        #     DROP COLUMN elo_change,
-        #     ADD COLUMN p1_elo FLOAT,
-        #     ADD COLUMN p2_elo FLOAT
+        # command = """
+        # DELETE FROM players WHERE username is null;
         # """
         #
         # self.cur.execute(command)
-
-
-
-        self.update_match(match_id=36, player1=None)
 
 
 
@@ -53,7 +47,6 @@ class Database:
 
         # print("player elo: ", test_get_elo(conn, cur, "12345"))
         # self.add_player(882323)
-        self.update_player(882323, elo=243, time_registered=datetime.fromtimestamp(round(time.time())))
 
 
         # self.update_match(match_id=4, player1=111, player2=222, outcome="another outcome!!")
@@ -180,7 +173,7 @@ class Database:
         self.cur.execute(command)
         player = self.cur.fetchall()
 
-        player = player
+        print("eeee: " + str(player))
 
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'players' """
         self.cur.execute(command)
@@ -190,7 +183,6 @@ class Database:
 
         columns = columns
         df = construct_df(columns=columns, rows=player, index_column="user_id")
-        print(df)
 
         return df  #returns a pandas dataframe
 
