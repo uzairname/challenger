@@ -95,7 +95,7 @@ class Database:
             WHERE match_id = """ + str(match_id) + """
         """
 
-        print("█UPDATE MATCH: " + str(match_id) + ", kwargs: " + str(kwargs)  +"\n" + str(command))
+        print("█UPDATE MATCH: " + str(match_id) + ", kwargs: " + str(kwargs)  +"\n")
         self.cur.execute(command)
 
 
@@ -112,12 +112,10 @@ class Database:
         command = command.rsplit("\n", 1)[0]+ """ ORDER BY match_id DESC
             LIMIT """ + str(number) + """"""
 
-        print("█GET MATCHES: by player: " + str(player) + ", id: " + str(match_id) + ", number: " + str(number) + "\n" + str(command))
+        print("█GET MATCHES: by player: " + str(player) + ", id: " + str(match_id) + ", number: " + str(number) + "\n")
 
         self.cur.execute(command)
         matches = self.cur.fetchall()
-
-        print("matches: " + str(matches))
 
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'matches' """
         self.cur.execute(command)
@@ -125,9 +123,10 @@ class Database:
         for c in self.cur.fetchall():
             columns.append(c[3])  # IDK if this is right!!!
 
-        print(columns)
+        df = construct_df(columns=columns, rows=matches, index_column="match_id")
+        print(df)
 
-        return construct_df(columns=columns, rows=matches, index_column="match_id")  # returns a pandas dataframe
+        return df  # returns a pandas dataframe
 
 
     def add_player(self, user_id):
@@ -157,7 +156,7 @@ class Database:
             WHERE user_id = """ + str(player_id) + """
         """
 
-        print("█UPDATE PLAYER: " + str(player_id) + ", kwargs: " + str(kwargs) + "\n" + str(command))
+        print("█UPDATE PLAYER: " + str(player_id) + ", kwargs: " + str(kwargs) + "\n")
         self.cur.execute(command)
 
 
@@ -176,7 +175,7 @@ class Database:
                 LIMIT """ + str(top_by_elo) + """
             """
 
-        print("█GET PLAYER: " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n" + str(command))
+        print("█GET PLAYER: " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n")
 
         self.cur.execute(command)
         player = self.cur.fetchall()
@@ -190,8 +189,10 @@ class Database:
             columns.append(c[3])  #IDK if this is right!!!
 
         columns = columns
+        df = construct_df(columns=columns, rows=player, index_column="user_id")
+        print(df)
 
-        return construct_df(columns=columns, rows=player, index_column="user_id")  #returns a pandas dataframe
+        return df  #returns a pandas dataframe
 
 
 

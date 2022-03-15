@@ -33,7 +33,7 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 
     #check whether player is in the latest match
     if match["player1"] == player_id or match["player2"] == player_id:
-        response = await ctx.respond(f"{ctx.author.mention} you're already in the queue", ensure_result=True)
+        await ctx.respond(f"{ctx.author.mention} you're already in the queue")
         DB.close_connection()
         return
 
@@ -44,14 +44,13 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     elif not match["player2"]:
         DB.update_match(match_id=match["match_id"], player2=player_id, p2_elo=player_elo)
     else:
-        response = f"{ctx.author.mention} Try joining again"
+        response = f"{ctx.author.mention} Try joining again" #idk
 
     response = f"{ctx.author.mention} you have silently joined the queue"
 
     # After adding the player, check if match is full
     match = DB.get_matches().iloc[0,:]
     if match["player1"] and match["player2"]:
-        channel = ctx.get_channel()
         await ctx.get_channel().send("Match " + str(match["match_id"]) + " started: "\
                                      + str(match["player1"]) + " vs " + str(match['player2']))
         DB.create_match()
@@ -82,7 +81,7 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 
     response = "You've left the queue"
     if match["player1"] and match["player2"]:
-        response = "Queue is already full, match should've started" # assuming latest match never has 2 ppl, this should never happen
+        await ctx.respond("Queue is already full, match should've started") # assuming latest match never has 2 ppl, this should never happen
         DB.close_connection()
         return
     if match["player1"] == player_id:
@@ -135,16 +134,11 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
 
     #check if match is full
     if match["player1"] is None or match["player2"] is None:
-        await ctx.respond("This match's queue isn't full")
+        await ctx.respond("Your match hasn't started")
         DB.close_connection()
         return
 
     async def update_players_elo(old_result, new_result):
-
-        if match_id != DB.get_matches(player=player_id).iloc[0,:]["match_id"]:
-            await ctx.respond("Changing the result of old matches isn't supported yet")  # for now
-            DB.close_connection()
-            return
 
         p1_elo = match["p1_elo"] #elo before the match
         p2_elo = match["p2_elo"]
@@ -190,10 +184,16 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         response = "Declared: you " + result + " match " + str(match_id)
 
     if old_outcome != new_outcome:
-        print("old:" + str(old_outcome) + ", new: " + str(new_outcome))
+
+        if match_id != DB.get_matches(player=player_id).iloc[0,:]["match_id"]:
+            await ctx.respond("Changing the result of old matches isn't supported yet")  # for now
+            DB.close_connection()
+            return
+
+        elo_change = await update_players_elo(old_outcome, new_outcome) #updates everyone's elo accordingly, based on the current selected match
         DB.update_match(match_id, outcome=new_outcome)
 
-        elo_change = await update_players_elo(old_outcome, new_outcome)
+        #display results
         p1_current = DB.get_players(user_id=match["player1"]).iloc[0,:]["elo"]
         p2_current = DB.get_players(user_id=match["player2"]).iloc[0,:]["elo"]
         await ctx.get_channel().send(
@@ -220,7 +220,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 
     print("outcome: " + str(match["outcome"]))
 
-    result = ""
+    result = "undecided"
     if match["outcome"]==results.PLAYER1:
         winner_id = match["player1"]
         result = DB.get_players(user_id=winner_id).iloc[0,:]["username"]
@@ -229,8 +229,6 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
         result = DB.get_players(user_id=winner_id).iloc[0,:]["username"]
     elif match["outcome"] == results.CANCEL:
         result = "cancelled"
-    else:
-        result = "undecided"
 
     await ctx.respond("Winner: " + result)
 
