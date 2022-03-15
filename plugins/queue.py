@@ -51,8 +51,11 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     # After adding the player, check if match is full
     match = DB.get_matches().iloc[0,:]
     if match["player1"] and match["player2"]:
+        player1_name = DB.get_players(match['player1']).iloc[0,:]["username"]
+        player2_name = DB.get_players(match['player2']).iloc[0,:]["username"]
+
         await ctx.get_channel().send("Match " + str(match["match_id"]) + " started: "\
-                                     + str(match["player1"]) + " vs " + str(match['player2']))
+                                     + player1_name + " vs " + player2_name)
         DB.create_match()
     else:
         await ctx.get_channel().send("A player has joined match " + str(match["match_id"]))
@@ -194,12 +197,16 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
         DB.update_match(match_id, outcome=new_outcome)
 
         #display results
-        p1_current = DB.get_players(user_id=match["player1"]).iloc[0,:]["elo"]
-        p2_current = DB.get_players(user_id=match["player2"]).iloc[0,:]["elo"]
+        p1_info = DB.get_players(user_id=match["player1"]).iloc[0,:]
+        p2_info = DB.get_players(user_id=match["player2"]).iloc[0,:]
+        p1_current_elo = p1_info["elo"]
+        p2_current_elo = p2_info["elo"]
+        p1_name = p1_info["username"]
+        p2_name = p2_info["username"]
         await ctx.get_channel().send(
             "Match " + str(match_id) + " results: " + str(new_outcome) +
-            "\n Player 1: " + str(elo_change["old elo"][0]) + " + " + str(elo_change["change"][0]) + " = " + str(p1_current) +\
-            "\n Player 2: " + str(elo_change["old elo"][1]) + " + " + str(elo_change["change"][1]) + " = " + str(p2_current)
+            "\n" + str(p1_name) + ": " + str(round(elo_change["old elo"][0])) + " + " + str(round(elo_change["change"][0])) + " = " + str(round(p1_current_elo)) +\
+            "\n" + str(p2_name) + ": " + str(round(elo_change["old elo"][1])) + " + " + str(round(elo_change["change"][1])) + " = " + str(round(p2_current_elo))
         )
 
     DB.close_connection()
@@ -220,7 +227,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 
     print("outcome: " + str(match["outcome"]))
 
-    result = "undecided"
+
     if match["outcome"]==results.PLAYER1:
         winner_id = match["player1"]
         result = DB.get_players(user_id=winner_id).iloc[0,:]["username"]
@@ -229,6 +236,8 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
         result = DB.get_players(user_id=winner_id).iloc[0,:]["username"]
     elif match["outcome"] == results.CANCEL:
         result = "cancelled"
+    else:
+        result = "undecided"
 
     await ctx.respond("Winner: " + result)
 
