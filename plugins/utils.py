@@ -8,10 +8,9 @@ import numpy as np
 
 
 class results:
-    WIN = "won"
-    LOSE = "lost"
     PLAYER1 = "player 1"
     PLAYER2 = "player 2"
+    DRAW = "draw"
     CANCEL = "cancelled"
 
 
@@ -34,6 +33,9 @@ def calc_elo_change(p1_elo, p2_elo, result): #player 1's elo change
     elif result == results.PLAYER2:
         p1_elo_change =  k * (p(p1_elo, p2_elo)-1)
         p2_elo_change = k * p(p2_elo, p1_elo)
+    elif result == results.DRAW:
+        p1_elo_change =  k * (p(p1_elo, p2_elo)-0.5)
+        p2_elo_change = k * (p(p2_elo, p1_elo)-0.5)
     elif result == results.CANCEL or result is None:
         p1_elo_change = 0
         p2_elo_change = 0

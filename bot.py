@@ -5,12 +5,13 @@ import time
 import logging
 import os
 from __init__ import *
+from database import Database
+
+DB = Database()
 
 
 class Bot:
     start_time = None
-
-
 
 
 def build_bot(token) -> hikari.GatewayBot:
@@ -37,7 +38,11 @@ def build_bot(token) -> hikari.GatewayBot:
             for command in commands:
                 print("declared " + command.name)
 
-    # async def guild_available(event: hikari.GuildAvailableEvent):
-    #     guild_id = event.guild_id
+    @bot.listen(hikari.GuildAvailableEvent)
+    async def guild_available(event: hikari.GuildAvailableEvent):
+        # DB.open_connection(event.guild_id)
+        #
+        # DB.close_connection()
+        pass
 
     return bot

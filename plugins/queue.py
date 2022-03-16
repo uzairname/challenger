@@ -12,7 +12,8 @@ component = tanjun.Component(name="queue module")
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
 async def join_q(ctx: tanjun.abc.Context) -> None:
 
-    DB.open_connection()
+    #also need to pass in the guild id. Check if they're allowed to play in the lobby
+    DB.open_connection(guild_id=ctx.guild_id)
 
     #Ensure player is registered
     player_id = ctx.author.id
@@ -22,42 +23,61 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         DB.close_connection()
         return
 
-    #get queue info
-    match = DB.get_matches().iloc[0,:]
-    #ensure queue isn't full
-    if match["player1"] and match["player2"]: #assuming latest match shoud never have 2 ppl, this should never happen
-        await ctx.get_channel().send("Match was full, creating new match")
-        DB.create_match()
-        match = DB.get_matches().iloc[0, :]
+    #try to find a queue containing the current channel
+    all_queues = DB.get_queues()
+    queue = None
+    for id in all_queues["queue_id"]:
+        if ctx.channel_id in all_queues.loc[id, "channels"]:
+            queue = all_queues.loc[id,:]
+            break
 
+    if queue is None: #if a queue belonging to this channel isn't found
+        await ctx.respond("This channel doesn't have a lobby")
+        DB.close_connection()
+        return
+
+    print(queue)
     #check whether player is already in the queue
-    if match["player1"] == player_id or match["player2"] == player_id:
+    if queue["player1"] == player_id or queue["player2"] == player_id:
         await ctx.respond(f"{ctx.author.mention} you're already in the queue")
         DB.close_connection()
         return
 
     #add player to queue along with relevant info
-    player_elo = DB.get_players(user_id=player_id).iloc[0,:]["elo"]
-    if not match["player1"]:
-        DB.update_match(match_id=match["match_id"], player1=player_id, p1_elo=player_elo)
-    elif not match["player2"]:
-        DB.update_match(match_id=match["match_id"], player2=player_id, p2_elo=player_elo)
+    if not queue["player1"]:
+        DB.update_queue(queue_id=queue["queue_id"], player1=player_id)
+    elif not queue["player2"]:
+        DB.update_queue(queue_id=queue["queue_id"], player2=player_id)
     else:
-        response = f"{ctx.author.mention} Try joining again" #idk
-
+        await ctx.respond("Queue is full")
+        DB.close_connection()#idk
+        return
     response = f"{ctx.author.mention} you have silently joined the queue"
 
-    # After adding the player, check if match is full
-    match = DB.get_matches().iloc[0,:]
-    if match["player1"] and match["player2"]:
-        player1_name = DB.get_players(match['player1']).iloc[0,:]["username"]
-        player2_name = DB.get_players(match['player2']).iloc[0,:]["username"]
 
-        await ctx.get_channel().send("Match " + str(match["match_id"]) + " started: "\
-                                     + player1_name + " vs " + player2_name)
+    # After adding the player, check if queue is full
+    queue = DB.get_queues().loc[queue["queue_id"],:] #refresh the variable
+
+    if queue["player1"] and queue["player2"]:
+
+        player1_ping = "<@" + str(queue["player1"]) + ">"
+        player2_ping = "<@" + str(queue["player2"]) + ">"
+
         DB.create_match()
+        print("player1: " + str((queue['player1'])) + "\n")
+
+        DB.update_match(match_id=DB.get_recent_matches().iloc[0, :]["match_id"],
+                        player1=queue['player1'],
+                        player2=queue['player2'],
+                        p1_elo=DB.get_players(user_id=queue['player1']).iloc[0,:]["elo"],
+                        p2_elo=DB.get_players(user_id=queue['player2']).iloc[0,:]["elo"])
+
+        DB.update_queue(queue_id=queue["queue_id"], player1=None, player2=None)
+
+        await ctx.get_channel().send("New match started: "\
+                                     + player1_ping + " vs " + player2_ping)
     else:
-        await ctx.get_channel().send("A player has joined match " + str(match["match_id"]))
+        await ctx.get_channel().send("A player has joined the queue")
 
     DB.close_connection()
 
@@ -69,73 +89,71 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True)
 async def leave_q(ctx: tanjun.abc.Context) -> None:
 
-    DB.open_connection()
+    DB.open_connection(ctx.guild_id)
 
     #check if player is registered
     player_id = ctx.author.id
     player_info = DB.get_players(user_id=player_id)
     if player_info.empty:
-        await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play")
+        await ctx.respond(f"Hello {ctx.author.mention}. Please register with /register to play")
         DB.close_connection()
         return
 
-    match = DB.get_matches().iloc[0,:]
+    all_queues = DB.get_queues()
+    queue = None
+    for id in all_queues["queue_id"]:
+        if ctx.channel_id in all_queues.loc[id, "channels"]:
+            queue = all_queues.loc[id,:]
+            break
 
-    response = "You've left the queue"
-    if match["player1"] and match["player2"]:
+    if queue is None:  # if a queue belonging to this channel isn't found
+        await ctx.respond("This channel doesn't have a lobby")
+        DB.close_connection()
+        return
+
+    response = "Left the queue"
+
+    if queue["player1"] and queue["player2"]:
         await ctx.respond("Queue is already full, match should've started") # assuming latest match never has 2 ppl, this should never happen
         DB.close_connection()
         return
-    if match["player1"] == player_id:
-        DB.update_match(match["match_id"], player1 = None)
-        await ctx.get_channel().send("A player has left match " + str(match["match_id"]))
-    elif match["player2"] == player_id:  #Assuming player1 can't leave the match after player2 joins, this should never happen
-        DB.update_match(match["match_id"], player2 = None)
-        await ctx.get_channel().send("player 2 left " + str(match["match_id"]))
+
+    if queue["player1"] == player_id:
+        DB.update_queue(queue["queue_id"], player1 = None)
+        await ctx.get_channel().send("A player has left the queue")
+    elif queue["player2"] == player_id:  #Assuming player1 can't leave the match after player2 joins, this should never happen
+        DB.update_match(queue["match_id"], player2 = None)
+        await ctx.get_channel().send("Player 2 left the queue??")
     else:
-        response = f"You're not queued for the next match"
+        response = f"You're not in the queue"
 
     DB.close_connection()
-
     await ctx.respond(response)
 
 
+class declares:
+    WIN = "win"
+    LOSS = "loss"
+    DRAW = "draw"
 @component.with_slash_command
-@tanjun.with_str_slash_option("match_number", "optional, defaults to your latest match", default="latest")
-@tanjun.with_str_slash_option("result", "result", choices={"won":results.WIN, "lost":results.LOSE, "cancel":results.CANCEL})
+@tanjun.with_str_slash_option("result", "result", choices={"win":declares.WIN, "loss":declares.LOSS, "draw":declares.DRAW})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True)
-async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> None:
+async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 
-    DB.open_connection()
+    DB.open_connection(ctx.guild_id)
     player_id = ctx.author.id
     player_info = DB.get_players(user_id=player_id)
 
-    print("player info:\n" + str(player_info))
-    print("\n" + str(player_info["role"]))
-
     try:
-        def get_selected_match():
-            if match_number == "latest": #they didn't specify a match number
-                return DB.get_matches(player=player_id).iloc[0,:] #TODO by default make sure match is full
-            else:
-                return DB.get_matches(player=player_id, match_id=match_number).iloc[0,:]
-
-        match = get_selected_match() #the current match
-        match_id = match["match_id"]
-        print("█MATCH: \n" + str(match))
+        match = DB.get_recent_matches(player=player_id).iloc[0,:] #the current match
     except:
-        print("error in getting match")
         await ctx.respond("No match found")
         DB.close_connection()
         return
-
+    match_id = match["match_id"]
     #check if match is full, won't be needed
-    if match["player1"] is None or match["player2"] is None:
-        await ctx.respond("Your match hasn't started")
-        DB.close_connection()
-        return
 
-    async def update_players_elo(old_result, new_result):
+    async def update_players_elo(new_result):
 
         #note: changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the recursive algorithm might take a while
 
@@ -153,41 +171,32 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, match_number) -> N
     old_outcome = match["outcome"]
     new_outcome = old_outcome
 
-    if result==results.CANCEL:
-        dec_outcome = result
-    if match["player1"] == ctx.author.id:
-        win_res = results.PLAYER1
-        lose_res = results.PLAYER2
-        if result == results.WIN:
-            dec_outcome = win_res
-        elif result == results.LOSE:
-            dec_outcome = lose_res
-        DB.update_match(match_id=match_id, p1_declared=dec_outcome) #if dec_outcome isn't initialized yet, error in command input
-    elif match["player2"] == ctx.author.id:
-        win_res = results.PLAYER2
-        lose_res = results.PLAYER1
-        if result == results.WIN:
-            dec_outcome = win_res
-        elif result == results.LOSE:
-            dec_outcome = lose_res
-        DB.update_match(match_id=match_id, p2_declared=dec_outcome)
+    #set the player's declared result in the match
+    is_p1 = match["player1"] == ctx.author.id
+    get_declared_result = {
+        declares.WIN: results.PLAYER1 if is_p1 else results.PLAYER2,
+        declares.LOSS: results.PLAYER2 if is_p1 else results.PLAYER1,
+        declares.DRAW: results.DRAW
+    }
+    declared_result = get_declared_result[result]
+    if is_p1:
+        DB.update_match(match_id=match_id, p1_declared=declared_result)
     else:
-        pass #invalid result
+        DB.update_match(match_id=match_id, p2_declared=declared_result)
+
+    response = "Declared " + result
 
     #refresh match and check whether both declares are equal
-    match = get_selected_match()
+    match = DB.get_recent_matches(player_id).iloc[0,:]
+
+    if match["outcome"] == declared_result:
+        response = "Outcom is already " + str(declared_result)
+
     if match["p1_declared"] == match["p2_declared"]:
-        new_outcome = dec_outcome
-    response = "Declared: you " + result + " match " + str(match_id)
+        new_outcome = declared_result
 
     if old_outcome != new_outcome:
-
-        if match_id != DB.get_matches(player=player_id).iloc[0,:]["match_id"]:
-            await ctx.respond("Changing the result of old matches isn't supported yet")  # for now
-            DB.close_connection()
-            return
-
-        elo_change = await update_players_elo(old_outcome, new_outcome) #updates everyone's elo accordingly, based on the current selected match
+        elo_change = await update_players_elo(new_outcome) #updates everyone's elo accordingly, based on the current selected match
         DB.update_match(match_id, outcome=new_outcome)
 
         #display results
@@ -223,7 +232,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 
     DB.open_connection()
 
-    match = DB.get_matches(player=player_id, is_full=True).iloc[0,:]
+    match = DB.get_recent_matches(player=player_id).iloc[0, :]
 
     print("outcome: " + str(match["outcome"]))
 
@@ -246,7 +255,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
-    DB.open_connection()
+    DB.open_connection(ctx.guild_id)
     players = DB.get_players(top_by_elo=20)
 
     response = "Leaderboard:\n"

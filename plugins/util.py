@@ -22,7 +22,7 @@ async def open_test(ctx: tanjun.abc.Context, guild) -> None:
 @component.with_slash_command
 @tanjun.as_slash_command("get", "test, delete", default_to_ephemeral=True)
 async def get_test(ctx: tanjun.abc.Context) -> None:
-    DB.get_matches()
+    DB.get_recent_matches()
     await ctx.respond("done")
 
 
@@ -46,7 +46,7 @@ async def hi_test(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
 async def uptime(ctx:tanjun.abc.Context) -> None:
     time_diff = time.time() - Bot.start_time
-    await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/60, 2)) + " minutes")
+    await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 
 
 @tanjun.as_loader

@@ -19,7 +19,7 @@ component = tanjun.Component(name="player module")
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
 async def register(ctx: tanjun.abc.Context) -> None:
 
-    DB.open_connection()
+    DB.open_connection(ctx.guild_id)
     user_id = ctx.author.id
     player_info = DB.get_players(user_id)
 
@@ -50,9 +50,6 @@ def calculate_elo_change(player1, player2, new_result, old_result):
     #calculate elo for new result, then add it.
 
     #player 1 lost and has -1.   they should win (loss should've given -3, win should've given +5). new elo is -1--3+5 = 7.
-
-
-
 
 
 
