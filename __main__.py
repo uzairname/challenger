@@ -7,7 +7,5 @@ from __init__ import *
 
 if __name__ == "__main__":
 
-    DB.open_connection(TESTING_GUILD_ID)
-    DB.setup()
-    DB.close_connection()
+    DB.setup(TESTING_GUILD_ID)
     build_bot(os.environ.get("PELA_TOKEN")).run()

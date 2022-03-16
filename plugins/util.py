@@ -26,7 +26,6 @@ async def get_test(ctx: tanjun.abc.Context) -> None:
     await ctx.respond("done")
 
 
-
 @component.with_slash_command
 @tanjun.as_slash_command("hi", "a", default_to_ephemeral=True)
 async def hi_test(ctx: tanjun.abc.Context) -> None:

@@ -6,12 +6,6 @@ from datetime import datetime
 import time
 
 
-
-
-
-
-
-
 component = tanjun.Component(name="player module")
 
 
@@ -38,6 +32,19 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
 
 
+@component.with_slash_command
+@tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=False)
+async def get_match(ctx: tanjun.abc.Context) -> None:
+    player_id = ctx.author.id
+    DB.open_connection()
+
+    player_info = DB.get_players(player_id).iloc[0,:]
+
+    response = "Stats for " + str(player_info["username"]) + ":\n" +\
+        "elo: " + str(round(player_info["elo"]))
+
+    await ctx.respond(response, delete_after=200)
+    DB.close_connection()
 
 
 

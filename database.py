@@ -15,7 +15,6 @@ def check_errors(func):
     @functools.wraps(func)
     def wrapper_check_errors(*args, **kwargs):
         try:
-            print()
             return func(*args, **kwargs)
         except (Exception, psycopg2.DatabaseError) as error:
             print("error in " + str(func) + ": " + str(error))
@@ -36,7 +35,8 @@ class Database:
     def __init__(self):
         pass
 
-    def setup(self): #setup is always called at the start, and can be called in guildstartingevent, to update DBs for every server
+    def setup(self, guild_id): #setup is always called at the start, and can be called in guildstartingevent, to update DBs for every server
+        self.open_connection(guild_id)
         pd.set_option('display.max_columns', None)
         pd.set_option("max_colwidth", 40)
         pd.options.display.width = 0
@@ -47,17 +47,14 @@ class Database:
         #
         # self.cur.execute(command)
 
-        #
         self.reset_queues_table()
-        #
+        self.reset_players_table()
         self.add_queue()
         self.update_queue(queue_id=1, channels = "{953690285035098142, 937142952055169085}")
-        # self.add_queue()
-        # self.update_queue(queue_id=2, channels = "{345, 435}")
-        #
-        # queue = self.get_queues()
 
         # print("queues: \n" + str(queue))
+
+        self.close_connection()
 
     #matches =========================================================
 
@@ -256,7 +253,7 @@ class Database:
         return columns
 
 
-    def reset_player_table(self):
+    def reset_players_table(self):
 
         table_name = "players_" + str(self.guild_id)
 
