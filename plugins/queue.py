@@ -271,16 +271,14 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     response = "Leaderboard:```\n"
     place = 0
+    print(players)
     players.sort_values("elo", ascending=False)
     for index, player, in players.iterrows():
         place = place + 1
         response = response + str(place) + ":\t" + str(round(player["elo"])) + "\t" + str(player["username"]) + "\n"
-        # response = response + str(place) + ": " + str(player["username"]) + ": " + str(round(player["elo"])) + "\n"
     response = response + "```"
     await ctx.respond(response, delete_after=200)
     DB.close_connection()
-
-
 
 
 

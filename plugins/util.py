@@ -3,7 +3,7 @@ import asyncio
 from plugins.utils import *
 from __init__ import *
 
-from bot import Bot
+from bot import PelaBot
 import time
 
 nl = "\n"
@@ -44,7 +44,7 @@ async def hi_test(ctx: tanjun.abc.Context) -> None:
 @component.with_slash_command
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
 async def uptime(ctx:tanjun.abc.Context) -> None:
-    time_diff = time.time() - Bot.start_time
+    time_diff = time.time() - PelaBot.start_time
     await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 
 

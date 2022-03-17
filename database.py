@@ -24,13 +24,13 @@ def check_errors(func):
 
 class Database:
 
-    conn = None
-    cur = None
-    guild_id = None #should be set every time connection is opened
-    players_tbl = None
-    matches_tbl = None
-    queues_tbl = None #why does it give error 'Database' object has no attribute 'queues_tbl' if this line is queues_tbl:str ?
-    config_tbl = None
+    # conn = None
+    # cur = None
+    # guild_id = None #should be set every time connection is opened
+    # players_tbl = None
+    # matches_tbl = None
+    # queues_tbl = None #why does it give error 'Database' object has no attribute 'queues_tbl' if this line is queues_tbl:str ?
+    # config_tbl = None
 
     def __init__(self):
         pass
@@ -49,6 +49,8 @@ class Database:
 
         self.reset_queues_table()
         self.reset_players_table()
+        self.reset_matches_table()
+
         self.add_queue()
         self.update_queue(queue_id=1, channels = "{953690285035098142, 937142952055169085}")
 
@@ -272,7 +274,7 @@ class Database:
 
     #below: reset tables. Any code changes here won't show up in the server until they reset their tables
     @check_errors
-    def reset_match_table(self):
+    def reset_matches_table(self):
 
         table_name = "matches_" + str(self.guild_id)
 

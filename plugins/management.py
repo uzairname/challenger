@@ -6,7 +6,8 @@ component = tanjun.Component(name="management module")
 
 
 @component.with_slash_command
-@tanjun.as_slash_command("settings", "settings", default_to_ephemeral=True)
+@tanjun.with_str_slash_option("category", options={"lobby channels", "permissions"})
+@tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
 def settings(ctx:tanjun.abc.Context):
     pass
 
