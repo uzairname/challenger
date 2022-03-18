@@ -1,25 +1,64 @@
 import os
-from bot import build_bot
+from __init__ import *
 import logging
-from database import Database
+import hikari
+import tanjun
+import time
+from database import DB
+import pandas as pd
 
-DB = Database()
+class PelaBot (hikari.GatewayBot):
+
+    def __init__(self, token):
+        super().__init__(token)
+
+    def run(self):
+        self.create_client()
+
+        self.subscribe(hikari.StartedEvent, self.on_started)
+        self.subscribe(hikari.GuildAvailableEvent, self.on_guild_available)
+
+        activity=hikari.presences.Activity(name= "bloons", type=hikari.presences.ActivityType(value=3))
+
+        super().run(activity=activity)
+
+    def create_client(self):
+        self.client = (tanjun.Client.from_gateway_bot(self))
+        self.client.load_modules("plugins.util", "plugins.queue", "plugins.demo", "plugins.player", "plugins.management")
+        self.client.set_auto_defer_after(1)
+
+    async def on_started(self, event:hikari.StartedEvent):
+        self.start_time = time.time()
+
+        if os.environ.get('DSP') == "Production":
+            logging.info("███ Bot is in the production environment")
+            commands = await self.client.declare_global_commands(force=True)
+            for command in commands:
+                print("declared " + command.name)
+        else:
+            logging.info("███ Bot is in a testing environment")
+            await self.rest.edit_my_member(guild=TESTING_GUILD_ID, nickname=f"Pela ({os.environ.get('DSP')})")
+            commands = await self.client.declare_global_commands(guild=TESTING_GUILD_ID, force=True)
+            for command in commands:
+                print("declared " + command.name)
+
+
+    async def on_guild_available(self, event: hikari.GuildAvailableEvent):
+        DB.open_connection(event.guild_id)
+
+        DB.create_missing_tables()
+
+        DB.close_connection()
+        pass
+
+
 
 if __name__ == "__main__":
-    DB.setup()
-    build_bot(os.environ.get("PELA_TOKEN")).run()
+    pd.set_option('display.max_columns', None)
+    pd.set_option("max_colwidth", 40)
+    pd.options.display.width = 0
 
+    # DB.setup(951529009697652736)
 
-#TODO
-# Staff status
-# Edit elo after match result updated
-# display Leaderboard
-# leave queue
-# get my recent matches
-# get my stats
-# join best of 3 or 5 queue with optional option
-#
-#TODO other notes
-# Elo with a small scale factor, and relatively large K value to minimize grinding. approx. 5 games to stabilize elo
-# change of less than 1 elo is dispayed as '<1" instead of 0
-# displayed elo change is given as rounded. going from 6.7(7) to 5.4(5) is not 6.7-5.4(1), but 7-5(2)
+    bot = PelaBot(os.environ.get("PELA_TOKEN"))
+    bot.run()
