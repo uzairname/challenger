@@ -4,6 +4,7 @@ import tanjun
 import math
 import numpy as np
 import pandas as pd
+import re
 
 
 class results:
@@ -66,8 +67,12 @@ def construct_df(rows, columns, index_column: str = None):
     return df
 
 
-def replace_col_or_concat(df, row_df, column):
+def replace_row_if_col_matches(df, row_df, column):
 
     replace_index = df.loc[df[column] == row_df.iloc[0,:][column]].index
     new_df = pd.concat([df.drop(replace_index), row_df])
     return new_df
+
+def sqlarray_to_list(string):
+    text_pat = r"[\d]+"
+    return re.findall(text_pat, string)

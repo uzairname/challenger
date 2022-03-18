@@ -2,50 +2,65 @@ import logging
 
 import tanjun
 import functools
-from plugins.utils import calc_elo_change
+from plugins.utils import *
 from __main__ import DB
 
 
 component = tanjun.Component(name="queue module")
 
-def ensure_registered(cmd_func):
-    @functools.wraps(cmd_func)
-    async def wrapper_ensure_registered(ctx, *args, **kwargs):
-        DB.open_connection(guild_id=ctx.guild_id)
-        player_info = DB.get_players(user_id=ctx.author.id)
-        if player_info.empty:
-            await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
-            DB.close_connection()
-            return
-        return await cmd_func(ctx, *args, **kwargs)
-    return wrapper_ensure_registered
+# def ensure_registered(cmd_func):
+#     @functools.wraps(cmd_func)
+#     async def wrapper_ensure_registered(ctx, *args, **kwargs):
+#         DB.open_connection(guild_id=ctx.guild_id)
+#         player_info = DB.get_players(user_id=ctx.author.id)
+#         if player_info.empty:
+#             await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
+#             DB.close_connection()
+#             return
+#         return await cmd_func(ctx, *args, **kwargs)
+#     return wrapper_ensure_registered
 
 
-async def confirm_queue(ctx:tanjun.abc.Context):
-    all_queues = DB.get_queues()
-    queue = None
-    for id in all_queues["queue_id"]:
-        if ctx.channel_id in all_queues.loc[id, "channels"]:
-            queue = all_queues.loc[id,:]
-            return queue
-    if queue is None:
-        await ctx.respond("This channel doesn't have a lobby")
-        DB.close_connection()
-        return None
+async def ensure_registered(ctx: tanjun.abc.Context):
+    player_info = DB.get_players(user_id=ctx.author.id)
+    if player_info.empty:
+        await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
+        return False
+    return player_info
+
+
+async def confirm_available_queue(ctx:tanjun.abc.Context):
+    all_queues = DB.get_all_queues()
+
+    for queue_name, queue in all_queues.iterrows():
+        for channel in queue["channels"]:
+            if int(ctx.channel_id) == int(channel):
+                return queue
+    await ctx.respond("This channel doesn't have a lobby")
+    return None
 
 
 #join the queue
 @component.with_slash_command
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
-@ensure_registered
 async def join_q(ctx: tanjun.abc.Context) -> None:
 
-    player_id=ctx.author.id
+    DB.open_connection(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
-    queue = await confirm_queue(ctx)
+    queue = await confirm_available_queue(ctx)
     if queue is None:
+        DB.close_connection()
         return
+
+    print("████QUEUE:" + str(queue))
+
+    player_info = await ensure_registered(ctx)
+    if player_info is None:
+        DB.close_connection()
+        return
+
+    player_id=ctx.author.id
 
     #Ensure player isn't already in queue
     if queue["player1"] == player_id or queue["player2"] == player_id:
@@ -55,9 +70,9 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 
     #add player to queue
     if not queue["player1"]:
-        DB.update_queue(queue_id=queue["queue_id"], player1=player_id)
+        queue["player1"] = player_id
     elif not queue["player2"]:
-        DB.update_queue(queue_id=queue["queue_id"], player2=player_id)
+        queue["player2"] = player_id
     else:
         await ctx.respond("Queue is full")
         DB.close_connection()#idk
@@ -65,7 +80,6 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     response = f"{ctx.author.mention} you have silently joined the queue"
 
     #If queue is full, announce the match
-    queue = DB.get_queues().loc[queue["queue_id"],:] #refresh the variable
 
     if queue["player1"] and queue["player2"]:
 
@@ -93,16 +107,23 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 #leave queue
 @component.with_slash_command
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True)
-@ensure_registered
 async def leave_q(ctx: tanjun.abc.Context) -> None:
 
-    player_id = ctx.author.id
+    DB.open_connection(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
-    queue = await confirm_queue(ctx)
+    queue = await confirm_available_queue(ctx)
     if queue is None:
+        DB.close_connection()
         return
 
+
+    player_info = await ensure_registered(ctx)
+    if player_info is None:
+        DB.close_connection()
+        return
+
+    player_id = ctx.author.id
 
     response = "Left the queue"
 
@@ -127,12 +148,16 @@ class declares:
 @component.with_slash_command
 @tanjun.with_str_slash_option("result", "result", choices={"win":declares.WIN, "loss":declares.LOSS, "draw":declares.DRAW})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True)
-@ensure_registered
 async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 
     DB.open_connection(ctx.guild_id)
+
+    player_info = await ensure_registered(ctx)
+    if player_info is None:
+        DB.close_connection()
+        return
+
     player_id = ctx.author.id
-    player_info = DB.get_players(user_id=player_id)
 
     try:
         match = DB.get_recent_matches(player=player_id).iloc[0,:] #the current match
@@ -210,8 +235,9 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     DB.open_connection(ctx.guild_id)
 
+
     #get queue for this channel
-    all_queues = DB.get_queues()
+    all_queues = DB.get_all_queues()
     queue = None
     for id in all_queues["queue_id"]:
         if ctx.channel_id in all_queues.loc[id, "channels"]:
@@ -221,7 +247,6 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
         await ctx.respond("This channel doesn't have a lobby")
         DB.close_connection()
         return
-
 
     num = 0
     for p in [queue["player1"], queue["player2"]]:
@@ -237,8 +262,13 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
 @component.with_slash_command
 @tanjun.as_slash_command("match", "Your latest match's status", default_to_ephemeral=True)
-@ensure_registered
 async def get_match(ctx: tanjun.abc.Context) -> None:
+
+
+    player_info = await ensure_registered(ctx)
+    if player_info is None:
+        DB.close_connection()
+        return
 
     player_id = ctx.author.id
 
@@ -264,6 +294,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 @component.with_slash_command
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
+
 
     DB.open_connection(ctx.guild_id)
     players = DB.get_players(top_by_elo=20)

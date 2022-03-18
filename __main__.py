@@ -47,11 +47,9 @@ class PelaBot (hikari.GatewayBot):
 
     async def on_guild_available(self, event: hikari.GuildAvailableEvent):
         DB.open_connection(event.guild_id)
-        # DB.reset_config_table()
+
         # DB.update_config_table()
-        # DB.reset_players_table()
-        # DB.reset_matches_table()
-        # DB.reset_queues_table()
+
         DB.close_connection()
         pass
 

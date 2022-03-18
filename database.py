@@ -22,13 +22,6 @@ def check_errors(func):
 
 class Database:
 
-    # conn = None
-    # cur = None
-    # guild_id = None #should be set every time connection is opened
-    # players_tbl = None
-    # matches_tbl = None
-    # queues_tbl = None #why does it give error 'Database' object has no attribute 'queues_tbl' if this line is queues_tbl:str ?
-    # config_tbl = None
 
     def __init__(self):
         pass
@@ -36,19 +29,18 @@ class Database:
     def setup(self, guild_id): #setup is always called at the start, and can be called in guildstartingevent, to update DBs for every server
         self.open_connection(guild_id)
 
-        self.reset_queues_table()
-        q_df = self.get_queues()
-        #
-        # command = """
-        # DROP TABLE queues_0
-        # """
-        # self.cur.execute(command)
 
-        new_q = construct_df([[2, 345, [234]]], ["queue_id", "channels", "roles"])
+        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
 
-        new_q_df = replace_col_or_concat(q_df, new_q, "queue_id")
 
-        self.update_queues_df(new_q_df)
+        df = pd.read_sql_table(self.queues_tbl, postgresURL)
+
+
+        # df[["player1","player2"]] = df[["player1","player2"]].astype("Int64").fillna(0)
+
+        # print("got df: \n" + str(df) + "\nchannels: " + df.loc[0,"channels"])
+
+
 
         self.close_connection()
 
@@ -178,24 +170,47 @@ class Database:
 
     # queues =========================================================
 
-    def update_queues_df(self, df):
+    def set_all_queues(self, df):
+        self.close_connection()
         postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
         self.engine = create_engine(postgresURL)
 
-        self.close_connection()
-
-        print("q df: \n"+ str(df) + "\nindex: " + str(df.index))
+        print("setting df: \n"+ str(df) + "\ntypes: " + str(df.dtypes))
+        print("first channel: " + str(df.loc[0,"channels"][0]))
 
         df.to_sql(self.queues_tbl, self.engine, if_exists="replace", index=False)
 
         self.open_connection(self.guild_id)
 
-    def get_queues_df(self):
-        pass
+
+
+    def get_all_queues(self):
+
+        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
+
+        df = pd.read_sql_table(self.queues_tbl, postgresURL)
+
+        #make sure null playerid values are 0
+        df[["player1","player2"]] = df[["player1","player2"]].astype("Int64").fillna(0)
+        #convert channels and roles to series/array
+
+        df["channels"] = df["channels"].fillna("").apply(sqlarray_to_list)
+        df["roles"] = df["roles"].fillna("").apply(sqlarray_to_list)
+
+        # print("got df: \n" + str(df))
+        # print("first channel: " + str(df.loc[0,"channels"][0]))
+
+        return df
 
 
     def remove_queue(self, queue_id):
         pass
+
+    def update_queue_df(self, new_queue):
+        all_queues_df = self.get_all_queues()
+        new_q_df = replace_row_if_col_matches(all_queues_df, new_queue, "queue_name")
+        self.set_all_queues(new_q_df)
+
 
     def update_queue(self, queue_id, **kwargs):
         command = """
@@ -223,22 +238,7 @@ class Database:
         self.cur.execute(command)
 
 
-    def get_queues(self):
 
-        # Each Channel can only have 1 queue, each queue can have multiple channels
-        command = """
-            SELECT * FROM """ + self.queues_tbl + """
-        """
-
-        self.cur.execute(command)
-
-        queues = self.cur.fetchall()
-        columns = self.get_columns(self.queues_tbl)
-
-        df = construct_df(columns=columns, rows=queues, index_column="queue_id")
-        df[["player1","player2"]] = df[["player1","player2"]].astype("Int64").fillna(0)
-
-        return df
 
 
 
@@ -271,7 +271,7 @@ class Database:
         new_row = construct_df([[self.guild_id]], cols)
         print("████\n" + str(new_row))
 
-        new_config_df = replace_col_or_concat(old_config_df, new_row, "guild_id")
+        new_config_df = replace_row_if_col_matches(old_config_df, new_row, "guild_id")
 
         new_config_df.to_sql(self.config_tbl, self.engine, if_exists='replace', index=False)
 
@@ -344,22 +344,36 @@ class Database:
     @check_errors
     def reset_queues_table(self):
 
-        table_name = self.queues_tbl
+        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
+        self.engine = create_engine(postgresURL)
 
-        command = """
-        DROP TABLE IF EXISTS """ + table_name + """;
-        CREATE TABLE IF NOT EXISTS """ + table_name + """ (
-            queue_id SERIAL PRIMARY KEY,
-            queue_name VARCHAR,
-            player1 BIGINT,
-            player2 BIGINT,
-            channels BIGINT[],
-            roles BIGINT[]
-        )
-        """
-        self.cur.execute(command)
+        self.close_connection()
 
-        print("███ RESET Table " + table_name)
+        df = construct_df([], columns=["queue_name", "player1", "player2", "channels", "roles"])
+
+        df.to_sql(self.queues_tbl, self.engine, if_exists="replace", index=False)
+
+        self.open_connection(self.guild_id)
+
+        print("███ RESET Table " + self.queues_tbl)
+
+
+
+        # table_name = self.queues_tbl
+        #
+        # command = """
+        # DROP TABLE IF EXISTS """ + table_name + """;
+        # CREATE TABLE IF NOT EXISTS """ + table_name + """ (
+        #     queue_id SERIAL PRIMARY KEY,
+        #     queue_name VARCHAR,
+        #     player1 BIGINT,
+        #     player2 BIGINT,
+        #     channels BIGINT[],
+        #     roles BIGINT[]
+        # )
+        # """
+        # self.cur.execute(command)
+
 
 
 

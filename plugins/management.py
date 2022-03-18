@@ -132,17 +132,14 @@ async def confirm_lobby_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, clien
 def update_lobby(ctx:tanjun.abc.Context, name, channels, roles):
 
     DB.open_connection(ctx.guild_id)
-    q_df = DB.get_queues()
-
-    print("Prior queue df: \n" + str(q_df))
+    q_df = DB.get_all_queues()
 
     new_q = construct_df([[name, channels, roles]], ["queue_name", "channels", "roles"])
 
     replaced = q_df.loc[q_df["queue_name"] == new_q.loc[0, "queue_name"]]
+    new_q_df = replace_row_if_col_matches(q_df, new_q, "queue_name")
 
-    new_q_df = replace_col_or_concat(q_df, new_q, "queue_name")
-
-    DB.update_queues_df(new_q_df)
+    DB.set_all_queues(new_q_df)
     DB.close_connection()
 
     if not replaced.empty:
@@ -152,6 +149,24 @@ def update_lobby(ctx:tanjun.abc.Context, name, channels, roles):
 
 
 
+@component.with_slash_command
+@tanjun.as_slash_command("reset", "reset the data for this server", default_to_ephemeral=True)
+async def reset_cmd(ctx: tanjun.abc.Context):
+    if ctx.author.id != 623257053879861248:
+        await ctx.respond("not authorized")
+        return
+
+    DB.open_connection(ctx.guild_id)
+
+    def reset_all_tables():
+        DB.reset_players_table()
+        DB.reset_matches_table()
+        DB.reset_queues_table()
+
+    reset_all_tables()
+    await ctx.respond("reset")
+
+    DB.close_connection()
 
 
 
