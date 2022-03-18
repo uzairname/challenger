@@ -1,38 +1,21 @@
-import asyncio
+import hikari
 
 from plugins.utils import *
 from __init__ import *
-
-from bot import PelaBot
+from __main__ import PelaBot
 import time
 
-nl = "\n"
+
 
 component = tanjun.Component(name="hi module")
 
-
-@component.with_slash_command
-@tanjun.with_str_slash_option("guild", "a")
-@tanjun.as_slash_command("open", "test, delete", default_to_ephemeral=True)
-async def open_test(ctx: tanjun.abc.Context, guild) -> None:
-    DB.open_connection(guild_id=guild)
-    await ctx.respond("done")
-
-
-@component.with_slash_command
-@tanjun.as_slash_command("get", "test, delete", default_to_ephemeral=True)
-async def get_test(ctx: tanjun.abc.Context) -> None:
-    DB.get_recent_matches()
-    await ctx.respond("done")
-
-
 @component.with_slash_command
 @tanjun.as_slash_command("hi", "a", default_to_ephemeral=True)
-async def hi_test(ctx: tanjun.abc.Context) -> None:
-    await asyncio.sleep(6)
-    response = await ctx.respond(f"Hi {ctx.author.mention}!{nl}This is the testing version. More features coming soon", ensure_result=True)
-    await asyncio.sleep(6)
-    await response.delete()
+async def hi_test(ctx: tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=PelaBot)) -> None:
+
+    print((bot.cache.get_guild_channel(953690285035098142)).permission_overwrites)
+
+    response = await ctx.respond(f"Hi {ctx.author.mention}!\nThis is the testing version. More features coming soon", ensure_result=True)
 
 
 @component.with_slash_command
@@ -43,8 +26,8 @@ async def hi_test(ctx: tanjun.abc.Context) -> None:
 
 @component.with_slash_command
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
-async def uptime(ctx:tanjun.abc.Context) -> None:
-    time_diff = time.time() - PelaBot.start_time
+async def uptime(ctx:tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=PelaBot)) -> None:
+    time_diff = time.time() - bot.start_time
     await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 
 

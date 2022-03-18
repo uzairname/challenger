@@ -1,6 +1,8 @@
 import logging
 
-from plugins.utils import *
+import tanjun
+import functools
+from plugins.utils import calc_elo_change
 from __main__ import DB
 
 
@@ -18,6 +20,20 @@ def ensure_registered(cmd_func):
         return await cmd_func(ctx, *args, **kwargs)
     return wrapper_ensure_registered
 
+
+async def confirm_queue(ctx:tanjun.abc.Context):
+    all_queues = DB.get_queues()
+    queue = None
+    for id in all_queues["queue_id"]:
+        if ctx.channel_id in all_queues.loc[id, "channels"]:
+            queue = all_queues.loc[id,:]
+            return queue
+    if queue is None:
+        await ctx.respond("This channel doesn't have a lobby")
+        DB.close_connection()
+        return None
+
+
 #join the queue
 @component.with_slash_command
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
@@ -27,15 +43,8 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     player_id=ctx.author.id
 
     #Ensure the current channel has a queue associated with it
-    all_queues = DB.get_queues()
-    queue = None
-    for id in all_queues["queue_id"]:
-        if ctx.channel_id in all_queues.loc[id, "channels"]:
-            queue = all_queues.loc[id,:]
-            break
+    queue = await confirm_queue(ctx)
     if queue is None:
-        await ctx.respond("This channel doesn't have a lobby")
-        DB.close_connection()
         return
 
     #Ensure player isn't already in queue
@@ -43,7 +52,6 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.respond(f"{ctx.author.mention} you're already in the queue")
         DB.close_connection()
         return
-
 
     #add player to queue
     if not queue["player1"]:
@@ -55,7 +63,6 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         DB.close_connection()#idk
         return
     response = f"{ctx.author.mention} you have silently joined the queue"
-
 
     #If queue is full, announce the match
     queue = DB.get_queues().loc[queue["queue_id"],:] #refresh the variable
@@ -91,17 +98,9 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 
     player_id = ctx.author.id
 
-
     #Ensure the current channel has a queue associated with it
-    all_queues = DB.get_queues()
-    queue = None
-    for id in all_queues["queue_id"]:
-        if ctx.channel_id in all_queues.loc[id, "channels"]:
-            queue = all_queues.loc[id,:]
-            break
+    queue = await confirm_queue(ctx)
     if queue is None:
-        await ctx.respond("This channel doesn't have a lobby")
-        DB.close_connection()
         return
 
 

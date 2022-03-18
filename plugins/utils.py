@@ -1,10 +1,9 @@
 import functools
 import logging
 import tanjun
-import asyncio
 import math
-from __main__ import DB
 import numpy as np
+import pandas as pd
 
 
 class results:
@@ -16,7 +15,9 @@ class results:
 
 
 
-DEFAULT_ELO = 50 #everyone's starting score
+
+
+DEFAULT_ELO = 50  # everyone's starting score
 DEFAULT_K = 12  # maximum change in one game
 DEFAULT_SCALE = 30  # elo difference approximating 10x skill difference
 
@@ -55,3 +56,18 @@ def check_errors(func):
             await ctx.respond("didnt work :(", ensure_result=True)
             logging.info("command failed: " + str(kwargs.values()))
     return wrapper_check_errors
+
+
+def construct_df(rows, columns, index_column: str = None):
+    df = pd.DataFrame(rows, columns=columns)
+    if index_column:
+        df.set_index(df[index_column], inplace=True)
+
+    return df
+
+
+def replace_col_or_concat(df, row_df, column):
+
+    replace_index = df.loc[df[column] == row_df.iloc[0,:][column]].index
+    new_df = pd.concat([df.drop(replace_index), row_df])
+    return new_df

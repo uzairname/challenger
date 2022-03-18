@@ -1,23 +1,21 @@
-import time
-import typing
+from __init__ import *
 
 import psycopg2
 import os
+from sqlalchemy import create_engine
 import functools
 import pandas as pd
-import numpy as np
-from datetime import datetime
-from __init__ import *
+from plugins.utils import *
 
 
 def check_errors(func):
     # for database error
     @functools.wraps(func)
     def wrapper_check_errors(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except (Exception, psycopg2.DatabaseError) as error:
-            print("error in " + str(func) + ": " + str(error))
+        # try:
+        return func(*args, **kwargs)
+        # except (Exception, psycopg2.DatabaseError) as error:
+        #     print("error in " + str(func) + ": " + str(error))
 
     return wrapper_check_errors
 
@@ -37,26 +35,23 @@ class Database:
 
     def setup(self, guild_id): #setup is always called at the start, and can be called in guildstartingevent, to update DBs for every server
         self.open_connection(guild_id)
-        pd.set_option('display.max_columns', None)
-        pd.set_option("max_colwidth", 40)
-        pd.options.display.width = 0
-
-        # command = """
-        #     ALTER TABLE """ + self.queues_tbl + """
-        # """
-        #
-        # self.cur.execute(command)
 
         self.reset_queues_table()
-        self.reset_players_table()
-        self.reset_matches_table()
+        q_df = self.get_queues()
+        #
+        # command = """
+        # DROP TABLE queues_0
+        # """
+        # self.cur.execute(command)
 
-        self.add_queue()
-        self.update_queue(queue_id=1, channels = "{953690285035098142, 937142952055169085}")
+        new_q = construct_df([[2, 345, [234]]], ["queue_id", "channels", "roles"])
 
-        # print("queues: \n" + str(queue))
+        new_q_df = replace_col_or_concat(q_df, new_q, "queue_id")
+
+        self.update_queues_df(new_q_df)
 
         self.close_connection()
+
 
     #matches =========================================================
 
@@ -183,9 +178,20 @@ class Database:
 
     # queues =========================================================
 
-    def add_queue(self):
-        command = """INSERT INTO """ + self.queues_tbl + """ DEFAULT VALUES"""
-        self.cur.execute(command)
+    def update_queues_df(self, df):
+        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
+        self.engine = create_engine(postgresURL)
+
+        self.close_connection()
+
+        print("q df: \n"+ str(df) + "\nindex: " + str(df.index))
+
+        df.to_sql(self.queues_tbl, self.engine, if_exists="replace", index=False)
+
+        self.open_connection(self.guild_id)
+
+    def get_queues_df(self):
+        pass
 
 
     def remove_queue(self, queue_id):
@@ -220,7 +226,6 @@ class Database:
     def get_queues(self):
 
         # Each Channel can only have 1 queue, each queue can have multiple channels
-
         command = """
             SELECT * FROM """ + self.queues_tbl + """
         """
@@ -231,19 +236,55 @@ class Database:
         columns = self.get_columns(self.queues_tbl)
 
         df = construct_df(columns=columns, rows=queues, index_column="queue_id")
-        print("got queues\n" + str(df))
         df[["player1","player2"]] = df[["player1","player2"]].astype("Int64").fillna(0)
 
         return df
 
 
 
+    #Below: non- guild specific
+    def get_config(self):
 
-    def update_config(self):
-        pass
+        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
+        self.engine = create_engine(postgresURL)
+
+        sql = """
+            SELECT * FROM """ + self.config_tbl + """
+        """
+
+        df = pd.read_sql(sql, self.engine)
+
+        return df
+
+    #below: non guild specific
+
+
+    def update_config_table(self, **kwargs):
+        self.close_connection()
+        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
+        self.engine = create_engine(postgresURL)
+
+        old_config_df = self.get_config()
+
+        cols = ["guild_id"]
+
+        new_row = construct_df([[self.guild_id]], cols)
+        print("████\n" + str(new_row))
+
+        new_config_df = replace_col_or_concat(old_config_df, new_row, "guild_id")
+
+        new_config_df.to_sql(self.config_tbl, self.engine, if_exists='replace', index=False)
+
+        self.open_connection(self.guild_id)
+
+
+
+
+
+
+
 
     #===================================
-
 
     def get_columns(self, table_name):
         command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '""" + table_name + """'"""
@@ -255,15 +296,18 @@ class Database:
         return columns
 
 
+
+    @check_errors
     def reset_players_table(self):
 
-        table_name = "players_" + str(self.guild_id)
+        table_name = self.players_tbl
 
         command = """
         DROP TABLE IF EXISTS """ + table_name + """;
         CREATE TABLE IF NOT EXISTS """ + table_name + """ (
             user_id BIGINT PRIMARY KEY,
             username VARCHAR,
+            time_registered TIMESTAMP,
             elo FLOAT,
             role VARCHAR
         )
@@ -276,7 +320,7 @@ class Database:
     @check_errors
     def reset_matches_table(self):
 
-        table_name = "matches_" + str(self.guild_id)
+        table_name = self.matches_tbl
 
         command = """
         DROP TABLE IF EXISTS """ + table_name + """;
@@ -300,7 +344,7 @@ class Database:
     @check_errors
     def reset_queues_table(self):
 
-        table_name = "queues_" + str(self.guild_id)
+        table_name = self.queues_tbl
 
         command = """
         DROP TABLE IF EXISTS """ + table_name + """;
@@ -310,7 +354,7 @@ class Database:
             player1 BIGINT,
             player2 BIGINT,
             channels BIGINT[],
-            roles_allowed BIGINT[]
+            roles BIGINT[]
         )
         """
         self.cur.execute(command)
@@ -319,43 +363,40 @@ class Database:
 
 
 
-    #Below: non- guild specific
-
-
     @check_errors
     def reset_config_table(self):
-
         table_name = "config"
 
         command = """
         DROP TABLE IF EXISTS """ + table_name + """;
         CREATE TABLE IF NOT EXISTS """ + table_name + """ (
-            guild_id BIGINT PRIMARY KEY
+            guild_id BIGINT PRIMARY KEY,
             staff_roles BIGINT[],
             banned_players BIGINT[],
             results_channel BIGINT
         )
         """
 
-        # probably add a row for all the values
-
         self.cur.execute(command)
 
         print("███ RESET config table " + table_name)
+
+
 
     def open_connection(self, guild_id):
         self.guild_id = guild_id
 
         if guild_id==TESTING_GUILD_ID: #special case for pela server
-            self.guild_id = "testing"
+            self.guild_id = 0
 
         self.players_tbl = "players_" + str(self.guild_id)
         self.matches_tbl = "matches_" + str(self.guild_id)
         self.queues_tbl = "queues_" + str(self.guild_id)
-        self.config_tbl = "config_" + str(self.guild_id)
+        self.config_tbl = "config"
 
         self.conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
         self.cur = self.conn.cursor()
+
         print('Database connection opened')
 
     def close_connection(self):
@@ -365,20 +406,3 @@ class Database:
             self.conn.close()
             print('Database connection closed')
 
-
-
-
-def construct_df(columns, rows, index_column:str):
-    #returns pandas dataframe column names and 2d array
-    # df_data = {}
-    # for i in range(len(columns)):
-    #     df_data[columns[i]] = []
-    #     for row in rows:
-    #         df_data[columns[i]].append(row[i])
-    #
-    # df = pd.DataFrame(df_data, index=df_data[index_column])
-
-    df = pd.DataFrame(rows, columns=columns)
-    df.set_index(df[index_column], inplace=True)
-
-    return df
