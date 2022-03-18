@@ -1,10 +1,7 @@
 from __init__ import *
-
 import psycopg2
 import os
 from sqlalchemy import create_engine
-import functools
-import pandas as pd
 from plugins.utils import *
 
 
@@ -20,6 +17,7 @@ def check_errors(func):
     return wrapper_check_errors
 
 
+
 class Database:
 
 
@@ -29,18 +27,7 @@ class Database:
     def setup(self, guild_id): #setup is always called at the start, and can be called in guildstartingevent, to update DBs for every server
         self.open_connection(guild_id)
 
-
-        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-
-
-        df = pd.read_sql_table(self.queues_tbl, postgresURL)
-
-
-        # df[["player1","player2"]] = df[["player1","player2"]].astype("Int64").fillna(0)
-
-        # print("got df: \n" + str(df) + "\nchannels: " + df.loc[0,"channels"])
-
-
+        self.create_missing_tables()
 
         self.close_connection()
 
@@ -161,10 +148,9 @@ class Database:
         player = self.cur.fetchall()
         columns = self.get_columns(self.players_tbl)
 
-        df = construct_df(columns=columns, rows=player, index_column="user_id").fillna(0)
+        df = construct_df(columns=columns, rows=player).fillna(0)
 
-        return df  #returns a pandas dataframe
-
+        return df
 
 
 
@@ -183,33 +169,21 @@ class Database:
         self.open_connection(self.guild_id)
 
 
-
     def get_all_queues(self):
 
         postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-
         df = pd.read_sql_table(self.queues_tbl, postgresURL)
 
-        #make sure null playerid values are 0
+        #make sure null playerid values are 0 so that
         df[["player1","player2"]] = df[["player1","player2"]].astype("Int64").fillna(0)
         #convert channels and roles to series/array
-
         df["channels"] = df["channels"].fillna("").apply(sqlarray_to_list)
         df["roles"] = df["roles"].fillna("").apply(sqlarray_to_list)
 
-        # print("got df: \n" + str(df))
-        # print("first channel: " + str(df.loc[0,"channels"][0]))
-
         return df
-
 
     def remove_queue(self, queue_id):
         pass
-
-    def update_queue_df(self, new_queue):
-        all_queues_df = self.get_all_queues()
-        new_q_df = replace_row_if_col_matches(all_queues_df, new_queue, "queue_name")
-        self.set_all_queues(new_q_df)
 
 
     def update_queue(self, queue_id, **kwargs):
@@ -243,35 +217,37 @@ class Database:
 
 
     #Below: non- guild specific
-    def get_config(self):
+    def get_all_config(self):
 
         postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-        self.engine = create_engine(postgresURL)
+        df = pd.read_sql_table(self.config_tbl, postgresURL)
 
-        sql = """
-            SELECT * FROM """ + self.config_tbl + """
-        """
-
-        df = pd.read_sql(sql, self.engine)
+        df["staff_roles"] = df["staff_roles"].fillna("").apply(sqlarray_to_list)
+        df["banned_players"] = df["banned_players"].fillna("").apply(sqlarray_to_list)
 
         return df
 
     #below: non guild specific
 
+    def set_all_config(self, new_config):
+        self.close_connection()
 
-    def update_config_table(self, **kwargs):
+        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
+        self.engine = create_engine(postgresURL)
+
+        new_config.to_sql(self.config_tbl, self.engine, if_exists='replace', index=False)
+
+        self.open_connection(self.guild_id)
+
+
+    def update_config_row(self, new_config_row):
         self.close_connection()
         postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
         self.engine = create_engine(postgresURL)
 
-        old_config_df = self.get_config()
+        old_config_df = self.get_all_config()
 
-        cols = ["guild_id"]
-
-        new_row = construct_df([[self.guild_id]], cols)
-        print("████\n" + str(new_row))
-
-        new_config_df = replace_row_if_col_matches(old_config_df, new_row, "guild_id")
+        new_config_df = replace_row_if_col_matches(old_config_df, new_config_row, "guild_id")
 
         new_config_df.to_sql(self.config_tbl, self.engine, if_exists='replace', index=False)
 
@@ -294,6 +270,37 @@ class Database:
             columns.append(c[3])  # this is not
 
         return columns
+
+
+
+
+
+    def create_missing_tables(self):
+
+        command = """
+            select max(case when table_name = '""" + str(self.players_tbl) + """' then 1 else 0 end) as TableExists
+            from information_schema.tables;
+        """
+        self.cur.execute(command)
+        if not self.cur.fetchall()[0][0]:
+            self.reset_players_table()
+
+        command = """
+            select max(case when table_name = '""" + str(self.matches_tbl) + """' then 1 else 0 end) as TableExists
+            from information_schema.tables;
+        """
+        self.cur.execute(command)
+        if not self.cur.fetchall()[0][0]:
+            self.reset_matches_table()
+
+        command = """
+            select max(case when table_name = '""" + str(self.queues_tbl) + """' then 1 else 0 end) as TableExists
+            from information_schema.tables;
+        """
+        self.cur.execute(command)
+        if not self.cur.fetchall()[0][0]:
+            self.reset_queues_table()
+
 
 
 
@@ -376,7 +383,6 @@ class Database:
 
 
 
-
     @check_errors
     def reset_config_table(self):
         table_name = "config"
@@ -420,3 +426,4 @@ class Database:
             self.conn.close()
             print('Database connection closed')
 
+DB = Database()

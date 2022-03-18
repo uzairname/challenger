@@ -6,16 +6,11 @@ import numpy as np
 import pandas as pd
 import re
 
-
 class results:
     PLAYER1 = "player 1"
     PLAYER2 = "player 2"
     DRAW = "draw"
     CANCEL = "cancelled"
-
-
-
-
 
 
 DEFAULT_ELO = 50  # everyone's starting score
@@ -63,14 +58,14 @@ def construct_df(rows, columns, index_column: str = None):
     df = pd.DataFrame(rows, columns=columns)
     if index_column:
         df.set_index(df[index_column], inplace=True)
-
     return df
 
 
-def replace_row_if_col_matches(df, row_df, column):
+def replace_row_if_col_matches(df:pd.DataFrame, row:pd.Series, column:str):
 
-    replace_index = df.loc[df[column] == row_df.iloc[0,:][column]].index
-    new_df = pd.concat([df.drop(replace_index), row_df])
+    drop_index = df.loc[df[column] == row[column]].index
+    new_df = pd.concat([df.drop(drop_index), pd.DataFrame(row).T])
+
     return new_df
 
 def sqlarray_to_list(string):

@@ -1,12 +1,19 @@
 from plugins.utils import *
-from __main__ import DB
-import asyncio
-import math
+from database import DB
 from datetime import datetime
 import time
 
 
 component = tanjun.Component(name="player module")
+
+
+async def ensure_registered(ctx: tanjun.abc.Context):
+    player_info = DB.get_players(user_id=ctx.author.id)
+    if player_info.empty:
+        await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
+        return None
+    return player_info
+
 
 
 @component.with_slash_command
@@ -34,11 +41,16 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
 @component.with_slash_command
 @tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=False)
-async def get_match(ctx: tanjun.abc.Context) -> None:
-    player_id = ctx.author.id
-    DB.open_connection()
+async def get_stats(ctx: tanjun.abc.Context) -> None:
 
-    player_info = DB.get_players(player_id).iloc[0,:]
+    DB.open_connection(ctx.guild_id)
+
+    player_info = await ensure_registered(ctx)
+    if player_info is None:
+        DB.close_connection()
+        return
+
+    player_info = player_info.iloc[0,:]
 
     response = "Stats for " + str(player_info["username"]) + ":\n" +\
         "elo: " + str(round(player_info["elo"]))

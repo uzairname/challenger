@@ -3,22 +3,16 @@ import logging
 import tanjun
 import functools
 from plugins.utils import *
-from __main__ import DB
+from database import DB
 
 
 component = tanjun.Component(name="queue module")
 
-# def ensure_registered(cmd_func):
-#     @functools.wraps(cmd_func)
-#     async def wrapper_ensure_registered(ctx, *args, **kwargs):
-#         DB.open_connection(guild_id=ctx.guild_id)
-#         player_info = DB.get_players(user_id=ctx.author.id)
-#         if player_info.empty:
-#             await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
-#             DB.close_connection()
-#             return
-#         return await cmd_func(ctx, *args, **kwargs)
-#     return wrapper_ensure_registered
+
+def update_queue_byname(new_queue):
+    all_queues_df = DB.get_all_queues()
+    new_q_df = replace_row_if_col_matches(all_queues_df, new_queue, "queue_name")
+    DB.set_all_queues(new_q_df)
 
 
 async def ensure_registered(ctx: tanjun.abc.Context):
@@ -27,6 +21,7 @@ async def ensure_registered(ctx: tanjun.abc.Context):
         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
         return False
     return player_info
+
 
 
 async def confirm_available_queue(ctx:tanjun.abc.Context):
@@ -93,12 +88,16 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
                         p1_elo=DB.get_players(user_id=queue['player1']).iloc[0,:]["elo"],
                         p2_elo=DB.get_players(user_id=queue['player2']).iloc[0,:]["elo"])
 
-        DB.update_queue(queue_id=queue["queue_id"], player1=None, player2=None)
+        queue["player1"] = None
+        queue["player2"] = None
 
         await ctx.get_channel().send("New match started: " + player1_ping + " vs " + player2_ping, user_mentions=True)
+
     else:
         await ctx.get_channel().send("A player has joined the queue")
 
+
+    update_queue_byname(queue)
     DB.close_connection()
 
     await ctx.respond(response)
@@ -111,12 +110,10 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 
     DB.open_connection(ctx.guild_id)
 
-    #Ensure the current channel has a queue associated with it
-    queue = await confirm_available_queue(ctx)
+    queue = await confirm_available_queue(ctx) #could be problematic if new queue is created in the channel after player joins
     if queue is None:
         DB.close_connection()
         return
-
 
     player_info = await ensure_registered(ctx)
     if player_info is None:
@@ -128,17 +125,17 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
     response = "Left the queue"
 
     if queue["player1"] == player_id:
-        DB.update_queue(queue["queue_id"], player1 = None)
+        queue["player1"] = None
         await ctx.get_channel().send("A player has left the queue")
     elif queue["player2"] == player_id:  #Assuming player1 can't leave the match after player2 joins, this should never happen
-        DB.update_match(queue["match_id"], player2 = None)
+        queue["player2"] = None
         await ctx.get_channel().send("Player 2 left the queue??")
     else:
-        response = f"You're not in the queue"
-        await ctx.respond(response)
+        response = "You're not in the queue"
 
+    update_queue_byname(queue)
     DB.close_connection()
-    await ctx.respond(response)
+    await ctx.edit_initial_response(response)
 
 
 class declares:
@@ -264,6 +261,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("match", "Your latest match's status", default_to_ephemeral=True)
 async def get_match(ctx: tanjun.abc.Context) -> None:
 
+    DB.open_connection(ctx.guild_id)
 
     player_info = await ensure_registered(ctx)
     if player_info is None:
@@ -307,7 +305,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
         place = place + 1
         response = response + str(place) + ":\t" + str(round(player["elo"])) + "\t" + str(player["username"]) + "\n"
     response = response + "```"
-    await ctx.respond(response, delete_after=200)
+    await ctx.respond(response)
     DB.close_connection()
 
 
