@@ -1,7 +1,7 @@
 import tanjun
 
 from plugins.utils import *
-from __main__ import DB
+from database import Database
 import hikari
 from __main__ import PelaBot
 import re
@@ -27,12 +27,12 @@ def parse_input(string):
     roles = re.findall(role_pat, string)
     users = re.findall(user_pat, string)
 
-    return {"name": name, "channels": channels, "roles": roles, "users":users}
+    return {"text": name, "channels": channels, "roles": roles, "users":users}
 
 
 
 class options:
-    LOBBY = "lobby channels"
+    LOBBY = "lobbies"
     RESULTS = "results channel"
 @component.with_slash_command
 @tanjun.with_str_slash_option("setting", "setting", choices={"lobby channels":options.LOBBY, "results channel":options.RESULTS})
@@ -44,7 +44,7 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
     if setting == options.LOBBY:
         instructions_embed = hikari.Embed(
             title="Add a Lobby",
-            description="Type the lobby name followed by its channels and allowed roles.\nFor example, \"Beginner Lobby #channel @beginner-role @verified-role\"\n")
+            description="Type the lobby name followed by its channel and allowed roles.\nFor example, \"Beginner Lobby #channel @beginner-role @verified-role\"\nEach lobby can only be set to one channel, but each channel can have multiple lobbies")
 
     elif setting == options.RESULTS:
         instructions_embed = hikari.Embed(
@@ -60,8 +60,8 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
             input_embed = hikari.Embed(title="Your Selection", description="")
             input_params = parse_input(event.content)
 
-            if input_params["name"]:
-                input_embed.description += "Name: **" + str(input_params["name"]) + "**\n"
+            if input_params["text"]:
+                input_embed.description += "Name: **" + str(input_params["text"]) + "**\n"
 
             input_embed.description += "Selected channels:\n"
             for i in input_params["channels"]:
@@ -90,10 +90,12 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
 def check_input(settings_category, input_params): #returns an error message to the command user, or returns nothing if input is fine
 
     if settings_category == options.LOBBY:
-        if not input_params["name"]:
+        if not input_params["text"]:
             return "No name entered"
-        elif not input_params["channels"]:
-            return "Enter a channel"
+        elif not len(input_params["channels"]) == 1:
+            return "Choose one channel"
+        else:
+            return
 
     if settings_category == options.RESULTS:
         return
@@ -145,18 +147,23 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
 
 def update_lobby(ctx:tanjun.abc.Context, input_params):
 
-    DB.open_connection(ctx.guild_id)
-    q_df = DB.get_all_queues()
-    new_q = pd.Series([input_params["name"], input_params["channels"], input_params["roles"]], ["queue_name", "channels", "roles"])
-    replaced = q_df.loc[q_df["queue_name"] == new_q["queue_name"]] #the name of the existing queues that was replaced, if any
-    new_q_df = replace_row_if_col_matches(q_df, new_q, "queue_name")
-    DB.set_all_queues(new_q_df)
-    DB.close_connection()
+    channel_id, roles, lobby_name = input_params["channels"][0], input_params["roles"], input_params["text"]
 
-    if replaced.empty:
-        return "Added new lobby \"" + str(input_params["name"]) + "\""
+    DB = Database(ctx.guild_id)
+
+    queue_info = DB.get_queues(channel_id)
+
+    if not queue_info.empty:
+        queue_info = queue_info.loc[0]
+        queue_info["lobby_name"] = lobby_name
+        queue_info["roles"] = roles
+        DB.upsert_queue(queue_info)
+        message = "Updated existing lobby for<#" + str(queue_info["channel_id"]) + ">"
     else:
-        return "Updated existing lobby \"" + str(replaced.loc[0, "queue_name"]) + "\""
+        DB.add_new_queue(channel_id, lobby_name=lobby_name, roles=roles)
+        message = "Added new lobby \"" + str(input_params["text"]) + "\""
+
+    return message
 
 
 def remove_lobby(ctx:tanjun.abc.Client, input_params):
@@ -170,18 +177,6 @@ async def reset_cmd(ctx: tanjun.abc.Context):
     if ctx.author.id != 623257053879861248:
         await ctx.respond("not authorized")
         return
-
-    DB.open_connection(ctx.guild_id)
-
-    def reset_all_tables():
-        DB.reset_players_table()
-        DB.reset_matches_table()
-        DB.reset_queues_table()
-
-    reset_all_tables()
-    await ctx.respond("reset")
-
-    DB.close_connection()
 
 
 

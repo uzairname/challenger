@@ -17,12 +17,12 @@ async def ensure_registered(ctx: tanjun.abc.Context, DB:Database):
     return player_info
 
 
-async def confirm_available_queue(ctx:tanjun.abc.Context, DB:Database):
-    queue = DB.get_queue(ctx.channel_id)
+async def get_available_queue(ctx:tanjun.abc.Context, DB:Database):
+    queue = DB.get_queues(ctx.channel_id)
     if queue.empty:
         await ctx.respond("This channel doesn't have a lobby")
         return None
-    return queue
+    return queue.iloc[0]
 
 
 #join the queue
@@ -33,64 +33,49 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
-    queue = await confirm_available_queue(ctx, DB)
+    queue = await get_available_queue(ctx, DB)
     if queue is None:
-        DB.close_connection()
+        print("queue didn't exist")
         return
 
-    print("████QUEUE:" + str(queue))
+    print(str(type(queue)) + "oeuoeunth")
 
-    player_info = await ensure_registered(ctx)
+
+    player_info = await ensure_registered(ctx, DB)
     if player_info is None:
-        DB.close_connection()
         return
 
     player_id=ctx.author.id
 
     #Ensure player isn't already in queue
-    if queue["player1"] == player_id or queue["player2"] == player_id:
+    if queue["player"] == player_id:
         await ctx.respond(f"{ctx.author.mention} you're already in the queue")
-        DB.close_connection()
         return
 
     #add player to queue
-    if not queue["player1"]:
-        queue["player1"] = player_id
-    elif not queue["player2"]:
-        queue["player2"] = player_id
+    print(str(queue["player"]) + " is " + str(bool(queue["player"])) + str(type(queue["player"])))
+    if not queue["player"]:
+        queue["player"] = player_id
+        response = f"{ctx.author.mention} you have silently joined the queue"
+        await ctx.get_channel().send("A player has joined the lobby **" + str(queue["lobby_name"]) + "**")
     else:
-        await ctx.respond("Queue is full")
-        DB.close_connection()#idk
-        return
-    response = f"{ctx.author.mention} you have silently joined the queue"
+        response = f"{ctx.author.mention} Queue is full. Creating match"
+        p1_info = DB.get_players(user_id=queue['player']).iloc[0]
+        p2_info = DB.get_players(user_id=player_id).iloc[0]
 
-    #If queue is full, announce the match
+        p1_ping = "<@" + str(p1_info["user_id"]) + ">"
+        p2_ping = "<@" + str(p2_info["user_id"]) + ">"
 
-    if queue["player1"] and queue["player2"]:
-        player1_info = DB.get_players(user_id=queue['player1'])[0,:]
-        player1_info = DB.get_players(user_id=queue['player2'])[0,:]
+        DB.add_new_match(player_1=p1_info["user_id"],
+                         player_2=p2_info["user_id"],
+                         p1_elo=p1_info["elo"],
+                         p2_elo=p2_info["elo"])
 
-        player1_ping = "<@" + str(queue["player1"]) + ">"
-        player2_ping = "<@" + str(queue["player2"]) + ">"
+        queue["player"] = None
 
-        DB.create_match()
-        DB.update_match(match_id=DB.get_recent_matches().iloc[0,:]["match_id"],
-                        player1=queue['player1'],
-                        player2=queue['player2'],
-                        p1_elo=DB.get_players(user_id=queue['player1']).iloc[0,:]["elo"],
-                        p2_elo=DB.get_players(user_id=queue['player2']).iloc[0,:]["elo"])
+        await ctx.get_channel().send("New match started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
 
-        queue["player1"] = None
-        queue["player2"] = None
-
-        await ctx.get_channel().send("New match started: " + player1_ping + " vs " + player2_ping, user_mentions=True)
-
-    else:
-        await ctx.get_channel().send("A player has joined the queue")
-
-
-    update_queue_byname(queue)
-    DB.close_connection()
+    DB.upsert_queue(queue)
 
     await ctx.respond(response)
 
@@ -102,7 +87,7 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 
     DB.open_connection(ctx.guild_id)
 
-    queue = await confirm_available_queue(ctx) #could be problematic if new queue is created in the channel after player joins
+    queue = await get_available_queue(ctx) #could be problematic if new queue is created in the channel after player joins
     if queue is None:
         DB.close_connection()
         return

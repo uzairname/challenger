@@ -24,7 +24,7 @@ class PelaBot (hikari.GatewayBot):
 
     def create_client(self):
         self.client = (tanjun.Client.from_gateway_bot(self))
-        # self.client.load_modules("plugins.util", "plugins.queue", "plugins.demo", "plugins.player", "plugins.management")
+        self.client.load_modules("plugins.util", "plugins.queue", "plugins.demo", "plugins.player", "plugins.management")
         self.client.set_auto_defer_after(1)
 
     async def on_started(self, event:hikari.StartedEvent):

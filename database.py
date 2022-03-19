@@ -33,17 +33,20 @@ sample_matches = pd.DataFrame([[1, 0, 3458934797, 238947239847, 0, 0, 50, 50],[3
 
 class Database:
 
-    players_columns=["user_id", "username", "time_registered", "elo"]
-    matches_columns = ["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo"]
-    queues_columns = ["channel_id", "lobby_name", "player_1", "player_2", "roles"]
-    config_columns=["_", "staff_roles", "results_channel"]
+    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "username", "time_registered", "elo"])
+    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo"])
+    EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
+    EMPTY_CONFIG = pd.DataFrame([], columns=["_", "staff_roles", "results_channel"])
 
-    class player(pd.Series):
-        def __init__(self, series:pd.Series, user_id, **kwargs):
-            super().__init__(self, index=Database.players_columns, dtype=pd.Int64Dtype)
-            self["user_id"] = user_id
-            for k in kwargs:
-                self[k] = kwargs[k]
+
+
+
+    # class player(pd.Series):
+    #     def __init__(self, series:pd.Series, user_id, **kwargs):
+    #         super().__init__(self, index=Database.players_columns, dtype=pd.Int64Dtype)
+    #         self["user_id"] = user_id
+    #         for k in kwargs:
+    #             self[k] = kwargs[k]
 
 
 
@@ -64,7 +67,7 @@ class Database:
     def setup_test(self): #testing stuff is always called at the start, and can be called in guildstartingevent, to update DBs for every server
 
         # pdm.to_mongo(self.sample_queues, "queues_0", DB, if_exists="replace", index=False)
-        queue = self.get_queue(234)
+        queue = self.get_queues(234)
         print(queue)
 
 
@@ -93,37 +96,111 @@ class Database:
             self.guildDB.create_collection(i)
 
 
-    def get_player(self, user_id) -> pd.DataFrame:
-        cur = self.guildDB[self.players_tbl].find({"user_id": user_id}).limit(1)
+
+    def get_players(self, user_id=None, by_elo=False, from_to=None) -> pd.DataFrame:
+
+        cur_filter = {}
+
+        if user_id:
+            cur_filter["user_id"] = int(user_id)
+
+        cur = self.guildDB[self.players_tbl].find(cur_filter)
+
+        if by_elo:
+            cur.sort("elo", -1)
+
+        if from_to is None:
+            from_to = [0, 1]
+
+        cur.skip(from_to[0])
+        cur.limit(from_to[1])
+
         return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
 
-    def upsert_player(self, player:pd.DataFrame):
+    def add_new_player(self, user_id, **kwargs):
+
+        player = pd.Series()
+
+        player["user_id"] = user_id
+        for k in kwargs:
+            if k in self.EMPTY_PLAYER.columns:
+                player[k] = kwargs[k]
+            else:
+                raise Exception("Invalid column for player:" + str(k))
+
+        new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T])
+
+        self.upsert_player(new_player)
+
+    def upsert_player(self, player:pd.DataFrame): #if id matches, replaces all of a player's info with player
+
         playerdict = player.iloc[0].to_dict()
+        print(playerdict)
         result = self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
 
-    def get_latest_matches(self, user_id=None, number=1) -> pd.DataFrame:
+
+    def get_matches(self, user_id=None, number=1) -> pd.DataFrame: #
         cur_filter = {}
         if user_id:
-            cur_filter["player_1"] = user_id
+            cur_filter["player_1"] = int(user_id)
 
         cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(number)
 
         return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
 
+    def add_new_match(self, **kwargs):
+        prev_match = self.get_matches()
+        if prev_match.empty:
+            new_id = 1
+        else:
+            new_id = prev_match.iloc[0]["match_id"] + 1
+
+        match = pd.Series()
+        for k in kwargs:
+            if k in self.EMPTY_MATCH.columns:
+                match[k] = kwargs[k]
+            else:
+                raise Exception("Invalid column for match:" + str(k))
+
+        new_match = pd.concat([self.EMPTY_MATCH, pd.DataFrame(match).T]).iloc[0]
+        self.upsert_match(new_match)
+
     def upsert_match(self, match: pd.DataFrame): #puts first row of dataframe in match
-        matchdict = match.iloc[0].to_dict()
+        matchdict = match.to_dict()
+
         result = self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
 
-    def get_queue(self, channel_id):
-        cur_filter = {"channel_id": channel_id}
-        cur = self.guildDB[self.queues_tbl].find(cur_filter).limit(1)
+
+    def get_queues(self, channel_id) -> pd.DataFrame:
+
+        cur_filter = {}
+        if channel_id:
+            cur_filter["channel_id"] = int(channel_id) #mongo db doesn't recognize numpy.Int64 for some reason
+
+        print(channel_id)
+        cur = self.guildDB[self.queues_tbl].find(cur_filter)
         return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
 
-    def upsert_queue(self, queue: pd.DataFrame):
-        queuedict = queue.iloc[0].to_dict()
+    def add_new_queue(self, channel_id, **kwargs):
+
+        queue = pd.Series()
+        queue["channel_id"] = channel_id
+
+        for k in kwargs:
+            if k in self.EMPTY_QUEUE.columns:
+                queue[k] = kwargs[k]
+            else:
+                raise Exception("Invalid column for match:" + str(k))
+
+        new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).iloc[0]
+        self.upsert_queue(new_queue)
+
+    def upsert_queue(self, queue:pd.Series):
+        queuedict = queue.to_dict()
+
         result = self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
