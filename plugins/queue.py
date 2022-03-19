@@ -3,19 +3,13 @@ import logging
 import tanjun
 import functools
 from plugins.utils import *
-from database import DB
+from database import Database
 
 
 component = tanjun.Component(name="queue module")
 
 
-def update_queue_byname(new_queue):
-    all_queues_df = DB.get_all_queues()
-    new_q_df = replace_row_if_col_matches(all_queues_df, new_queue, "queue_name")
-    DB.set_all_queues(new_q_df)
-
-
-async def ensure_registered(ctx: tanjun.abc.Context):
+async def ensure_registered(ctx: tanjun.abc.Context, DB:Database):
     player_info = DB.get_players(user_id=ctx.author.id)
     if player_info.empty:
         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
@@ -23,16 +17,12 @@ async def ensure_registered(ctx: tanjun.abc.Context):
     return player_info
 
 
-
-async def confirm_available_queue(ctx:tanjun.abc.Context):
-    all_queues = DB.get_all_queues()
-
-    for queue_name, queue in all_queues.iterrows():
-        for channel in queue["channels"]:
-            if int(ctx.channel_id) == int(channel):
-                return queue
-    await ctx.respond("This channel doesn't have a lobby")
-    return None
+async def confirm_available_queue(ctx:tanjun.abc.Context, DB:Database):
+    queue = DB.get_queue(ctx.channel_id)
+    if queue.empty:
+        await ctx.respond("This channel doesn't have a lobby")
+        return None
+    return queue
 
 
 #join the queue
@@ -40,10 +30,10 @@ async def confirm_available_queue(ctx:tanjun.abc.Context):
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
 async def join_q(ctx: tanjun.abc.Context) -> None:
 
-    DB.open_connection(ctx.guild_id)
+    DB = Database(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
-    queue = await confirm_available_queue(ctx)
+    queue = await confirm_available_queue(ctx, DB)
     if queue is None:
         DB.close_connection()
         return
@@ -77,6 +67,8 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     #If queue is full, announce the match
 
     if queue["player1"] and queue["player2"]:
+        player1_info = DB.get_players(user_id=queue['player1'])[0,:]
+        player1_info = DB.get_players(user_id=queue['player2'])[0,:]
 
         player1_ping = "<@" + str(queue["player1"]) + ">"
         player2_ping = "<@" + str(queue["player2"]) + ">"

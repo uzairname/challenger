@@ -1,429 +1,129 @@
+import time
+
+import numpy as np
+import pandas as pd
+import pymongo
+
 from __init__ import *
-import psycopg2
 import os
-from sqlalchemy import create_engine
 from plugins.utils import *
+from pymongo import MongoClient
+from datetime import datetime
 
 
 def check_errors(func):
-    # for database error
     @functools.wraps(func)
     def wrapper_check_errors(*args, **kwargs):
-        # try:
-        return func(*args, **kwargs)
-        # except (Exception, psycopg2.DatabaseError) as error:
-        #     print("error in " + str(func) + ": " + str(error))
-
+        try:
+            return func(*args, **kwargs)
+        except:
+            print("error in " + str(func))
     return wrapper_check_errors
+
+sample_queues = pd.DataFrame([["Lobby 1", 2489723947928, 0, 23947923749237, [23498723947239, 74658347952987]], ["Advanced Lobby", 0, 0, 6238423956834765, []]], columns=["lobby_name", "player_1", "player_2", "channel", "roles"])
+sample_queues[["player_1", "player_2"]] = sample_queues[["player_1", "player_2"]].astype("Int64").fillna(0)
+sample_queues.set_index("lobby_name")
+
+sample_matches = pd.DataFrame([[1, 0, 3458934797, 238947239847, 0, 0, 50, 50],[3, 0, 6456458934797, 238947239847, 0, 0, 50, 30],[2, 0, 9653458934797, 239546847, 0, 0, 20, 53]], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo"])
+
+
+
 
 
 
 class Database:
 
+    players_columns=["user_id", "username", "time_registered", "elo"]
+    matches_columns = ["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo"]
+    queues_columns = ["channel_id", "lobby_name", "player_1", "player_2", "roles"]
+    config_columns=["_", "staff_roles", "results_channel"]
 
-    def __init__(self):
-        pass
+    class player(pd.Series):
+        def __init__(self, series:pd.Series, user_id, **kwargs):
+            super().__init__(self, index=Database.players_columns, dtype=pd.Int64Dtype)
+            self["user_id"] = user_id
+            for k in kwargs:
+                self[k] = kwargs[k]
 
-    def setup(self, guild_id): #setup is always called at the start, and can be called in guildstartingevent, to update DBs for every server
-        self.open_connection(guild_id)
 
-        self.create_missing_tables()
 
-        self.close_connection()
+    players_tbl = "players"
+    matches_tbl = "matches"
+    queues_tbl = "queues"
+    config_tbl = "config"
 
+    required_tables = [players_tbl, matches_tbl, queues_tbl, config_tbl]
 
-    #matches =========================================================
+    def __init__(self, guild_id):
 
-    def create_match(self):
-        command = """INSERT INTO """ + self.matches_tbl + """ DEFAULT VALUES"""
-        self.cur.execute(command)
+        client = MongoClient("mongodb+srv://lilapela:CWahaG2nnNlOn74t@pelacluster.9oy7y.mongodb.net/pelaDB?retryWrites=true&w=majority")
+        self.guild_name = str(guild_id)
+        self.guildDB = client["guild_" + self.guild_name]
 
-    def update_match(self, match_id, **kwargs):
 
-        command = """
-            UPDATE """ + self.matches_tbl + """ 
-            SET"""
-        for column in kwargs.keys():
-            if not column in self.get_columns(self.matches_tbl):    #TODO fix this
-                print("column not found: " + str(column))
-                continue
-            command = command + """
-            """ + str(column) + """ = """
+    def setup_test(self): #testing stuff is always called at the start, and can be called in guildstartingevent, to update DBs for every server
 
-            if kwargs[column]:
-                val = """'""" + str(kwargs[column]) + """'"""
-            else:
-                val = "NULL"
-            command = command + val + ""","""
+        # pdm.to_mongo(self.sample_queues, "queues_0", DB, if_exists="replace", index=False)
+        queue = self.get_queue(234)
+        print(queue)
 
-        command = command[:-1] + """
-            WHERE match_id = """ + str(match_id) + """
-        """
 
-        print("█UPDATE MATCH for guild " + str(self.guild_id) + ": " + str(match_id) + "kwargs: " + str(kwargs)  +"\n")
-        self.cur.execute(command)
+        # queues_df = pdm.read_mongo("Collection1", [], "mongodb+srv://lilapela:CWahaG2nnNlOn74t@pelacluster.9oy7y.mongodb.net/pelaDB?retryWrites=true&w=majority")
 
+        # from_mongo = pd.DataFrame(list(DB.find()))
+        # print("from mongo:\n" + str(from_mongo) + "types: \n" + str(from_mongo.dtypes))
 
-    def get_recent_matches(self, player=None, match_id=None, number=1) -> pd.DataFrame: #TODO implement isfull
+        # self.guildDB[self.matches_tbl].insert_many(sample_matches.to_dict("records"))
+        #
+        # new_player = self.player(user_id = 234897897, elo=40)
+        # print(new_player)
+        #
+        # self.upsert_player(new_player)
 
-        command = """SELECT * FROM """ + self.matches_tbl + """ 
-            WHERE"""
-        if match_id:
-            command = command + """ match_id=""" + str(match_id) + """
-            AND"""
-        if player:
-            command = command + """ (player1=""" + str(player) + """ or player2=""" + str(player) + """)
-            AND"""
-        command = command.rsplit("\n", 1)[0]+ """ ORDER BY match_id DESC
-            LIMIT """ + str(number) + """"""
 
-        print("█GET MATCHES from guild: " + str(self.guild_id) + ": by player: " + str(player) + ", id: " + str(match_id) + ", number: " + str(number) + "\n")
+    #insert/update: update_one. upsert
 
-        self.cur.execute(command)
-        matches = self.cur.fetchall()
-
-        command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '""" + self.matches_tbl + """' """
-        self.cur.execute(command)
-        columns = []
-        for c in self.cur.fetchall():
-            columns.append(c[3])  # IDK if this is right!!!
-
-        df = construct_df(columns=columns, rows=matches, index_column="match_id").fillna(0)
-
-        return df  # returns a pandas dataframe
-
-
-    #players =========================================================
-
-    def add_player(self, user_id):
-        command = """INSERT INTO """ + self.players_tbl + """ (user_id) VALUES(%s)"""
-        self.cur.execute(command, (user_id,))
-
-
-    def update_player(self, player_id, **kwargs):
-
-        command = """
-            UPDATE """ + self.players_tbl + """
-            SET"""
-
-        for column in kwargs.keys():
-            if not column in self.get_columns(self.players_tbl):   #TODO check this
-                print("Column not found: " + str(column))
-                continue
-            command = command + """
-            """ + str(column) + """ = """
-
-            if kwargs[column]:
-                val = """'""" + str(kwargs[column]) + """'"""
-            else:
-                val = "NULL"
-            command = command + val + ""","""
-
-        command = command[:-1] + """
-            WHERE user_id = """ + str(player_id) + """
-        """
-
-        print("█UPDATE " + self.players_tbl + ": " + str(player_id) + ", kwargs: " + str(kwargs) + "\n")
-        self.cur.execute(command)
-
-
-    def get_players(self, user_id=None, top_by_elo=None):
-
-        command = """
-                SELECT * FROM """ + self.players_tbl + """
-            """
-        if user_id:
-            command = command + """
-                WHERE user_id=""" + str(user_id) + """
-            """
-        elif top_by_elo:
-            command = command + """
-                ORDER BY elo DESC
-                LIMIT """ + str(top_by_elo) + """
-            """
-
-        print("█GET PLAYER: " + str(user_id) + " top by elo: " + str(top_by_elo) + "\n")
-
-        self.cur.execute(command)
-        player = self.cur.fetchall()
-        columns = self.get_columns(self.players_tbl)
-
-        df = construct_df(columns=columns, rows=player).fillna(0)
-
-        return df
-
-
-
-    # queues =========================================================
-
-    def set_all_queues(self, df):
-        self.close_connection()
-        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-        self.engine = create_engine(postgresURL)
-
-        print("setting df: \n"+ str(df) + "\ntypes: " + str(df.dtypes))
-        print("first channel: " + str(df.loc[0,"channels"][0]))
-
-        df.to_sql(self.queues_tbl, self.engine, if_exists="replace", index=False)
-
-        self.open_connection(self.guild_id)
-
-
-    def get_all_queues(self):
-
-        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-        df = pd.read_sql_table(self.queues_tbl, postgresURL)
-
-        #make sure null playerid values are 0 so that
-        df[["player1","player2"]] = df[["player1","player2"]].astype("Int64").fillna(0)
-        #convert channels and roles to series/array
-        df["channels"] = df["channels"].fillna("").apply(sqlarray_to_list)
-        df["roles"] = df["roles"].fillna("").apply(sqlarray_to_list)
-
-        return df
-
-    def remove_queue(self, queue_id):
-        pass
-
-
-    def update_queue(self, queue_id, **kwargs):
-        command = """
-            UPDATE """ + self.queues_tbl + """
-            SET"""
-
-        for column in kwargs.keys():
-            if not column in self.get_columns(self.queues_tbl):
-                print("Column not found: " + str(column))
-                continue
-            command = command + """
-            """ + str(column) + """ = """
-
-            if kwargs[column]:
-                val = """'""" + str(kwargs[column]) + """'"""
-            else:
-                val = "NULL"
-            command = command + val + ""","""
-
-        command = command[:-1] + """
-            WHERE queue_id = """ + str(queue_id) + """
-        """
-
-        print("█UPDATE " + self.queues_tbl + ": " + str(queue_id) + ", kwargs: " + str(kwargs) + "\n" + str(command))
-        self.cur.execute(command)
-
-
-
-
-
-
-    #Below: non- guild specific
-    def get_all_config(self):
-
-        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-        df = pd.read_sql_table(self.config_tbl, postgresURL)
-
-        df["staff_roles"] = df["staff_roles"].fillna("").apply(sqlarray_to_list)
-        df["banned_players"] = df["banned_players"].fillna("").apply(sqlarray_to_list)
-
-        return df
-
-    #below: non guild specific
-
-    def set_all_config(self, new_config):
-        self.close_connection()
-
-        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-        self.engine = create_engine(postgresURL)
-
-        new_config.to_sql(self.config_tbl, self.engine, if_exists='replace', index=False)
-
-        self.open_connection(self.guild_id)
-
-
-    def update_config_row(self, new_config_row):
-        self.close_connection()
-        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-        self.engine = create_engine(postgresURL)
-
-        old_config_df = self.get_all_config()
-
-        new_config_df = replace_row_if_col_matches(old_config_df, new_config_row, "guild_id")
-
-        new_config_df.to_sql(self.config_tbl, self.engine, if_exists='replace', index=False)
-
-        self.open_connection(self.guild_id)
-
-
-
-
-
-
-
-
-    #===================================
-
-    def get_columns(self, table_name):
-        command = """SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '""" + table_name + """'"""
-        self.cur.execute(command)
-        columns = []
-        for c in self.cur.fetchall():
-            columns.append(c[3])  # this is not
-
-        return columns
-
-
-
-
+    #need getter and setter for every dataframe.
 
     def create_missing_tables(self):
-
-        command = """
-            select max(case when table_name = '""" + str(self.players_tbl) + """' then 1 else 0 end) as TableExists
-            from information_schema.tables;
-        """
-        self.cur.execute(command)
-        if not self.cur.fetchall()[0][0]:
-            self.reset_players_table()
-
-        command = """
-            select max(case when table_name = '""" + str(self.matches_tbl) + """' then 1 else 0 end) as TableExists
-            from information_schema.tables;
-        """
-        self.cur.execute(command)
-        if not self.cur.fetchall()[0][0]:
-            self.reset_matches_table()
-
-        command = """
-            select max(case when table_name = '""" + str(self.queues_tbl) + """' then 1 else 0 end) as TableExists
-            from information_schema.tables;
-        """
-        self.cur.execute(command)
-        if not self.cur.fetchall()[0][0]:
-            self.reset_queues_table()
+        existing_tables = self.guildDB.list_collection_names()
+        for i in self.required_tables:
+            if i in existing_tables:
+                continue
+            self.guildDB.create_collection(i)
 
 
+    def get_player(self, user_id) -> pd.DataFrame:
+        cur = self.guildDB[self.players_tbl].find({"user_id": user_id}).limit(1)
+        return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
+
+    def upsert_player(self, player:pd.DataFrame):
+        playerdict = player.iloc[0].to_dict()
+        result = self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
+        updated_existing = result.raw_result["updatedExisting"]
 
 
-    @check_errors
-    def reset_players_table(self):
+    def get_latest_matches(self, user_id=None, number=1) -> pd.DataFrame:
+        cur_filter = {}
+        if user_id:
+            cur_filter["player_1"] = user_id
 
-        table_name = self.players_tbl
+        cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(number)
 
-        command = """
-        DROP TABLE IF EXISTS """ + table_name + """;
-        CREATE TABLE IF NOT EXISTS """ + table_name + """ (
-            user_id BIGINT PRIMARY KEY,
-            username VARCHAR,
-            time_registered TIMESTAMP,
-            elo FLOAT,
-            role VARCHAR
-        )
-        """
-        self.cur.execute(command)
+        return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
 
-        print("███ RESET Table " + table_name)
-
-    #below: reset tables. Any code changes here won't show up in the server until they reset their tables
-    @check_errors
-    def reset_matches_table(self):
-
-        table_name = self.matches_tbl
-
-        command = """
-        DROP TABLE IF EXISTS """ + table_name + """;
-        CREATE TABLE IF NOT EXISTS """ + table_name + """ (
-            match_id SERIAL PRIMARY KEY,
-            time_started TIMESTAMP,
-            player1 BIGINT,
-            player2 BIGINT,
-            p1_declared VARCHAR,
-            p2_declared VARCHAR,
-            p1_elo FLOAT,
-            p2_elo FLOAT,
-            outcome VARCHAR
-        )
-        """
-        self.cur.execute(command)
-
-        print("███ RESET Table " + table_name)
+    def upsert_match(self, match: pd.DataFrame): #puts first row of dataframe in match
+        matchdict = match.iloc[0].to_dict()
+        result = self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
+        updated_existing = result.raw_result["updatedExisting"]
 
 
-    @check_errors
-    def reset_queues_table(self):
+    def get_queue(self, channel_id):
+        cur_filter = {"channel_id": channel_id}
+        cur = self.guildDB[self.queues_tbl].find(cur_filter).limit(1)
+        return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
 
-        postgresURL = os.environ.get("DATABASE_URL").replace("postgres://", "postgresql://", 1)
-        self.engine = create_engine(postgresURL)
-
-        self.close_connection()
-
-        df = construct_df([], columns=["queue_name", "player1", "player2", "channels", "roles"])
-
-        df.to_sql(self.queues_tbl, self.engine, if_exists="replace", index=False)
-
-        self.open_connection(self.guild_id)
-
-        print("███ RESET Table " + self.queues_tbl)
-
-
-
-        # table_name = self.queues_tbl
-        #
-        # command = """
-        # DROP TABLE IF EXISTS """ + table_name + """;
-        # CREATE TABLE IF NOT EXISTS """ + table_name + """ (
-        #     queue_id SERIAL PRIMARY KEY,
-        #     queue_name VARCHAR,
-        #     player1 BIGINT,
-        #     player2 BIGINT,
-        #     channels BIGINT[],
-        #     roles BIGINT[]
-        # )
-        # """
-        # self.cur.execute(command)
-
-
-
-    @check_errors
-    def reset_config_table(self):
-        table_name = "config"
-
-        command = """
-        DROP TABLE IF EXISTS """ + table_name + """;
-        CREATE TABLE IF NOT EXISTS """ + table_name + """ (
-            guild_id BIGINT PRIMARY KEY,
-            staff_roles BIGINT[],
-            banned_players BIGINT[],
-            results_channel BIGINT
-        )
-        """
-
-        self.cur.execute(command)
-
-        print("███ RESET config table " + table_name)
-
-
-
-    def open_connection(self, guild_id):
-        self.guild_id = guild_id
-
-        if guild_id==TESTING_GUILD_ID: #special case for pela server
-            self.guild_id = 0
-
-        self.players_tbl = "players_" + str(self.guild_id)
-        self.matches_tbl = "matches_" + str(self.guild_id)
-        self.queues_tbl = "queues_" + str(self.guild_id)
-        self.config_tbl = "config"
-
-        self.conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
-        self.cur = self.conn.cursor()
-
-        print('Database connection opened')
-
-    def close_connection(self):
-        self.cur.close()
-        self.conn.commit()
-        if self.conn is not None:
-            self.conn.close()
-            print('Database connection closed')
-
-DB = Database()
+    def upsert_queue(self, queue: pd.DataFrame):
+        queuedict = queue.iloc[0].to_dict()
+        result = self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
+        updated_existing = result.raw_result["updatedExisting"]
