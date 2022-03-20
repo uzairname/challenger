@@ -44,14 +44,11 @@ class PelaBot (hikari.GatewayBot):
 
 
     async def on_guild_available(self, event: hikari.GuildAvailableEvent):
-        # DB.open_connection(event.guild_id)
-        #
-        # DB.create_missing_tables()
-        #
-        # DB.close_connection()
-        pass
+        DB = Database(event.guild_id)
+        DB.create_missing_tables()
 
 
+debug = (os.environ.get("DSP") == "Development")
 
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
@@ -59,9 +56,9 @@ if __name__ == "__main__":
     pd.options.display.width = 100
     pd.options.mode.chained_assignment = None
 
-    DB = Database(TESTING_GUILD_ID)
-    DB.create_missing_tables()
-    DB.setup_test()
+    if(debug):
+        DB = Database(TESTING_GUILD_ID)
+        DB.setup_test()
 
     bot = PelaBot(os.environ.get("PELA_TOKEN"))
     bot.run()

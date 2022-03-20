@@ -53,9 +53,9 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.respond("You're not allowed to join this lobby")
         return
 
+
     config_settings = DB.get_config()
     rbe = config_settings["roles_by_elo"]
-
     for index, row in rbe.iterrows():
         print("role: " + str(index) + "\n with range:" + str(row["min"]) + " to " + str(row["max"]))
 
@@ -141,11 +141,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
         await ctx.edit_initial_response("You haven't played a match")
         return
     match = match.iloc[0]
-
-    match_id = match["match_id"]
-
-
-        #note: changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the recursive algorithm might take a while
+        #note: changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
 
         # elo before the match. This is set when match is created, and never changed (unless player elo from a match before it changes)
 
@@ -189,7 +185,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 
         # display results: both players prior elo, elo change, and current elo
         await ctx.get_channel().send(
-            "Match " + str(match_id) + " results: " + str(new_outcome) +
+            "Match " + str(match["match_id"]) + " results: " + str(new_outcome) +
             "\n" + str(p1["username"]) + ": " + str(round(match["p1_elo"])) + " + " + str(round(elo_change[0], 1)) + " = " + str(round(p1["elo"])) +\
             "\n" + str(p2["username"]) + ": " + str(round(match["p2_elo"])) + " + " + str(round(elo_change[1], 1)) + " = " + str(round(p2["elo"]))
         )
@@ -205,6 +201,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 @component.with_slash_command
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
+
     DB = Database(ctx.guild_id)
 
     queue = await get_available_queue(ctx, DB)
@@ -228,9 +225,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     if player_info is None:
         return
 
-    player_id = ctx.author.id
-
-    match = DB.get_matches(user_id=player_id)
+    match = DB.get_matches(user_id=ctx.author.id)
     if match.empty:
         await ctx.respond("you haven't played any matches")
         return
