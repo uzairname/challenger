@@ -48,7 +48,7 @@ class PelaBot (hikari.GatewayBot):
         DB.create_missing_tables()
 
 
-debug = (os.environ.get("DSP") == "Development")
+debug = (os.environ.get("DSP") == "testing")
 
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)

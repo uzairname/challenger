@@ -1,3 +1,8 @@
+import datetime
+
+import numpy as np
+from typing import Mapping
+
 import pymongo
 from __init__ import *
 import os
@@ -41,7 +46,7 @@ class Database:
         client = pymongo.MongoClient(url)
 
         self.guild_name = str(guild_id)
-        if (guild_id == 947184983120957452):
+        if guild_id == 947184983120957452:
             self.guild_name = "PX"
         self.guildDB = client["guild_" + self.guild_name]
 
@@ -57,15 +62,22 @@ class Database:
 
         # a = self.get_players(top_by_elo=[1,1])
 
-        elo_to_roles = pd.DataFrame([[0,100], [50,100]], columns=["min", "max"], index=[951233553360891924, 53894797823478723])
+        # elo_to_roles = pd.DataFrame([[0,100], [50,100]], columns=["min", "max"], index=[951233553360891924, 53894797823478723])
+        #
+        # self.add_new_config(roles_by_elo = elo_to_roles)
+        #
+        # from_mongo = self.get_config()
+        #
+        # print("from mongo: \n" + str(from_mongo) + "\n\n" + str(from_mongo["roles_by_elo"]))
 
-        self.add_new_config(roles_by_elo = elo_to_roles)
+        cur_filter = {}
+        cur_filter["$or"] = [{"player_1":623974705153441830},{"player_2":623974705153441830}]
 
-        from_mongo = self.get_config()
+        cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(4)
 
-        print("from mongo: \n" + str(from_mongo) + "\n\n" + str(from_mongo["roles_by_elo"]))
+        # df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
 
-
+        print(list(cur[:]))
 
         pass
 
@@ -140,20 +152,33 @@ class Database:
         updated_existing = result.raw_result["updatedExisting"]
 
     def upsert_match(self, match:pd.Series): #puts first row of dataframe in match
+        match = match.replace(np.nan, None) #all DB updates should go throughh this. this takes care of fixing the types
 
-        matchdict = match.fillna(0).to_dict()
+        if match["match_id"]:
+            match["match_id"] = int(match["match_id"])
+        if match["player_1"]:
+            match["player_1"] = int(match["player_1"])
+        if match["player_2"]:
+            match["player_2"] = int(match["player_2"])
+
+        # print(type(match["time_started"]))
+
+        matchdict = match.to_dict()
+
+        print("matchdict" + str(matchdict))
 
         result = self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
     def upsert_queue(self, queue:pd.Series):
 
+        queue = queue.replace(np.nan, None)
+
         queue["roles"] = list(queue["roles"]) #mongo doesn't accept int64
         for i in range(len(queue["roles"])):
             queue["roles"][i] = int(queue["roles"][i])
 
         queuedict = queue.fillna(0).to_dict()
-
         result = self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
@@ -185,6 +210,7 @@ class Database:
         self.upsert_player(new_player)
 
     def add_new_match(self, **kwargs):
+
         prev_match = self.get_matches()
         if prev_match.empty:
             new_id = 0
@@ -192,6 +218,7 @@ class Database:
             new_id = prev_match.iloc[0]["match_id"] + 1
 
         match = pd.Series()
+
         match["match_id"] = new_id
         for k in kwargs:
             if k in self.EMPTY_MATCH.columns:
@@ -199,9 +226,23 @@ class Database:
             else:
                 raise Exception("Invalid column for match:" + str(k))
 
-        new_match = pd.concat([self.EMPTY_MATCH, pd.DataFrame(match).T]).fillna(0).iloc[0]
-        print(new_match)
+        new_match = pd.concat([self.EMPTY_MATCH, pd.DataFrame(match).T]).iloc[0]
+
+
         self.upsert_match(new_match)
+
+    def new_match(self):
+        prev_match = self.get_matches()
+        if prev_match.empty:
+            new_id = 0
+        else:
+            new_id = prev_match.iloc[0]["match_id"] + 1
+
+        match = pd.Series([new_id], index=["match_id"])
+        new_match = pd.concat([self.EMPTY_MATCH, pd.DataFrame(match).T]).iloc[0]
+
+        return new_match
+
 
     def add_new_queue(self, channel_id, **kwargs):
 
@@ -215,7 +256,7 @@ class Database:
                 raise Exception("Invalid column for queue:" + str(k))
 
 
-        new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).fillna(0).iloc[0]
+        new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).iloc[0]
         self.upsert_queue(new_queue)
 
     def add_new_config(self, _=0, **kwargs):
@@ -229,6 +270,6 @@ class Database:
             else:
                 raise Exception("Invalid column for config:" + str(k))
 
-        new_config = pd.concat([self.EMPTY_CONFIG, pd.DataFrame(config).T]).fillna(0).iloc[0]
+        new_config = pd.concat([self.EMPTY_CONFIG, pd.DataFrame(config).T]).iloc[0]
 
         self.upsert_config(new_config)

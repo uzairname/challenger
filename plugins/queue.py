@@ -76,13 +76,20 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         p1_info = DB.get_players(user_id=queue['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
 
+        print("player1: " + str(p1_info))
+        print("player2: " + str(p2_info))
+
         p1_ping = "<@" + str(p1_info["user_id"]) + ">"
         p2_ping = "<@" + str(p2_info["user_id"]) + ">"
 
-        DB.add_new_match(player_1=p1_info["user_id"],
-                         player_2=p2_info["user_id"],
-                         p1_elo=p1_info["elo"],
-                         p2_elo=p2_info["elo"])
+        new_match = DB.new_match()
+        new_match[["player_1", "player_2", "p1_elo", "p2_elo"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],p2_info["elo"]]
+        print(new_match)
+        # DB.add_new_match(player_1=p1_info["user_id"],
+        #                  player_2=p2_info["user_id"],
+        #                  p1_elo=p1_info["elo"],
+        #                  p2_elo=p2_info["elo"])
+        DB.upsert_match(new_match)
 
         queue["player"] = None
 
@@ -144,6 +151,9 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
         # elo before the match. This is set when match is created, and never changed (unless player elo from a match before it changes)
 
     #set the new outcome based on player declare or staff declare
+
+    print("match: " + str(match))
+    print("outtome: " + str(match["outcome"]))
     old_outcome = match["outcome"]
     new_outcome = old_outcome
 
@@ -165,6 +175,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     #refresh match and check whether both declares are equal
 
     if match["outcome"] == declared_result:
+        print("outcome: " + str(match["outcome"]))
         response = "Outcome is already " + str(declared_result)
 
     if match["p1_declared"] == match["p2_declared"]:
@@ -193,6 +204,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 
     await ctx.respond(response)
 
+    print(str(match["match_id"]) + "\ntype:\n" +str(type(match["match_id"])))
     DB.upsert_match(match)
 
 

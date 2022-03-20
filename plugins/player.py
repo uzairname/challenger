@@ -33,8 +33,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         return
 
     player_info = player_info.iloc[0]
-
-    player_info["username"] = ctx.member.nickname
+    player_info["username"] = ctx.member.nickname if ctx.member.nickname else ctx.author.username
     DB.upsert_player(player_info)
     response = "You've already registered. Updated your nickname"
 
