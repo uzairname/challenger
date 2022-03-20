@@ -17,29 +17,21 @@ DEFAULT_ELO = 50  # everyone's starting score
 DEFAULT_K = 12  # maximum change in one game
 DEFAULT_SCALE = 30  # elo difference approximating 10x skill difference
 
-def calc_elo_change(p1_elo, p2_elo, result): #player 1's elo change
+def calc_elo_change(p1_elo, p2_elo, result): #
+    if result == results.CANCEL or result is None:
+        return [0,0]
 
     k = DEFAULT_K
     scale = DEFAULT_SCALE
-    def p(A, B):  # A's expected probability of winning
-        return 1 / (1 + math.pow(10, -(B - A) / scale))
 
-    if result == results.PLAYER1:
-        p1_elo_change = k * p(p1_elo, p2_elo)
-        p2_elo_change =  k * (p(p2_elo, p1_elo)-1)
-    elif result == results.PLAYER2:
-        p1_elo_change =  k * (p(p1_elo, p2_elo)-1)
-        p2_elo_change = k * p(p2_elo, p1_elo)
-    elif result == results.DRAW:
-        p1_elo_change =  k * (p(p1_elo, p2_elo)-0.5)
-        p2_elo_change = k * (p(p2_elo, p1_elo)-0.5)
-    elif result == results.CANCEL or result is None:
-        p1_elo_change = 0
-        p2_elo_change = 0
-    else:
-        raise
+    def p(A, B):  #probability of A beating B
+        return 1 / (1 + math.pow(10, -(A - B) / scale))
 
-    return np.array([p1_elo_change, p2_elo_change])
+    allocated = {results.PLAYER1:1, results.PLAYER2:0, results.DRAW:0.5}[result] #what percent of the elo gets allocated to player 1
+    p1_elo_change = (  allocated   - p(p1_elo, p2_elo)) * k
+    p2_elo_change = ((1-allocated) - p(p2_elo, p1_elo)) * k
+
+    return [p1_elo_change, p2_elo_change]
 
 
 def check_errors(func):

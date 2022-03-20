@@ -24,15 +24,13 @@ async def hi_test(ctx: tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=Pela
     /queue - see whether queue is empty
     /declare [win, loss, draw] declare the results of your match. Both players must declare for match to be decided
     /match - view the results of your latest match
-    /lb - view the leaderboard
+    /lb - view the leaderboard. A difference of 30 elo means the odds of the better player winning is 10 to 1
     /stats - see your elo
-    
     """)
     embed.add_field(name="Staff commands", value="""
     /configure ...
     \t[lobby] - Add or change lobbies
     \t[results] - Set the channel for match results announcements
-    /reset - completely resets all match and player data for your server
     """)
 
     embed.add_field(name="Other commands", value="""
