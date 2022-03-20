@@ -4,6 +4,7 @@ import tanjun
 import functools
 from plugins.utils import *
 from database import Database
+from __main__ import bot
 
 
 component = tanjun.Component(name="queue module")
@@ -182,30 +183,48 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
         new_outcome = declared_result
 
     if old_outcome != new_outcome:
-
-        match["outcome"] = new_outcome
-
         p1 = DB.get_players(user_id=match["player_1"]).iloc[0]
         p2 = DB.get_players(user_id=match["player_2"]).iloc[0]
 
         elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], new_outcome)
+
         p1["elo"] = match["p1_elo"] + elo_change[0]
         p2["elo"] = match["p2_elo"] + elo_change[1]
 
-        # display results: both players prior elo, elo change, and current elo
-        await ctx.get_channel().send(
-            "Match " + str(match["match_id"]) + " results: " + str(new_outcome) +
-            "\n" + str(p1["username"]) + ": " + str(round(match["p1_elo"])) + " + " + str(round(elo_change[0], 1)) + " = " + str(round(p1["elo"])) +\
-            "\n" + str(p2["username"]) + ": " + str(round(match["p2_elo"])) + " + " + str(round(elo_change[1], 1)) + " = " + str(round(p2["elo"]))
-        )
-
         DB.upsert_player(p1)
         DB.upsert_player(p2)
+
+        match["outcome"] = new_outcome
+        await announce_outcome(ctx, match, p1, p2, new_outcome, elo_change)
 
     await ctx.respond(response)
 
     print(str(match["match_id"]) + "\ntype:\n" +str(type(match["match_id"])))
     DB.upsert_match(match)
+
+
+async def announce_outcome(ctx:tanjun.abc.Context, match, p1, p2, outcome, elo_change):
+
+    DB = Database(ctx.guild_id)
+
+    config = DB.get_config()
+
+    channel_id = config["results_channel"]
+
+    announcement = "Match " + str(match["match_id"]) + " results: " + str(outcome) + \
+        "\n" + str(p1["username"]) + ": " + str(round(match["p1_elo"])) + " + " + str(
+            round(elo_change[0], 1)) + " = " + str(round(p1["elo"])) + \
+        "\n" + str(p2["username"]) + ": " + str(round(match["p2_elo"])) + " + " + str(
+            round(elo_change[1], 1)) + " = " + str(round(p2["elo"]))
+
+
+    if channel_id is None:
+        await ctx.get_channel().send(announcement + "\nNo match announcements channel specified")
+        return
+
+    await bot.rest.create_message(channel_id, announcement)
+
+
 
 
 @component.with_slash_command
@@ -252,10 +271,12 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
         result = DB.get_players(user_id=winner_id).iloc[0]["username"]
     elif match["outcome"] == results.CANCEL:
         result = "cancelled"
+    elif match["outcome"] == results.DRAW:
+        result = "draw"
     else:
         result = "undecided"
 
-    await ctx.respond("Match " + str(match["match_id"]) + " outcome: " + result)
+    await ctx.respond("Match " + str(match["match_id"]) + " outcome: " + str(result))
 
 
 
@@ -266,7 +287,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     DB = Database(ctx.guild_id)
 
-    players = DB.get_players(top_by_elo=[0,1])
+    players = DB.get_players(top_by_elo=[0,20])
 
     response = "Leaderboard:```\n"
     place = 0

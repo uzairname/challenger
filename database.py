@@ -1,6 +1,7 @@
 import datetime
 
 import numpy as np
+import pandas as pd
 from typing import Mapping
 
 import pymongo
@@ -31,8 +32,7 @@ class Database:
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "username", "time_registered", "elo"])
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
-    EMPTY_CONFIG = pd.DataFrame([], columns=["_", "staff_roles", "results_channel", "roles_by_elo"])
-    CONFIG_FIRST_ROW = 0
+    EMPTY_CONFIG = pd.DataFrame([], columns=["staff_roles", "results_channel", "roles_by_elo"])
 
     players_tbl = "players"
     matches_tbl = "matches"
@@ -70,14 +70,6 @@ class Database:
         #
         # print("from mongo: \n" + str(from_mongo) + "\n\n" + str(from_mongo["roles_by_elo"]))
 
-        cur_filter = {}
-        cur_filter["$or"] = [{"player_1":623974705153441830},{"player_2":623974705153441830}]
-
-        cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(4)
-
-        # df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
-
-        print(list(cur[:]))
 
         pass
 
@@ -92,6 +84,8 @@ class Database:
             if i in existing_tables:
                 continue
             self.guildDB.create_collection(i)
+
+        self.create_config_row()
 
     def get_players(self, user_id=None, top_by_elo=None) -> pd.DataFrame:
         cur_filter = {}
@@ -127,7 +121,6 @@ class Database:
             channel_id = int(channel_id)  #mongo db doesn't recognize numpy.Int64 for some reason
             cur_filter["channel_id"] = channel_id
 
-        print(channel_id)
         cur = self.guildDB[self.queues_tbl].find(cur_filter)
         return pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
 
@@ -160,34 +153,35 @@ class Database:
             match["player_1"] = int(match["player_1"])
         if match["player_2"]:
             match["player_2"] = int(match["player_2"])
-
-        # print(type(match["time_started"]))
-
         matchdict = match.to_dict()
-
-        print("matchdict" + str(matchdict))
 
         result = self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
     def upsert_queue(self, queue:pd.Series):
-
         queue = queue.replace(np.nan, None)
 
         queue["roles"] = list(queue["roles"]) #mongo doesn't accept int64
         for i in range(len(queue["roles"])):
             queue["roles"][i] = int(queue["roles"][i])
 
-        queuedict = queue.fillna(0).to_dict()
+        queuedict = queue.to_dict()
         result = self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
     def upsert_config(self, config:pd.Series):
 
-        configdict = config.fillna(0).to_dict()
+        config = config.replace(np.nan, None)
+
+        if config["roles_by_elo"] is None:
+            rbe_df = pd.DataFrame([], columns=["min", "max", "priority"])
+            rbe_df.index.name = "role"
+            config["roles_by_elo"] = rbe_df
+
+        configdict = config.to_dict()
         configdict["roles_by_elo"] = configdict["roles_by_elo"].to_dict("tight")
 
-        result = self.guildDB[self.config_tbl].update_one({"_":configdict["_"]}, {"$set":configdict}, upsert=True)
+        result = self.guildDB[self.config_tbl].update_one({}, {"$set":configdict}, upsert=True)
 
 
 
@@ -259,17 +253,13 @@ class Database:
         new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).iloc[0]
         self.upsert_queue(new_queue)
 
-    def add_new_config(self, _=0, **kwargs):
+    def create_config_row(self, _=0):
         config = pd.Series()
 
-        config["_"] = _ #currently config has just 1 row so index doesn't matter
+        config.name = "0" #currently config has just 1 row so index doesn't matter
 
-        for k in kwargs:
-            if k in self.EMPTY_CONFIG.columns:
-                config[k] = kwargs[k]
-            else:
-                raise Exception("Invalid column for config:" + str(k))
+        config_df = pd.concat([self.EMPTY_CONFIG, pd.DataFrame(config).T]).iloc[0]
+        config_df.index.name = "a config"
 
-        new_config = pd.concat([self.EMPTY_CONFIG, pd.DataFrame(config).T]).iloc[0]
 
-        self.upsert_config(new_config)
+        self.upsert_config(config_df)

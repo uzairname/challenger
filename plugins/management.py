@@ -24,7 +24,7 @@ def parse_input(string):
 
     channels = np.array(re.findall(channel_pat, string)).astype("int64")
     roles = np.array(re.findall(role_pat, string)).astype("int64")
-    users = re.findall(user_pat, string)
+    users = np.array(re.findall(user_pat, string)).astype("int64")
 
     #text is all text at the start before any channel roles or users
     return {"text": name, "channels": channels, "roles": roles, "users":users}
@@ -34,75 +34,83 @@ def parse_input(string):
 class options:
     LOBBY = "lobbies"
     RESULTS = "results channel"
+    REMOVE_LOBBY = "remove lobby"
+    ELO_ROLES = "elo to roles"
+
 @component.with_slash_command
-@tanjun.with_str_slash_option("setting", "setting", choices={"lobby channels":options.LOBBY, "results channel":options.RESULTS})
+@tanjun.with_str_slash_option("setting", "What setting?",
+                              choices={"Add/edit a lobby":options.LOBBY,
+                                       "Delete a lobby":options.REMOVE_LOBBY,
+                                       "results channel":options.RESULTS,
+                                       "Elo Roles":options.ELO_ROLES})
 @tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
 async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = tanjun.injected(type=PelaBot), client: tanjun.Client = tanjun.injected(type=tanjun.Client)):
-
-
 
     if setting == options.LOBBY:
         instructions_embed = hikari.Embed(
             title="Add a Lobby",
-            description="Type the lobby name followed by its channel and allowed roles.\nFor example, \"Beginner Lobby #channel @beginner-role @verified-role\"\nEach lobby can only be set to one channel, but each channel can have multiple lobbies")
-
+            description="Type the lobby name followed by its channel and allowed roles. Players must have at least one of your specified roles to join this lobby. \n\nFor example, \"Beginner Lobby #channel @beginner-role @verified-role\"")
     elif setting == options.RESULTS:
         instructions_embed = hikari.Embed(
-            title="Add a Results Channel",
+            title="Set the Result Announcements Channel",
             description="Select a channel to configure by typing it in chat")
+    elif setting == options.REMOVE_LOBBY:
+        instructions_embed = hikari.Embed(
+            title="Remove a Lobby",
+            description="Type a channel to remove its lobby")
+    elif setting == options.ELO_ROLES:
+        instructions_embed = hikari.Embed(
+            title="Edit an elo Role",
+            description="Automatically assign players in a certain elo range to a role. Type an elo range followed by the role to set it to. \n([min elo] to [max elo]) For example: \"`50 to 70 @gold-rank`\" \n(Negative elo is also possible lol)")
 
     await ctx.edit_initial_response(embed=instructions_embed)
 
     with bot.stream(hikari.MessageCreateEvent, timeout=DEFAULT_TIMEOUT).filter(('author', ctx.author)) as stream:
         async for event in stream:
-            await event.message.delete()
+            if event.message:
+                await event.message.delete()
 
-            input_embed = hikari.Embed(title="Your Selection", description="")
+            input_embed = hikari.Embed(title="Updating Settings", description="")
             input_params = parse_input(event.content)
 
             if input_params["text"]:
-                input_embed.description += "Name: **" + str(input_params["text"]) + "**\n"
+                input_embed.description += "Input: **" + str(input_params["text"]) + "**\n"
 
-            input_embed.description += "Selected channels:\n"
-            for i in input_params["channels"]:
-                input_embed.description += "<#" + str(i) + ">\n"
+            if input_params["channels"].size > 0:
+                input_embed.description += "Selected channels:\n"
+                for i in input_params["channels"]:
+                    input_embed.description += "<#" + str(i) + ">\n"
 
-            input_embed.description += "Selected roles:\n"
-            for i in input_params["roles"]:
-                input_embed.description += "<@&" + str(i) + ">\n"
+            if input_params["roles"].size > 0:
+                input_embed.description += "Selected roles:\n"
+                for i in input_params["roles"]:
+                    input_embed.description += "<@&" + str(i) + ">\n"
+
+            if input_params["users"].size > 0:
+                input_embed.description += "Selected users:\n"
+                for i in input_params["users"]:
+                    input_embed.description += "<@" + str(i) + ">\n"
+
+            client.metadata['instructions embed'] = instructions_embed
+            client.metadata['input embed'] = input_embed
+            client.metadata['input params'] = input_params
 
             await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[])
-
-            input_error = check_input(setting, input_params)
-            if input_error:
-                instructions_embed.description += "/n" + str(input_error)
+            input_error = await confirm_settings_update(ctx, bot, client, setting)
+            if input_error is not None:
+                error_embed = hikari.Embed(title="**" + str(input_error) + "**")
+                await ctx.edit_initial_response(embeds=[instructions_embed, error_embed], components=[])
             else:
-                client.metadata['input embed'] = input_embed
-                client.metadata['input params'] = input_params
-                if await confirm_settings_update(ctx, bot, client, setting):
-                    return
-
-            await ctx.edit_initial_response(embed=instructions_embed, components=[])
+                await ctx.edit_initial_response("Success", embeds=[], components=[])
+                return
 
     await ctx.edit_initial_response("Timed out", embeds=[], components=[])
 
 
-def check_input(settings_category, input_params): #returns an error message to the command user, or returns nothing if input is fine
-
-    if settings_category == options.LOBBY:
-        if not input_params["text"]:
-            return "No name entered"
-        elif not len(input_params["channels"]) == 1:
-            return "Choose one channel"
-        else:
-            return
-
-    if settings_category == options.RESULTS:
-        return
-
 
 async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, client: tanjun.Client, setting):
 
+    instructions_embed = client.metadata["instructions embed"]
     input_embed = client.metadata["input embed"]
 
     row = ctx.rest.build_action_row()
@@ -115,37 +123,42 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
             .set_emoji("❌")
             .add_to_container())
 
-    confirm_embed = hikari.Embed(title= "", description="")
+    input_embed.title = "Confirm?"
 
     if setting == options.LOBBY:
-        confirm_embed.title = "Updating/adding a Lobby"
-        if not client.metadata["input params"]["roles"]:
-            confirm_embed.description += "\n❗No roles entered. No one will be able to join this lobby\n"
+        if client.metadata["input params"]["roles"].size == 0:
+            input_embed.description += "\n❗Warning: No roles entered. No one will be able to join this lobby\n"
 
-    await ctx.edit_initial_response(embeds=[input_embed, confirm_embed], components=[row])
+    await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[row])
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.user.id", ctx.author.id)) as stream:
         async for event in stream:
+            await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
+
             button_id = event.interaction.custom_id
 
             if button_id == "Cancel":
-                return False
+                return "Cancelled, waiting for input"
             elif button_id != "Confirm":
-                return False
+                return "idk lol"
 
-            i = client.metadata["input params"]
             if setting == options.LOBBY:
-                message = update_lobby(ctx, i)
-
-            confirm_embed.description += message
-            await ctx.edit_initial_response(embed=confirm_embed)
-            return True
+                return update_lobby(ctx, client.metadata["input params"])
+            elif setting == options.RESULTS:
+                return update_results_channel(ctx, client.metadata["input params"])
+            elif setting == options.ELO_ROLES:
+                return update_elo_roles(ctx, client.metadata["input params"])
 
     await ctx.edit_initial_response("Timed out in confirmlobbyupdate", embeds=[], components=[])
-    return True
+    return "Cancelled (timed out)"
 
 
 def update_lobby(ctx:tanjun.abc.Context, input_params):
+
+    if not input_params["text"]:
+        return "No name entered"
+    elif not input_params["channels"].size == 1:
+        return "Choose one channel"
 
     channel_id, roles, lobby_name = input_params["channels"][0], input_params["roles"], input_params["text"]
 
@@ -158,16 +171,63 @@ def update_lobby(ctx:tanjun.abc.Context, input_params):
         queue_info["lobby_name"] = lobby_name
         queue_info["roles"] = roles
         DB.upsert_queue(queue_info)
-        message = "Updated existing lobby for<#" + str(queue_info["channel_id"]) + ">"
     else:
         DB.add_new_queue(channel_id, lobby_name=lobby_name, roles=roles)
-        message = "Added new lobby \"" + str(input_params["text"]) + "\""
 
-    return message
+    return None
 
 
 def remove_lobby(ctx:tanjun.abc.Client, input_params):
+
     pass
+
+
+def update_results_channel(ctx:tanjun.abc.Context, input_params):
+
+    if input_params["channels"].size != 1:
+        return "Enter one channel to send results to"
+
+    DB = Database(ctx.guild_id)
+
+    config = DB.get_config()
+    config["results_channel"] = input_params["channels"][0]
+    DB.upsert_config(config)
+
+
+def update_elo_roles(ctx:tanjun.abc.Context, input_params):
+
+    if input_params["roles"].size != 1:
+        return "Enter one role"
+
+    pat = r"(-?[\d]+) to (-?[\d]+)"
+
+    res = re.match(pat, input_params["text"])
+
+    try:
+        minelo = int(res.groups()[0])
+        maxelo = int(res.groups()[1])
+    except:
+        return "Invalid input"
+
+    role = input_params["roles"][0]
+
+    DB = Database(ctx.guild_id)
+
+    config = DB.get_config()
+    rbe_df = config["roles_by_elo"]
+
+    print(rbe_df)
+
+    rbe_df = rbe_df.loc[rbe_df.index != role].sort_values("priority")
+    rbe_df["priority"] = range(len(rbe_df.index))
+    role_info = pd.Series([len(rbe_df.index), minelo, maxelo], index=["priority", "min", "max"], name=role)
+    rbe_df = pd.concat([rbe_df, pd.DataFrame(role_info).T])
+
+    print("after: \n" + str(rbe_df))
+
+    config["roles_by_elo"] = rbe_df
+    DB.upsert_config(config)
+
 
 
 
