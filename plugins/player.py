@@ -1,5 +1,7 @@
+import pandas as pd
+
 from plugins.utils import *
-from database import DB
+from database import Database
 from datetime import datetime
 import time
 
@@ -7,7 +9,7 @@ import time
 component = tanjun.Component(name="player module")
 
 
-async def ensure_registered(ctx: tanjun.abc.Context):
+async def ensure_registered(ctx: tanjun.abc.Context, DB:Database):
     player_info = DB.get_players(user_id=ctx.author.id)
     if player_info.empty:
         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
@@ -20,22 +22,25 @@ async def ensure_registered(ctx: tanjun.abc.Context):
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
 async def register(ctx: tanjun.abc.Context) -> None:
 
-    DB.open_connection(ctx.guild_id)
+    await ctx.edit_initial_response("...")
+
+    DB = Database(ctx.guild_id)
     user_id = ctx.author.id
-    player_info = DB.get_players(user_id)
+    player_info = DB.get_players(user_id=user_id)
+    print("p info: " + str(player_info))
 
-    if not player_info.empty:
-        DB.update_player(user_id, username=ctx.author.username)
-        await ctx.respond("You've already registered. Updated your info")
-        DB.close_connection()
-        return
 
-    DB.add_player(user_id)
-    DB.update_player(user_id, username=ctx.author.username, elo=DEFAULT_ELO, time_registered=datetime.fromtimestamp(time.time()))
+    if player_info.empty:
+        DB.add_new_player(user_id=ctx.author.id, username = ctx.author.username, time_registered=datetime.now(), elo=DEFAULT_ELO)
+        response = "You have registered"
+    else:
+        player_info["username"] = ctx.author.username
+        print("\n\n" + str(player_info["user_id"]) + "\n" + str(type(player_info["user_id"])))
+        DB.upsert_player(player_info)
+        response = "You've already registered. Updated your info"
 
-    DB.close_connection()
 
-    await ctx.respond("You have registered.")
+    await ctx.edit_initial_response(response)
 
 
 
@@ -43,7 +48,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=False)
 async def get_stats(ctx: tanjun.abc.Context) -> None:
 
-    DB.open_connection(ctx.guild_id)
+    DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx)
     if player_info is None:

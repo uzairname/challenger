@@ -4,7 +4,7 @@ import logging
 import hikari
 import tanjun
 import time
-from database import DB
+from database import Database
 import pandas as pd
 
 class PelaBot (hikari.GatewayBot):
@@ -44,21 +44,24 @@ class PelaBot (hikari.GatewayBot):
 
 
     async def on_guild_available(self, event: hikari.GuildAvailableEvent):
-        DB.open_connection(event.guild_id)
-
-        DB.create_missing_tables()
-
-        DB.close_connection()
+        # DB.open_connection(event.guild_id)
+        #
+        # DB.create_missing_tables()
+        #
+        # DB.close_connection()
         pass
 
 
 
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
-    pd.set_option("max_colwidth", 40)
-    pd.options.display.width = 0
+    pd.set_option("max_colwidth", 90)
+    pd.options.display.width = 100
+    pd.options.mode.chained_assignment = None
 
-    # DB.setup(951529009697652736)
+    DB = Database(TESTING_GUILD_ID)
+    DB.create_missing_tables()
+    DB.setup_test()
 
     bot = PelaBot(os.environ.get("PELA_TOKEN"))
     bot.run()
