@@ -42,6 +42,24 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     if player_info is None:
         return
 
+    #Ensure player has at least 1 role required by the queue
+    is_allowed = False
+    print(ctx.member.role_ids)
+    for role in queue["roles"]:
+        print(str(role) + ", ")
+        if role in ctx.member.role_ids:
+            is_allowed = True
+    if not is_allowed:
+        await ctx.respond("You're not allowed to join this lobby")
+        return
+
+    config_settings = DB.get_config()
+    rbe = config_settings["roles_by_elo"]
+
+    for index, row in rbe.iterrows():
+        print("role: " + str(index) + "\n with range:" + str(row["min"]) + " to " + str(row["max"]))
+
+
     player_id=ctx.author.id
 
     #Ensure player isn't already in queue
@@ -189,7 +207,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
-    queue = get_available_queue(ctx, DB)
+    queue = await get_available_queue(ctx, DB)
     if queue is None:
         return
 
@@ -222,10 +240,10 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     print("Match: \n" + str(match))
 
     if match["outcome"]==results.PLAYER1:
-        winner_id = match["player1"]
+        winner_id = match["player_1"]
         result = DB.get_players(user_id=winner_id).iloc[0]["username"]
     elif match["outcome"] == results.PLAYER2:
-        winner_id = match["player2"]
+        winner_id = match["player_2"]
         result = DB.get_players(user_id=winner_id).iloc[0]["username"]
     elif match["outcome"] == results.CANCEL:
         result = "cancelled"
@@ -241,19 +259,19 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
 
-    DB.open_connection(ctx.guild_id)
-    players = DB.get_players(top_by_elo=20)
+    DB = Database(ctx.guild_id)
+
+    players = DB.get_players(top_by_elo=[0,1])
 
     response = "Leaderboard:```\n"
     place = 0
-    print(players)
-    players.sort_values("elo", ascending=False)
+
     for index, player, in players.iterrows():
         place = place + 1
         response = response + str(place) + ":\t" + str(round(player["elo"])) + "\t" + str(player["username"]) + "\n"
     response = response + "```"
+
     await ctx.respond(response)
-    DB.close_connection()
 
 
 

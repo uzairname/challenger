@@ -11,7 +11,6 @@ DEFAULT_TIMEOUT = 120
 
 component = tanjun.Component(name="management module")
 
-
 def parse_input(string):
     text_pat = r"[a-zA-Z\d\s]+"
 
@@ -24,7 +23,7 @@ def parse_input(string):
         name = name[0].strip()
 
     channels = np.array(re.findall(channel_pat, string)).astype("int64")
-    roles = np.array(re.findall(role_pat, string)).astype("int32")
+    roles = np.array(re.findall(role_pat, string)).astype("int64")
     users = re.findall(user_pat, string)
 
     #text is all text at the start before any channel roles or users

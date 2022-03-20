@@ -1,14 +1,7 @@
-import time
-
-import numpy as np
-import pandas as pd
 import pymongo
-
 from __init__ import *
 import os
 from plugins.utils import *
-from pymongo import MongoClient
-from datetime import datetime
 
 
 def check_errors(func):
@@ -20,14 +13,11 @@ def check_errors(func):
             print("error in " + str(func))
     return wrapper_check_errors
 
-sample_queues = pd.DataFrame([["Lobby 1", 2489723947928, 0, 23947923749237, [23498723947239, 74658347952987]], ["Advanced Lobby", 0, 0, 6238423956834765, []]], columns=["lobby_name", "player_1", "player_2", "channel", "roles"])
-sample_queues[["player_1", "player_2"]] = sample_queues[["player_1", "player_2"]].astype("Int64").fillna(0)
-sample_queues.set_index("lobby_name")
-
-sample_matches = pd.DataFrame([[1, 0, 3458934797, 238947239847, 0, 0, 50, 50],[3, 0, 6456458934797, 238947239847, 0, 0, 50, 30],[2, 0, 9653458934797, 239546847, 0, 0, 20, 53]], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo"])
-
-
-
+# sample_queues = pd.DataFrame([["Lobby 1", 2489723947928, 0, 23947923749237, [23498723947239, 74658347952987]], ["Advanced Lobby", 0, 0, 6238423956834765, []]], columns=["lobby_name", "player_1", "player_2", "channel", "roles"])
+# sample_queues[["player_1", "player_2"]] = sample_queues[["player_1", "player_2"]].astype("Int64").fillna(0)
+# sample_queues.set_index("lobby_name")
+#
+# sample_matches = pd.DataFrame([[1, 0, 3458934797, 238947239847, 0, 0, 50, 50],[3, 0, 6456458934797, 238947239847, 0, 0, 50, 30],[2, 0, 9653458934797, 239546847, 0, 0, 20, 53]], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo"])
 
 
 
@@ -36,8 +26,8 @@ class Database:
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "username", "time_registered", "elo"])
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
-    EMPTY_CONFIG = pd.DataFrame([], columns=["_", "staff_roles", "results_channel"])
-
+    EMPTY_CONFIG = pd.DataFrame([], columns=["_", "staff_roles", "results_channel", "roles_by_elo"])
+    CONFIG_FIRST_ROW = 0
 
     players_tbl = "players"
     matches_tbl = "matches"
@@ -47,13 +37,16 @@ class Database:
     required_tables = [players_tbl, matches_tbl, queues_tbl, config_tbl]
 
     def __init__(self, guild_id):
+        url = os.environ.get("MONGODB_URL")
+        client = pymongo.MongoClient(url)
 
-        client = MongoClient("mongodb+srv://lilapela:CWahaG2nnNlOn74t@pelacluster.9oy7y.mongodb.net/pelaDB?retryWrites=true&w=majority")
         self.guild_name = str(guild_id)
+        if (guild_id == 947184983120957452):
+            self.guild_name = "PX"
         self.guildDB = client["guild_" + self.guild_name]
 
 
-    def setup_test(self): #testing stuff is always called at the start, and can be called in guildstartingevent, to update DBs for every server
+    def setup_test(self): #always called at the start
 
         # pdm.to_mongo(self.sample_queues, "queues_0", DB, if_exists="replace", index=False)
 
@@ -61,37 +54,20 @@ class Database:
 
 
         # self.guildDB["temp"].update_one()
-        p = np.array([234923942380808098, 230482048239808])
 
-        s = pd.Series([p, 423998797238948732], index=["a", "b"])
-        d = s.to_dict()
-        print(type(d["a"]))
+        # a = self.get_players(top_by_elo=[1,1])
 
-        self.add_new_match()
-
-        # if type(p).__module__ == np.__name__:
-        #     p = p.item()
-        # id= self.get_queues(953690285035098142).loc[0]["player"]
-        # id = int(id)
-        # print(type(id))
-        # cur = self.guildDB[self.players_tbl].find({"user_id":id})
-        # print(cur[0])
-
-        self.get_players()
-
-
-
-        # queues_df = pdm.read_mongo("Collection1", [], "mongodb+srv://lilapela:CWahaG2nnNlOn74t@pelacluster.9oy7y.mongodb.net/pelaDB?retryWrites=true&w=majority")
-
-        # from_mongo = pd.DataFrame(list(DB.find()))
-        # print("from mongo:\n" + str(from_mongo) + "types: \n" + str(from_mongo.dtypes))
-
-        # self.guildDB[self.matches_tbl].insert_many(sample_matches.to_dict("records"))
+        # elo_to_roles = pd.DataFrame([[0,100], [50,100]], columns=["min", "max"], index=[951233553360891924, 53894797823478723])
         #
-        # new_player = self.player(user_id = 234897897, elo=40)
-        # print(new_player)
+        # self.add_new_config(roles_by_elo = elo_to_roles)
         #
-        # self.upsert_player(new_player)
+        # from_mongo = self.get_config()
+        #
+        # print("from mongo: \n" + str(from_mongo) + "\n\n" + str(from_mongo["roles_by_elo"]))
+
+
+
+        pass
 
 
     #insert/update: update_one. upsert
@@ -105,8 +81,7 @@ class Database:
                 continue
             self.guildDB.create_collection(i)
 
-
-    def get_players(self, user_id=None, by_elo=False, from_to=None) -> pd.DataFrame:
+    def get_players(self, user_id=None, top_by_elo=None) -> pd.DataFrame:
         cur_filter = {}
 
         if user_id:
@@ -115,16 +90,13 @@ class Database:
 
         cur = self.guildDB[self.players_tbl].find(cur_filter)
 
-        if by_elo:
+        if top_by_elo:
             cur.sort("elo", -1)
+            cur.skip(top_by_elo[0])
+            cur.limit(top_by_elo[1])
 
-        if from_to is None:
-            from_to = [0, 1]
+        return pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
 
-        cur.skip(from_to[0])
-        cur.limit(from_to[1])
-
-        return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
 
     def get_matches(self, user_id=None, number=1) -> pd.DataFrame:
 
@@ -135,7 +107,7 @@ class Database:
 
         cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(number)
 
-        return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
+        return pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
 
     def get_queues(self, channel_id) -> pd.DataFrame:
         cur_filter = {}
@@ -145,7 +117,19 @@ class Database:
 
         print(channel_id)
         cur = self.guildDB[self.queues_tbl].find(cur_filter)
-        return pd.DataFrame(cur[:]).drop("_id", errors="ignore")
+        return pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+
+    def get_config(self) -> pd.Series:
+        row = 0 # one row
+        cur_filter = {}
+        cur = self.guildDB[self.config_tbl].find()
+        df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+
+        ret = df.loc[row]
+        ret["roles_by_elo"] = pd.DataFrame.from_dict(ret["roles_by_elo"], orient="tight")
+
+        return ret
+
 
 
     def upsert_player(self, player:pd.Series):
@@ -165,10 +149,23 @@ class Database:
     def upsert_queue(self, queue:pd.Series):
 
         queue["roles"] = list(queue["roles"]) #mongo doesn't accept int64
+        for i in range(len(queue["roles"])):
+            queue["roles"][i] = int(queue["roles"][i])
+
         queuedict = queue.fillna(0).to_dict()
 
         result = self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
+
+    def upsert_config(self, config:pd.Series):
+
+        configdict = config.fillna(0).to_dict()
+        configdict["roles_by_elo"] = configdict["roles_by_elo"].to_dict("tight")
+
+        result = self.guildDB[self.config_tbl].update_one({"_":configdict["_"]}, {"$set":configdict}, upsert=True)
+
+
+
 
 
     #above: worry about converting numpy to native python
@@ -217,7 +214,23 @@ class Database:
             else:
                 raise Exception("Invalid column for queue:" + str(k))
 
-        queue = queue.fillna(0)
 
         new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).fillna(0).iloc[0]
         self.upsert_queue(new_queue)
+
+    def add_new_config(self, _=0, **kwargs):
+        config = pd.Series()
+
+        config["_"] = _ #currently config has just 1 row so index doesn't matter
+
+        for k in kwargs:
+            if k in self.EMPTY_CONFIG.columns:
+                config[k] = kwargs[k]
+            else:
+                raise Exception("Invalid column for config:" + str(k))
+
+        new_config = pd.concat([self.EMPTY_CONFIG, pd.DataFrame(config).T]).fillna(0).iloc[0]
+
+        print(new_config)
+
+        self.upsert_config(new_config)

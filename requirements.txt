@@ -1,10 +1,8 @@
 hikari~=2.0.0.dev107
 hikari-tanjun
 git+https://github.com/FasterSpeeding/Tanjun.git
-psycopg2-binary
 pandas~=1.4.1
 pip~=22.0.4
-colorlog~=6.6.0
 setuptools~=58.1.0
 numpy~=1.22.3
 pymongo[srv]
