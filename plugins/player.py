@@ -35,6 +35,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         response = "You have registered"
     else:
         player_info["username"] = ctx.author.username
+        print("\n\n" + str(player_info["user_id"]) + "\n" + str(type(player_info["user_id"])))
         DB.upsert_player(player_info)
         response = "You've already registered. Updated your info"
 

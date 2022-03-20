@@ -23,10 +23,11 @@ def parse_input(string):
     if name:
         name = name[0].strip()
 
-    channels = re.findall(channel_pat, string)
-    roles = re.findall(role_pat, string)
+    channels = np.array(re.findall(channel_pat, string)).astype("int64")
+    roles = np.array(re.findall(role_pat, string)).astype("int32")
     users = re.findall(user_pat, string)
 
+    #text is all text at the start before any channel roles or users
     return {"text": name, "channels": channels, "roles": roles, "users":users}
 
 
