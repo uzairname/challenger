@@ -4,24 +4,23 @@ import tanjun
 import functools
 from plugins.utils import *
 from database import Database
+from __main__ import bot
 
 
 component = tanjun.Component(name="queue module")
 
 
-async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series | None:
+async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series:
     player = DB.get_players(user_id=ctx.author.id)
     if player.empty:
         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
-        return None
     return player.iloc[0]
 
 
-async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series | None:
+async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series:
     queue = DB.get_queues(ctx.channel_id)
     if queue.empty:
         await ctx.respond("This channel doesn't have a lobby")
-        return None
     return queue.iloc[0]
 
 
@@ -33,13 +32,13 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
-    queue = await get_available_queue(ctx, DB)
-    if queue is None:
+    queue:pd.Series = await get_available_queue(ctx, DB)
+    if queue.empty:
         print("queue didn't exist")
         return
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     #Ensure player has at least 1 role required by the queue
@@ -78,13 +77,20 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         p1_info = DB.get_players(user_id=queue['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
 
+        print("player1: " + str(p1_info))
+        print("player2: " + str(p2_info))
+
         p1_ping = "<@" + str(p1_info["user_id"]) + ">"
         p2_ping = "<@" + str(p2_info["user_id"]) + ">"
 
-        DB.add_new_match(player_1=p1_info["user_id"],
-                         player_2=p2_info["user_id"],
-                         p1_elo=p1_info["elo"],
-                         p2_elo=p2_info["elo"])
+        new_match = DB.new_match()
+        new_match[["player_1", "player_2", "p1_elo", "p2_elo"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],p2_info["elo"]]
+        print(new_match)
+        # DB.add_new_match(player_1=p1_info["user_id"],
+        #                  player_2=p2_info["user_id"],
+        #                  p1_elo=p1_info["elo"],
+        #                  p2_elo=p2_info["elo"])
+        DB.upsert_match(new_match)
 
         queue["player"] = None
 
@@ -101,11 +107,11 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     queue = await get_available_queue(ctx, DB)
-    if queue is None:
+    if queue.empty:
         return
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     player_id = ctx.author.id
@@ -133,7 +139,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     match = DB.get_matches(user_id=ctx.author.id)
@@ -146,6 +152,9 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
         # elo before the match. This is set when match is created, and never changed (unless player elo from a match before it changes)
 
     #set the new outcome based on player declare or staff declare
+
+    print("match: " + str(match))
+    print("outtome: " + str(match["outcome"]))
     old_outcome = match["outcome"]
     new_outcome = old_outcome
 
@@ -167,35 +176,55 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     #refresh match and check whether both declares are equal
 
     if match["outcome"] == declared_result:
+        print("outcome: " + str(match["outcome"]))
         response = "Outcome is already " + str(declared_result)
 
     if match["p1_declared"] == match["p2_declared"]:
         new_outcome = declared_result
 
     if old_outcome != new_outcome:
-
-        match["outcome"] = new_outcome
-
         p1 = DB.get_players(user_id=match["player_1"]).iloc[0]
         p2 = DB.get_players(user_id=match["player_2"]).iloc[0]
 
         elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], new_outcome)
+
         p1["elo"] = match["p1_elo"] + elo_change[0]
         p2["elo"] = match["p2_elo"] + elo_change[1]
-
-        # display results: both players prior elo, elo change, and current elo
-        await ctx.get_channel().send(
-            "Match " + str(match["match_id"]) + " results: " + str(new_outcome) +
-            "\n" + str(p1["username"]) + ": " + str(round(match["p1_elo"])) + " + " + str(round(elo_change[0], 1)) + " = " + str(round(p1["elo"])) +\
-            "\n" + str(p2["username"]) + ": " + str(round(match["p2_elo"])) + " + " + str(round(elo_change[1], 1)) + " = " + str(round(p2["elo"]))
-        )
 
         DB.upsert_player(p1)
         DB.upsert_player(p2)
 
+        match["outcome"] = new_outcome
+        await announce_outcome(ctx, match, p1, p2, new_outcome, elo_change)
+
     await ctx.respond(response)
 
+    print(str(match["match_id"]) + "\ntype:\n" +str(type(match["match_id"])))
     DB.upsert_match(match)
+
+
+async def announce_outcome(ctx:tanjun.abc.Context, match, p1, p2, outcome, elo_change):
+
+    DB = Database(ctx.guild_id)
+
+    config = DB.get_config()
+
+    channel_id = config["results_channel"]
+
+    announcement = "Match " + str(match["match_id"]) + " results: " + str(outcome) + \
+        "\n" + str(p1["username"]) + ": " + str(round(match["p1_elo"])) + " + " + str(
+            round(elo_change[0], 1)) + " = " + str(round(p1["elo"])) + \
+        "\n" + str(p2["username"]) + ": " + str(round(match["p2_elo"])) + " + " + str(
+            round(elo_change[1], 1)) + " = " + str(round(p2["elo"]))
+
+
+    if channel_id is None:
+        await ctx.get_channel().send(announcement + "\nNo match announcements channel specified")
+        return
+
+    await bot.rest.create_message(channel_id, announcement)
+
+
 
 
 @component.with_slash_command
@@ -205,7 +234,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     queue = await get_available_queue(ctx, DB)
-    if queue is None:
+    if queue.empty:
         return
 
     if queue["player"]:
@@ -222,7 +251,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     match = DB.get_matches(user_id=ctx.author.id)
@@ -242,10 +271,12 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
         result = DB.get_players(user_id=winner_id).iloc[0]["username"]
     elif match["outcome"] == results.CANCEL:
         result = "cancelled"
+    elif match["outcome"] == results.DRAW:
+        result = "draw"
     else:
         result = "undecided"
 
-    await ctx.respond("Match " + str(match["match_id"]) + " outcome: " + result)
+    await ctx.respond("Match " + str(match["match_id"]) + " outcome: " + str(result))
 
 
 
@@ -256,7 +287,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     DB = Database(ctx.guild_id)
 
-    players = DB.get_players(top_by_elo=[0,1])
+    players = DB.get_players(top_by_elo=[0,20])
 
     response = "Leaderboard:```\n"
     place = 0

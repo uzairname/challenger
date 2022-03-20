@@ -24,26 +24,29 @@ async def register(ctx: tanjun.abc.Context) -> None:
     await ctx.edit_initial_response("...")
 
     DB = Database(ctx.guild_id)
-    user_id = ctx.author.id
-    player_info = DB.get_players(user_id=user_id)
+    player_id = ctx.author.id
+    player_info = DB.get_players(user_id=player_id)
 
     if player_info.empty:
-        DB.add_new_player(user_id=ctx.author.id, username = ctx.author.username, time_registered=datetime.now(), elo=DEFAULT_ELO)
-        response = "You have registered"
-    else:
-        player_info = player_info.iloc[0]
-        player_info["username"] = ctx.author.username
-        DB.upsert_player(player_info)
-        response = "You've already registered. Updated your info"
+        DB.add_new_player(user_id=ctx.author.id, username = ctx.member.nickname, time_registered=datetime.now(), elo=DEFAULT_ELO)
+        await ctx.edit_initial_response("you have registered")
+        return
 
+    player_info = player_info.iloc[0]
+    if ctx.member.nickname is not None:
+        player_info["username"] = ctx.member.nickname
+    else:
+        player_info["username"] = ctx.author.username
+
+    DB.upsert_player(player_info)
+    response = "You've already registered. Updated your nickname"
 
     await ctx.edit_initial_response(response)
 
 
-
 @component.with_slash_command
 @tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=False)
-async def get_stats(ctx: tanjun.abc.Context) -> None:
+async def get_stats(ctx: tanjun.abc.Context) -> None: #TODO show winrate
 
     DB = Database(ctx.guild_id)
 
@@ -56,7 +59,7 @@ async def get_stats(ctx: tanjun.abc.Context) -> None:
     response = "Stats for " + str(player_info["username"]) + ":\n" +\
         "elo: " + str(round(player_info["elo"]))
 
-    await ctx.respond(response, delete_after=200)
+    await ctx.respond(response)
 
 
 
