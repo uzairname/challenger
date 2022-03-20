@@ -284,7 +284,6 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
-
     DB = Database(ctx.guild_id)
 
     players = DB.get_players(top_by_elo=[0,20])
