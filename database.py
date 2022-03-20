@@ -181,7 +181,7 @@ class Database:
             else:
                 raise Exception("Invalid column for player:" + str(k))
 
-        new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T]).fillna(0)
+        new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T]).fillna(0).iloc[0]
         self.upsert_player(new_player)
 
     def add_new_match(self, **kwargs):
@@ -230,7 +230,5 @@ class Database:
                 raise Exception("Invalid column for config:" + str(k))
 
         new_config = pd.concat([self.EMPTY_CONFIG, pd.DataFrame(config).T]).fillna(0).iloc[0]
-
-        print(new_config)
 
         self.upsert_config(new_config)

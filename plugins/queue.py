@@ -9,19 +9,17 @@ from database import Database
 component = tanjun.Component(name="queue module")
 
 
-async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series | None:
+async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series:
     player = DB.get_players(user_id=ctx.author.id)
     if player.empty:
         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
-        return None
     return player.iloc[0]
 
 
-async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series | None:
+async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series:
     queue = DB.get_queues(ctx.channel_id)
     if queue.empty:
         await ctx.respond("This channel doesn't have a lobby")
-        return None
     return queue.iloc[0]
 
 
@@ -33,13 +31,13 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
-    queue = await get_available_queue(ctx, DB)
-    if queue is None:
+    queue:pd.Series = await get_available_queue(ctx, DB)
+    if queue.empty:
         print("queue didn't exist")
         return
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     #Ensure player has at least 1 role required by the queue
@@ -101,11 +99,11 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     queue = await get_available_queue(ctx, DB)
-    if queue is None:
+    if queue.empty:
         return
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     player_id = ctx.author.id
@@ -133,7 +131,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     match = DB.get_matches(user_id=ctx.author.id)
@@ -205,7 +203,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     queue = await get_available_queue(ctx, DB)
-    if queue is None:
+    if queue.empty:
         return
 
     if queue["player"]:
@@ -222,7 +220,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if player_info.empty:
         return
 
     match = DB.get_matches(user_id=ctx.author.id)
