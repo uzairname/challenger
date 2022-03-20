@@ -57,13 +57,13 @@ class Database:
 
         # a = self.get_players(top_by_elo=[1,1])
 
-        # elo_to_roles = pd.DataFrame([[0,100], [50,100]], columns=["min", "max"], index=[951233553360891924, 53894797823478723])
-        #
-        # self.add_new_config(roles_by_elo = elo_to_roles)
-        #
-        # from_mongo = self.get_config()
-        #
-        # print("from mongo: \n" + str(from_mongo) + "\n\n" + str(from_mongo["roles_by_elo"]))
+        elo_to_roles = pd.DataFrame([[0,100], [50,100]], columns=["min", "max"], index=[951233553360891924, 53894797823478723])
+
+        self.add_new_config(roles_by_elo = elo_to_roles)
+
+        from_mongo = self.get_config()
+
+        print("from mongo: \n" + str(from_mongo) + "\n\n" + str(from_mongo["roles_by_elo"]))
 
 
 
