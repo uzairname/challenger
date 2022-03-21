@@ -284,7 +284,6 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
-
     DB = Database(ctx.guild_id)
 
     players = DB.get_players(top_by_elo=[0,20])
@@ -298,6 +297,13 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     response = response + "```"
 
     await ctx.respond(response)
+
+
+@component.with_slash_command
+@tanjun.as_slash_command("set", "set a match's outcome", default_to_ephemeral=False)
+def force_match(ctx: tanjun.abc.Context):
+    pass
+
 
 
 

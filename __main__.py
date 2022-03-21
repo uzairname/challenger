@@ -24,7 +24,7 @@ class PelaBot (hikari.GatewayBot):
 
     def create_client(self):
         self.client = (tanjun.Client.from_gateway_bot(self))
-        self.client.load_modules("plugins.util", "plugins.queue", "plugins.demo", "plugins.player", "plugins.management")
+        self.client.load_modules("plugins.util", "plugins.queue", "plugins.player", "plugins.management")
         self.client.set_auto_defer_after(1)
 
     async def on_started(self, event:hikari.StartedEvent):
@@ -56,9 +56,10 @@ if __name__ == "__main__":
     pd.options.display.width = 100
     pd.options.mode.chained_assignment = None
 
-    if(debug):
+    bot = PelaBot(os.environ.get("PELA_TOKEN"))
+
+    if debug:
         DB = Database(TESTING_GUILD_ID)
         DB.setup_test()
 
-    bot = PelaBot(os.environ.get("PELA_TOKEN"))
     bot.run()

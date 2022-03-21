@@ -32,7 +32,7 @@ class Database:
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "username", "time_registered", "elo"])
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
-    EMPTY_CONFIG = pd.DataFrame([], columns=["staff_roles", "results_channel", "roles_by_elo"])
+    EMPTY_CONFIG = pd.DataFrame([], columns=["staff", "results_channel", "roles_by_elo"])
 
     players_tbl = "players"
     matches_tbl = "matches"
@@ -54,6 +54,7 @@ class Database:
     def setup_test(self): #always called at the start
 
         # pdm.to_mongo(self.sample_queues, "queues_0", DB, if_exists="replace", index=False)
+
 
         # self.guildDB.create_collection("temp")
 
@@ -84,8 +85,12 @@ class Database:
             if i in existing_tables:
                 continue
             self.guildDB.create_collection(i)
+            if i == self.config_tbl:
+                self.create_config_row()
 
-        self.create_config_row()
+
+
+
 
     def get_players(self, user_id=None, top_by_elo=None) -> pd.DataFrame:
         cur_filter = {}
@@ -139,31 +144,41 @@ class Database:
 
     def upsert_player(self, player:pd.Series):
 
-        playerdict = player.fillna(0).to_dict()
+        player = player.replace(np.nan, None)
 
+        self.EMPTY_PLAYER #reference
+        player["user_id"] = int(player["user_id"])
+
+        playerdict = player.to_dict()
         result = self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
     def upsert_match(self, match:pd.Series): #puts first row of dataframe in match
         match = match.replace(np.nan, None) #all DB updates should go throughh this. this takes care of fixing the types
 
-        if match["match_id"]:
-            match["match_id"] = int(match["match_id"])
+        self.EMPTY_MATCH #reference
+        match["match_id"] = int(match["match_id"])
         if match["player_1"]:
             match["player_1"] = int(match["player_1"])
         if match["player_2"]:
             match["player_2"] = int(match["player_2"])
-        matchdict = match.to_dict()
 
+        matchdict = match.to_dict()
         result = self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
         updated_existing = result.raw_result["updatedExisting"]
 
     def upsert_queue(self, queue:pd.Series):
         queue = queue.replace(np.nan, None)
 
-        queue["roles"] = list(queue["roles"]) #mongo doesn't accept int64
-        for i in range(len(queue["roles"])):
-            queue["roles"][i] = int(queue["roles"][i])
+        self.EMPTY_QUEUE #reference
+        if queue["channel"]:
+            queue["channel"] = int(queue["channel"])
+        if queue["player"]:
+            queue["player"] = int(queue["player"])
+        if queue["roles"]:
+            queue["roles"] = list(queue["roles"]) #mongo doesn't accept int64
+            for i in range(len(queue["roles"])):
+                queue["roles"][i] = int(queue["roles"][i])
 
         queuedict = queue.to_dict()
         result = self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
@@ -172,6 +187,11 @@ class Database:
     def upsert_config(self, config:pd.Series):
 
         config = config.replace(np.nan, None)
+
+        self.EMPTY_CONFIG
+        if config["staff"]:
+            for i in config["staff"]:
+                config["staff"][i] = config["staff"][i]
 
         if config["roles_by_elo"] is None:
             rbe_df = pd.DataFrame([], columns=["min", "max", "priority"])
@@ -203,29 +223,13 @@ class Database:
         new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T]).fillna(0).iloc[0]
         self.upsert_player(new_player)
 
-    def add_new_match(self, **kwargs):
+    def new_player(self, user_id) -> pd.Series:
 
-        prev_match = self.get_matches()
-        if prev_match.empty:
-            new_id = 0
-        else:
-            new_id = prev_match.iloc[0]["match_id"] + 1
+        player = pd.Series([user_id], index=["user_id"])
+        new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T]).iloc[0]
+        return new_player
 
-        match = pd.Series()
-
-        match["match_id"] = new_id
-        for k in kwargs:
-            if k in self.EMPTY_MATCH.columns:
-                match[k] = kwargs[k]
-            else:
-                raise Exception("Invalid column for match:" + str(k))
-
-        new_match = pd.concat([self.EMPTY_MATCH, pd.DataFrame(match).T]).iloc[0]
-
-
-        self.upsert_match(new_match)
-
-    def new_match(self):
+    def new_match(self) -> pd.Series:
         prev_match = self.get_matches()
         if prev_match.empty:
             new_id = 0
@@ -249,17 +253,16 @@ class Database:
             else:
                 raise Exception("Invalid column for queue:" + str(k))
 
-
         new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).iloc[0]
         self.upsert_queue(new_queue)
 
-    def create_config_row(self, _=0):
-        config = pd.Series()
+    def new_queue(self, channel_id):
+        queue = pd.Series([channel_id], index=["channel_id"])
+        new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).iloc[0]
+        return new_queue
 
-        config.name = "0" #currently config has just 1 row so index doesn't matter
+    def create_config_row(self):
 
-        config_df = pd.concat([self.EMPTY_CONFIG, pd.DataFrame(config).T]).iloc[0]
-        config_df.index.name = "a config"
-
-
+        config = pd.DataFrame([[[], pd.DataFrame([], columns=["priority", "min", "max"])]], columns=["staff", "roles_by_elo"])
+        config_df = pd.concat([self.EMPTY_CONFIG, config]).iloc[0]
         self.upsert_config(config_df)
