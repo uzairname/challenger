@@ -25,25 +25,26 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
     DB = Database(ctx.guild_id)
     player_id = ctx.author.id
-    player_info = DB.get_players(user_id=player_id)
-
+    players = DB.get_players(user_id=player_id)
 
     if ctx.member.nickname is not None:
         name = ctx.member.nickname
     else:
         name = ctx.author.username
 
-    if player_info.empty:
-        DB.add_new_player(user_id=ctx.author.id, username = name, time_registered=datetime.now(), elo=DEFAULT_ELO)
+    if players.empty:
+        player = DB.new_player(ctx.author.id)
+        player["username"] = name
+        player["time_registered"] = datetime.now()
+        player["elo"] = DEFAULT_ELO
+        DB.upsert_player(player)
         await ctx.edit_initial_response("you have registered")
         return
 
-    player_info = player_info.iloc[0]
-    player_info["username"] = name
-    DB.upsert_player(player_info)
-    response = "You've already registered. Updated your nickname"
-
-    await ctx.edit_initial_response(response)
+    player = players.iloc[0]
+    player["username"] = name
+    DB.upsert_player(player)
+    await ctx.edit_initial_response("You've already registered. Updated your username")
 
 
 @component.with_slash_command

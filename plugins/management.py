@@ -16,8 +16,8 @@ def parse_input(string):
 
     channel_pat = r"<#(\d{17,19})>"
     role_pat = r"<@&(\d{17,19})>"
-    user_pat = r"<@(\d{17,19})>"
-
+    user_pat = r"<@!?(\d{17,19})>"
+#(
     name = re.match(text_pat, string)
     if name:
         name = name[0].strip()
@@ -31,37 +31,57 @@ def parse_input(string):
 
 
 
-class options:
+class settings:
     LOBBY = "lobbies"
     RESULTS = "results channel"
     REMOVE_LOBBY = "remove lobby"
     ELO_ROLES = "elo to roles"
+    STAFF = "staff"
 
 @component.with_slash_command
 @tanjun.with_str_slash_option("setting", "What setting?",
-                              choices={"Add/edit a lobby":options.LOBBY,
-                                       "Delete a lobby":options.REMOVE_LOBBY,
-                                       "results channel":options.RESULTS,
-                                       "Elo Roles":options.ELO_ROLES})
+                              choices={"Add/edit a Lobby":settings.LOBBY,
+                                       "Delete a Lobby":settings.REMOVE_LOBBY,
+                                       "Results Channel":settings.RESULTS,
+                                       "Elo Roles":settings.ELO_ROLES,
+                                       "Staff Members":settings.STAFF})
 @tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
 async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = tanjun.injected(type=PelaBot), client: tanjun.Client = tanjun.injected(type=tanjun.Client)):
+    DB = Database(ctx.guild_id)
 
-    if setting == options.LOBBY:
+    if setting == settings.LOBBY:
         instructions_embed = hikari.Embed(
             title="Add a Lobby",
             description="Type the lobby name followed by its channel and allowed roles. Players must have at least one of your specified roles to join this lobby. \n\nFor example, \"Beginner Lobby #channel @beginner-role @verified-role\"")
-    elif setting == options.RESULTS:
+    elif setting == settings.RESULTS:
         instructions_embed = hikari.Embed(
             title="Set the Result Announcements Channel",
             description="Select a channel to configure by typing it in chat")
-    elif setting == options.REMOVE_LOBBY:
+    elif setting == settings.REMOVE_LOBBY:
         instructions_embed = hikari.Embed(
             title="Remove a Lobby",
             description="Type a channel to remove its lobby")
-    elif setting == options.ELO_ROLES:
+    elif setting == settings.ELO_ROLES:
         instructions_embed = hikari.Embed(
             title="Edit an elo Role",
             description="Automatically assign players in a certain elo range to a role. Type an elo range followed by the role to set it to. \n([min elo] to [max elo]) For example: \"`50 to 70 @gold-rank`\" \n(Negative elo is also possible lol)")
+    elif setting == settings.STAFF:
+
+        all_staff = DB.get_config()["staff"]
+
+        if all_staff is None:
+            staff_list = "None"
+        else:
+            staff_list = "```"
+            for i in all_staff:
+                username = DB.get_players(user_id=i).loc[0]
+                staff_list += username + "\n"
+            staff_list += "```"
+
+        instructions_embed = hikari.Embed(
+            title="Add/remove members from staff",
+            description="Mention the players that you want to toggle staff permissions for")
+        instructions_embed.add_field(name="Current staff", value=staff_list)
 
     await ctx.edit_initial_response(embed=instructions_embed)
 
@@ -125,7 +145,7 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
 
     input_embed.title = "Confirm?"
 
-    if setting == options.LOBBY:
+    if setting == settings.LOBBY:
         if client.metadata["input params"]["roles"].size == 0:
             input_embed.description += "\n❗Warning: No roles entered. No one will be able to join this lobby\n"
 
@@ -133,7 +153,6 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.user.id", ctx.author.id)) as stream:
         async for event in stream:
-            await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
 
             button_id = event.interaction.custom_id
 
@@ -142,12 +161,14 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
             elif button_id != "Confirm":
                 return "idk lol"
 
-            if setting == options.LOBBY:
+            if setting == settings.LOBBY:
                 return update_lobby(ctx, client.metadata["input params"])
-            elif setting == options.RESULTS:
+            elif setting == settings.RESULTS:
                 return update_results_channel(ctx, client.metadata["input params"])
-            elif setting == options.ELO_ROLES:
+            elif setting == settings.ELO_ROLES:
                 return update_elo_roles(ctx, client.metadata["input params"])
+            elif setting == settings.STAFF:
+                return update_staff(ctx, client.metadata["input params"])
 
     await ctx.edit_initial_response("Timed out in confirmlobbyupdate", embeds=[], components=[])
     return "Cancelled (timed out)"
@@ -164,17 +185,19 @@ def update_lobby(ctx:tanjun.abc.Context, input_params):
 
     DB = Database(ctx.guild_id)
 
-    queue_info = DB.get_queues(channel_id)
+    queue = DB.get_queues(channel_id)
 
-    if not queue_info.empty:
-        queue_info = queue_info.loc[0]
-        queue_info["lobby_name"] = lobby_name
-        queue_info["roles"] = roles
-        DB.upsert_queue(queue_info)
+    if not queue.empty:
+        queue = queue.loc[0]
+        queue["lobby_name"] = lobby_name
+        queue["roles"] = roles
+        DB.upsert_queue(queue)
     else:
-        DB.add_new_queue(channel_id, lobby_name=lobby_name, roles=roles)
+        queue = DB.new_queue(channel_id)
+        queue["lobby_name"] = lobby_name
+        queue["roles"] = roles
+        DB.upsert_queue(queue)
 
-    return None
 
 
 def remove_lobby(ctx:tanjun.abc.Client, input_params):
@@ -216,17 +239,31 @@ def update_elo_roles(ctx:tanjun.abc.Context, input_params):
     config = DB.get_config()
     rbe_df = config["roles_by_elo"]
 
-    print(rbe_df)
-
     rbe_df = rbe_df.loc[rbe_df.index != role].sort_values("priority")
     rbe_df["priority"] = range(len(rbe_df.index))
     role_info = pd.Series([len(rbe_df.index), minelo, maxelo], index=["priority", "min", "max"], name=role)
     rbe_df = pd.concat([rbe_df, pd.DataFrame(role_info).T])
 
-    print("after: \n" + str(rbe_df))
-
     config["roles_by_elo"] = rbe_df
     DB.upsert_config(config)
+
+
+def update_staff(ctx:tanjun.abc.Context, input_params):
+
+    toggle_users = input_params["users"]
+
+    if toggle_users.size == 0:
+        return "Enter at least 1 user"
+
+    DB = Database(ctx.guild_id)
+    config = DB.get_config()
+    cur_staff = config["staff"]
+
+    new_staff = np.union1d(np.setdiff1d(cur_staff, toggle_users), np.setdiff1d(toggle_users, cur_staff))
+
+    config["staff"] = new_staff
+    DB.upsert_config(config)
+
 
 
 

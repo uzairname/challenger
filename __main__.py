@@ -59,7 +59,6 @@ if __name__ == "__main__":
     bot = PelaBot(os.environ.get("PELA_TOKEN"))
 
     if debug:
-        bot.client.load_modules("demo")
         DB = Database(TESTING_GUILD_ID)
         DB.setup_test()
 

@@ -299,6 +299,13 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     await ctx.respond(response)
 
 
+@component.with_slash_command
+@tanjun.as_slash_command("set", "set a match's outcome", default_to_ephemeral=False)
+def force_match(ctx: tanjun.abc.Context):
+    pass
+
+
+
 
 @tanjun.as_loader
 def load(client: tanjun.abc.Client) -> None:
