@@ -33,7 +33,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         name = ctx.author.username
 
     if players.empty:
-        player = DB.new_player(ctx.author.id)
+        player = DB.get_new_player(ctx.author.id)
         player["username"] = name
         player["time_registered"] = datetime.now()
         player["elo"] = DEFAULT_ELO

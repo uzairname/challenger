@@ -83,7 +83,7 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         p1_ping = "<@" + str(p1_info["user_id"]) + ">"
         p2_ping = "<@" + str(p2_info["user_id"]) + ">"
 
-        new_match = DB.new_match()
+        new_match = DB.get_new_match()
         new_match[["player_1", "player_2", "p1_elo", "p2_elo"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],p2_info["elo"]]
         print(new_match)
         # DB.add_new_match(player_1=p1_info["user_id"],

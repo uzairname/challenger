@@ -49,6 +49,12 @@ class settings:
 async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = tanjun.injected(type=PelaBot), client: tanjun.Client = tanjun.injected(type=tanjun.Client)):
     DB = Database(ctx.guild_id)
 
+    cancel_row = ctx.rest.build_action_row()
+    (cancel_row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel")
+            .set_label("Cancel")
+            .set_emoji("❌")
+            .add_to_container())
+
     if setting == settings.LOBBY:
         instructions_embed = hikari.Embed(
             title="Add a Lobby",
@@ -62,6 +68,9 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
             title="Remove a Lobby",
             description="Type a channel to remove its lobby")
     elif setting == settings.ELO_ROLES:
+
+        # DB.get_config()[""]
+
         instructions_embed = hikari.Embed(
             title="Edit an elo Role",
             description="Automatically assign players in a certain elo range to a role. Type an elo range followed by the role to set it to. \n([min elo] to [max elo]) For example: \"`50 to 70 @gold-rank`\" \n(Negative elo is also possible lol)")
@@ -69,14 +78,10 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
 
         all_staff = DB.get_config()["staff"]
 
-        if all_staff is None:
-            staff_list = "None"
-        else:
-            staff_list = "```"
-            for i in all_staff:
-                username = DB.get_players(user_id=i).loc[0]
-                staff_list += username + "\n"
-            staff_list += "```"
+        staff_list = "```\n"
+        for i in all_staff:
+            staff_list += "<@" + str(i) + ">\n"
+        staff_list += "```"
 
         instructions_embed = hikari.Embed(
             title="Add/remove members from staff",
@@ -114,6 +119,7 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
             client.metadata['instructions embed'] = instructions_embed
             client.metadata['input embed'] = input_embed
             client.metadata['input params'] = input_params
+            client.metadata['done embed'] = hikari.Embed(title="Done", description=" ")
 
             await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[])
             input_error = await confirm_settings_update(ctx, bot, client, setting)
@@ -121,11 +127,10 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
                 error_embed = hikari.Embed(title="**" + str(input_error) + "**")
                 await ctx.edit_initial_response(embeds=[instructions_embed, error_embed], components=[])
             else:
-                await ctx.edit_initial_response("Success", embeds=[], components=[])
+                await ctx.edit_initial_response("Done", embeds=[client.metadata["done embed"]], components=[])
                 return
 
     await ctx.edit_initial_response("Timed out", embeds=[], components=[])
-
 
 
 async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, client: tanjun.Client, setting):
@@ -133,12 +138,12 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
     instructions_embed = client.metadata["instructions embed"]
     input_embed = client.metadata["input embed"]
 
-    row = ctx.rest.build_action_row()
-    (row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm")
+    confirm_cancel = ctx.rest.build_action_row()
+    (confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm")
             .set_label("Confirm")
             .set_emoji("✔️")
             .add_to_container())
-    (row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel")
+    (confirm_cancel.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel")
             .set_label("Cancel")
             .set_emoji("❌")
             .add_to_container())
@@ -149,7 +154,7 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
         if client.metadata["input params"]["roles"].size == 0:
             input_embed.description += "\n❗Warning: No roles entered. No one will be able to join this lobby\n"
 
-    await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[row])
+    await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[confirm_cancel])
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.user.id", ctx.author.id)) as stream:
         async for event in stream:
@@ -162,19 +167,21 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
                 return "idk lol"
 
             if setting == settings.LOBBY:
-                return update_lobby(ctx, client.metadata["input params"])
+                return update_lobby(ctx, client)
             elif setting == settings.RESULTS:
                 return update_results_channel(ctx, client.metadata["input params"])
             elif setting == settings.ELO_ROLES:
                 return update_elo_roles(ctx, client.metadata["input params"])
             elif setting == settings.STAFF:
-                return update_staff(ctx, client.metadata["input params"])
+                return update_staff(ctx, client)
 
     await ctx.edit_initial_response("Timed out in confirmlobbyupdate", embeds=[], components=[])
     return "Cancelled (timed out)"
 
 
-def update_lobby(ctx:tanjun.abc.Context, input_params):
+def update_lobby(ctx:tanjun.abc.Context, client:tanjun.Client):
+
+    input_params = client.metadata["input params"]
 
     if not input_params["text"]:
         return "No name entered"
@@ -193,11 +200,12 @@ def update_lobby(ctx:tanjun.abc.Context, input_params):
         queue["roles"] = roles
         DB.upsert_queue(queue)
     else:
-        queue = DB.new_queue(channel_id)
+        queue = DB.get_new_queue(channel_id)
         queue["lobby_name"] = lobby_name
         queue["roles"] = roles
         DB.upsert_queue(queue)
 
+    client.metadata["done embed"].description="Updated lobby"
 
 
 def remove_lobby(ctx:tanjun.abc.Client, input_params):
@@ -248,7 +256,9 @@ def update_elo_roles(ctx:tanjun.abc.Context, input_params):
     DB.upsert_config(config)
 
 
-def update_staff(ctx:tanjun.abc.Context, input_params):
+def update_staff(ctx:tanjun.abc.Context, client):
+
+    input_params = client.metadata["input params"]
 
     toggle_users = input_params["users"]
 
@@ -260,6 +270,7 @@ def update_staff(ctx:tanjun.abc.Context, input_params):
     cur_staff = config["staff"]
 
     new_staff = np.union1d(np.setdiff1d(cur_staff, toggle_users), np.setdiff1d(toggle_users, cur_staff))
+    print("new staff: "+ str(new_staff))
 
     config["staff"] = new_staff
     DB.upsert_config(config)
