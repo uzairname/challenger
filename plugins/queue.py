@@ -14,6 +14,7 @@ async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series:
     player = DB.get_players(user_id=ctx.author.id)
     if player.empty:
         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
+        return
     return player.iloc[0]
 
 
@@ -21,6 +22,7 @@ async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series:
     queue = DB.get_queues(ctx.channel_id)
     if queue.empty:
         await ctx.respond("This channel doesn't have a lobby")
+        return
     return queue.iloc[0]
 
 
@@ -32,13 +34,13 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
-    queue:pd.Series = await get_available_queue(ctx, DB)
+    queue = await get_available_queue(ctx, DB)
     if queue.empty:
         print("queue didn't exist")
         return
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info.empty:
+    if player_info is None:
         return
 
     #Ensure player has at least 1 role required by the queue
@@ -107,11 +109,11 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     queue = await get_available_queue(ctx, DB)
-    if queue.empty:
+    if queue is None:
         return
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info.empty:
+    if player_info is None:
         return
 
     player_id = ctx.author.id
@@ -139,7 +141,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info.empty:
+    if player_info is None:
         return
 
     match = DB.get_matches(user_id=ctx.author.id)
@@ -234,7 +236,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     queue = await get_available_queue(ctx, DB)
-    if queue.empty:
+    if queue is None:
         return
 
     if queue["player"]:
@@ -251,17 +253,14 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
-    if player_info.empty:
+    if player_info is None:
         return
 
-    match = DB.get_matches(user_id=ctx.author.id)
-    if match.empty:
+    matches = DB.get_matches(user_id=ctx.author.id)
+    if matches.empty:
         await ctx.respond("you haven't played any matches")
         return
-    else:
-        match = match.iloc[0]
-
-    print("Match: \n" + str(match))
+    match = matches.iloc[0]
 
     if match["outcome"]==results.PLAYER1:
         winner_id = match["player_1"]

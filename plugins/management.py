@@ -69,11 +69,20 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
             description="Type a channel to remove its lobby")
     elif setting == settings.ELO_ROLES:
 
-        # DB.get_config()[""]
+        rbe_df = DB.get_config()["roles_by_elo"]
+
+        rbe_list = "```\n"
+        for i in rbe_df.index:
+            guild_roles = (await ctx.fetch_guild()).get_roles()
+            role_name = guild_roles[i]
+            rbe_list += "\"" + str(role_name) + "\": " + str(rbe_df.loc[i]["min"]) + " to " + str(rbe_df.loc[i]["max"]) + " elo\n"
+        rbe_list += "```"
 
         instructions_embed = hikari.Embed(
             title="Edit an elo Role",
             description="Automatically assign players in a certain elo range to a role. Type an elo range followed by the role to set it to. \n([min elo] to [max elo]) For example: \"`50 to 70 @gold-rank`\" \n(Negative elo is also possible lol)")
+        instructions_embed.add_field(name="Current roles", value=rbe_list)
+
     elif setting == settings.STAFF:
 
         all_staff = DB.get_config()["staff"]

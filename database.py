@@ -51,6 +51,8 @@ class Database:
         self.guild_name = str(guild_id)
         if guild_id == PROJECT_X:
             self.guild_name = "PX"
+        elif guild_id == TESTING_GUILD_ID:
+            self.guild_name = "testing"
         self.guildDB = client["guild_" + self.guild_name]
 
 
@@ -192,8 +194,8 @@ class Database:
 
         self.EMPTY_PLAYER #Make sure nothing is numpy type
         player["user_id"] = int(player["user_id"])
-
-        player["staff"] = int(player["staff"])
+        if player["staff"] is not None:
+            player["staff"] = int(player["staff"])
 
         playerdict = player.to_dict()
         self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
@@ -204,9 +206,9 @@ class Database:
 
         self.EMPTY_MATCH #Make sure nothing is numpy type
         match["match_id"] = int(match["match_id"])
-        if match["player_1"]:
+        if match["player_1"] is not None:
             match["player_1"] = int(match["player_1"])
-        if match["player_2"]:
+        if match["player_2"] is not None:
             match["player_2"] = int(match["player_2"])
 
         matchdict = match.to_dict()
@@ -218,18 +220,14 @@ class Database:
         queue = queue.replace(np.nan, None)
 
         self.EMPTY_QUEUE #Make sure nothning is numpy type
-        if queue["channel_id"]:
+        if queue["channel_id"] is not None:
             queue["channel_id"] = int(queue["channel_id"])
-        if queue["player"]:
+        if queue["player"] is not None:
             queue["player"] = int(queue["player"])
-        if queue["roles"]:
-            queue["roles"] = list(queue["roles"])
-            for i in range(len(queue["roles"])):
-                queue["roles"][i] = int(queue["roles"][i])
+        queue["roles"] = queue["roles"].tolist()
 
         queuedict = queue.to_dict()
-        result = self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
-        updated_existing = result.raw_result["updatedExisting"]
+        self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
 
 
     def upsert_config(self, config:pd.Series):
@@ -243,10 +241,10 @@ class Database:
         config["staff"] = list(config["staff"])
         for i in range(len(config["staff"])):
             config["staff"][i] = int(config["staff"][i])
-        if config["roles_by_elo"] is None:
-            rbe_df = pd.DataFrame([], columns=["min", "max", "priority"])
-            rbe_df.index.name = "role"
-            config["roles_by_elo"] = rbe_df
+        # if config["roles_by_elo"] is None:
+        #     rbe_df = pd.DataFrame([], columns=["min", "max", "priority"])
+        #     rbe_df.index.name = "role"
+        #     config["roles_by_elo"] = rbe_df
 
         configdict = config.to_dict()
         configdict["roles_by_elo"] = configdict["roles_by_elo"].to_dict("tight") #bson.errors.InvalidDocument: cannot encode object: Empty DataFrame
