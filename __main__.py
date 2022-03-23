@@ -45,7 +45,7 @@ class PelaBot (hikari.GatewayBot):
 
     async def on_guild_available(self, event: hikari.GuildAvailableEvent):
         DB = Database(event.guild_id)
-        DB.create_missing_tables()
+        DB.init_database()
 
 
 debug = (os.environ.get("DSP") == "testing")

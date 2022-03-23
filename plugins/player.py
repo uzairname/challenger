@@ -33,7 +33,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         name = ctx.author.username
 
     if players.empty:
-        player = DB.new_player(ctx.author.id)
+        player = DB.get_new_player(ctx.author.id)
         player["username"] = name
         player["time_registered"] = datetime.now()
         player["elo"] = DEFAULT_ELO
@@ -48,16 +48,27 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
 
 @component.with_slash_command
+@tanjun.with_str_slash_option("player", "their mention", default=None)
 @tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=False)
-async def get_stats(ctx: tanjun.abc.Context) -> None: #TODO show winrate
+async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
 
     DB = Database(ctx.guild_id)
 
-    player_info = await ensure_registered(ctx)
+    player_info = await ensure_registered(ctx, DB)
     if player_info is None:
         return
-
     player_info = player_info.iloc[0]
+
+    if player:
+        input_users = parse_input(str(player))["users"]
+        if len(input_users) != 1:
+            await ctx.edit_initial_response("Invalid player id")
+            return
+        players = DB.get_players(user_id=input_users[0])
+        if players.empty:
+            await ctx.edit_initial_response("Unknown or unregistered player")
+            return
+        player_info = players.iloc[0]
 
     response = "Stats for " + str(player_info["username"]) + ":\n" +\
         "elo: " + str(round(player_info["elo"]))
