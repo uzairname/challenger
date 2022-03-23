@@ -4,6 +4,7 @@ from plugins.utils import *
 from database import Database
 import hikari
 from __main__ import PelaBot
+from __init__ import *
 import re
 
 DEFAULT_TIMEOUT = 120
@@ -31,7 +32,21 @@ class settings:
                                        "Staff Members":settings.STAFF})
 @tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
 async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = tanjun.injected(type=PelaBot), client: tanjun.Client = tanjun.injected(type=tanjun.Client)):
+
+    #check that player is staff or lilapela
+
     DB = Database(ctx.guild_id)
+
+    player_info = DB.get_players(ctx.author.id)
+    if player_info.empty:
+        await ctx.respond("pls register")
+        return
+    player_info = player_info.iloc[0]
+
+    if player_info["staff"] != status.STAFF and player_info["user_id"] != LILAPELA:
+        await ctx.respond("Missing permissions")
+        return
+
 
     cancel_row = ctx.rest.build_action_row()
     (cancel_row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel")
@@ -70,10 +85,9 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
     elif setting == settings.STAFF:
 
         all_staff = DB.get_players(staff=status.STAFF)
-
         staff_list = "```\n"
-        for i in all_staff["username"]:
-            staff_list += "" + str(i) + "\n"
+        for i in all_staff["tag"]:
+            staff_list += i + "\n"
         staff_list += "```"
 
         instructions_embed = hikari.Embed(

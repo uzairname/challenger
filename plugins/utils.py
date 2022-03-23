@@ -92,3 +92,5 @@ def parse_input(string):
 
     #text is all text at the start before any channel roles or users
     return {"text": name, "channels": channels, "roles": roles, "users":users}
+
+

@@ -29,7 +29,7 @@ def check_errors(func):
 
 class Database:
 
-    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "username", "time_registered", "elo", "staff"])
+    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "staff"])
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
     EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo"])

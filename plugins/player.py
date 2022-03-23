@@ -35,22 +35,26 @@ async def register(ctx: tanjun.abc.Context) -> None:
     if players.empty:
         player = DB.get_new_player(ctx.author.id)
         player["username"] = name
+        player["tag"] = ctx.author.username+ctx.author.discriminator
         player["time_registered"] = datetime.now()
         player["elo"] = DEFAULT_ELO
         DB.upsert_player(player)
-        await ctx.edit_initial_response("you have registered")
+        await ctx.get_channel().send(f"{ctx.author.mention} has registered!", user_mentions=True)
         return
 
     player = players.iloc[0]
     player["username"] = name
+    player["tag"] = ctx.author.username + "#" + ctx.author.discriminator
     DB.upsert_player(player)
     await ctx.edit_initial_response("You've already registered. Updated your username")
 
 
 @component.with_slash_command
 @tanjun.with_str_slash_option("player", "their mention", default=None)
-@tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=False)
+@tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
+
+    await ctx.respond("...")
 
     DB = Database(ctx.guild_id)
 
@@ -73,7 +77,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
     response = "Stats for " + str(player_info["username"]) + ":\n" +\
         "elo: " + str(round(player_info["elo"]))
 
-    await ctx.respond(response)
+    await ctx.get_channel().send(response)
 
 
 

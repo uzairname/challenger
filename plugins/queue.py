@@ -79,17 +79,25 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.edit_initial_response("Queue is full. Creating match")
         p1_info = DB.get_players(user_id=queue['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
+        await start_new_match(ctx, queue, p1_info, p2_info)
 
-        p1_ping = "<@" + str(p1_info["user_id"]) + ">"
-        p2_ping = "<@" + str(p2_info["user_id"]) + ">"
 
-        new_match = DB.get_new_match()
-        new_match[["player_1", "player_2", "p1_elo", "p2_elo"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],p2_info["elo"]]
-        DB.upsert_match(new_match)
 
-        queue["player"] = None
 
-        await ctx.get_channel().send("New match started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
+async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
+    DB = Database(ctx.guild_id)
+
+    p1_ping = "<@" + str(p1_info["user_id"]) + ">"
+    p2_ping = "<@" + str(p2_info["user_id"]) + ">"
+
+    new_match = DB.get_new_match()
+    new_match[["player_1", "player_2", "p1_elo", "p2_elo"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],
+                                                               p2_info["elo"]]
+    DB.upsert_match(new_match)
+
+    queue["player"] = None
+
+    await ctx.get_channel().send("New match started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
 
 
 #leave queue
@@ -283,7 +291,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     for index, player, in players.iterrows():
         place = place + 1
-        response = response + str(place) + ":\t" + str(round(player["elo"])) + "\t" + str(player["username"]) + "\n"
+        response = response + str(place) + ":\t" + str(round(player["elo"])) + "\t" + str(player["tag"]) + "\n"
     response = response + "```"
 
     await ctx.respond(response)
