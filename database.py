@@ -32,10 +32,7 @@ class Database:
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "username", "time_registered", "elo", "staff"])
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
-    EMPTY_CONFIG = pd.DataFrame([], columns=["staff", "results_channel", "roles_by_elo"])
-
-
-
+    EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo"])
 
     players_tbl = "players"
     matches_tbl = "matches"
@@ -82,8 +79,11 @@ class Database:
         #
         # config["staff"] = new_staff
         # self.upsert_config(config)
+        a = self.get_players(983573495)
+        print(self.get_players(983573495))
+        print(str(a.empty))
 
-        print(self.get_config())
+        print("a: " + str(self.get_config()))
 
 
 
@@ -102,12 +102,13 @@ class Database:
                 continue
             self.guildDB.create_collection(i)
             if i == self.config_tbl:
-                self.create_config_row()
+                config = self.get_config()
+                self.upsert_config(config)
 
 
     #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
 
-    def get_players(self, user_id=None, top_by_elo=None) -> pd.DataFrame:
+    def get_players(self, user_id=None, staff=None, top_by_elo=None) -> pd.DataFrame:
         cur_filter = {}
 
         if user_id:
@@ -121,23 +122,34 @@ class Database:
             cur.skip(top_by_elo[0])
             cur.limit(top_by_elo[1])
 
-        return pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        if staff:
+            cur_filter["staff"] = staff
+
+        players_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        updated_players_df = pd.concat([self.EMPTY_PLAYER, players_df])
+
+        return updated_players_df
 
     def get_new_player(self, user_id) -> pd.Series:
         player = pd.Series([user_id], index=["user_id"])
         new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T]).iloc[0]
         return new_player
 
-    def get_matches(self, user_id=None, number=1) -> pd.DataFrame:
+    def get_matches(self, user_id=None, match_id=None, number=1) -> pd.DataFrame:
 
         cur_filter = {}
         if user_id:
             user_id = int(user_id)
             cur_filter["$or"] = [{"player_1":user_id},{"player_2":user_id}]
 
-        cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(number)
+        if match_id:
+            match_id = int(match_id)
+            cur_filter["match_id"] = match_id
 
-        return pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(number)
+        matches_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        updated_matches = pd.concat([self.EMPTY_MATCH, matches_df])
+        return updated_matches
 
     def get_new_match(self) -> pd.Series:
 
@@ -159,12 +171,14 @@ class Database:
             cur_filter["channel_id"] = channel_id
 
         cur = self.guildDB[self.queues_tbl].find(cur_filter)
-        df =  pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        queue_df =  pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        updated_queues = pd.concat([self.EMPTY_QUEUE, queue_df])
+        print("█ q df: \n" + str(queue_df))
+        print("█ q df: \n" + str(updated_queues))
 
-        return df
+        return updated_queues
 
     def get_new_queue(self, channel_id) -> pd.Series:
-
         queue = pd.Series([channel_id], index=["channel_id"])
         new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).iloc[0]
         return new_queue
@@ -178,17 +192,16 @@ class Database:
             ret["roles_by_elo"] = pd.DataFrame.from_dict(ret["roles_by_elo"], orient="tight")
             return ret
         else:
-            config = pd.DataFrame([[[], pd.DataFrame([], columns=["priority", "min", "max"])]], columns=["staff", "roles_by_elo"])
+            config = pd.DataFrame([[pd.DataFrame([], columns=["priority", "min", "max"])]], columns=["roles_by_elo"])
             config_df = pd.concat([self.EMPTY_CONFIG, config]).iloc[0]
             self.upsert_config(config_df)
             return self.get_config()
 
 
-
     #Above: standard. Change everything else to match it
 
 
-    def upsert_player(self, player:pd.Series):
+    def upsert_player(self, player:pd.Series): #only pass something returned from get_players or new_player
 
         player = player.replace(np.nan, None)
 
@@ -201,7 +214,7 @@ class Database:
         self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
 
 
-    def upsert_match(self, match:pd.Series): #puts first row of dataframe in match
+    def upsert_match(self, match:pd.Series):
         match = match.replace(np.nan, None) #all DB updates should go throughh this. this takes care of fixing the types
 
         self.EMPTY_MATCH #Make sure nothing is numpy type
@@ -212,8 +225,7 @@ class Database:
             match["player_2"] = int(match["player_2"])
 
         matchdict = match.to_dict()
-        result = self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
-        updated_existing = result.raw_result["updatedExisting"]
+        self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
 
 
     def upsert_queue(self, queue:pd.Series): # only pass something returned from new_queue or get_queue
@@ -224,7 +236,10 @@ class Database:
             queue["channel_id"] = int(queue["channel_id"])
         if queue["player"] is not None:
             queue["player"] = int(queue["player"])
-        queue["roles"] = queue["roles"].tolist()
+        try:
+            queue["roles"] = queue["roles"].tolist()
+        except:
+            pass
 
         queuedict = queue.to_dict()
         self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
@@ -238,9 +253,6 @@ class Database:
         config = config.replace(np.nan, None)
 
         self.EMPTY_CONFIG #make sure nothing is a numpy type
-        config["staff"] = list(config["staff"])
-        for i in range(len(config["staff"])):
-            config["staff"][i] = int(config["staff"][i])
         # if config["roles_by_elo"] is None:
         #     rbe_df = pd.DataFrame([], columns=["min", "max", "priority"])
         #     rbe_df.index.name = "role"

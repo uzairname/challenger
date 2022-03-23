@@ -11,23 +11,7 @@ DEFAULT_TIMEOUT = 120
 
 component = tanjun.Component(name="management module")
 
-def parse_input(string):
-    text_pat = r"[a-zA-Z\d\s]+"
 
-    channel_pat = r"<#(\d{17,19})>"
-    role_pat = r"<@&(\d{17,19})>"
-    user_pat = r"<@!?(\d{17,19})>"
-#(
-    name = re.match(text_pat, string)
-    if name:
-        name = name[0].strip()
-
-    channels = np.array(re.findall(channel_pat, string)).astype("int64")
-    roles = np.array(re.findall(role_pat, string)).astype("int64")
-    users = np.array(re.findall(user_pat, string)).astype("int64")
-
-    #text is all text at the start before any channel roles or users
-    return {"text": name, "channels": channels, "roles": roles, "users":users}
 
 
 
@@ -85,11 +69,11 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
 
     elif setting == settings.STAFF:
 
-        all_staff = DB.get_config()["staff"]
+        all_staff = DB.get_players(staff=status.STAFF)
 
         staff_list = "```\n"
-        for i in all_staff:
-            staff_list += "<@" + str(i) + ">\n"
+        for i in all_staff["username"]:
+            staff_list += "" + str(i) + "\n"
         staff_list += "```"
 
         instructions_embed = hikari.Embed(
@@ -171,7 +155,7 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
             button_id = event.interaction.custom_id
 
             if button_id == "Cancel":
-                return "Cancelled, waiting for input"
+                return
             elif button_id != "Confirm":
                 return "idk lol"
 
@@ -185,7 +169,7 @@ async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: PelaBot, cl
                 return update_staff(ctx, client)
 
     await ctx.edit_initial_response("Timed out in confirmlobbyupdate", embeds=[], components=[])
-    return "Cancelled (timed out)"
+    return
 
 
 def update_lobby(ctx:tanjun.abc.Context, client:tanjun.Client):
@@ -275,14 +259,30 @@ def update_staff(ctx:tanjun.abc.Context, client):
         return "Enter at least 1 user"
 
     DB = Database(ctx.guild_id)
-    config = DB.get_config()
-    cur_staff = config["staff"]
 
-    new_staff = np.union1d(np.setdiff1d(cur_staff, toggle_users), np.setdiff1d(toggle_users, cur_staff))
-    print("new staff: "+ str(new_staff))
+    message = ""
 
-    config["staff"] = new_staff
-    DB.upsert_config(config)
+    for id in toggle_users:
+        players = DB.get_players(user_id=id)
+        if players.empty:
+            message += "\n Unknown or unregistered user: <@!" + str(id) + ">"
+            continue
+        player = players.iloc[0]
+        if player["staff"] != status.STAFF:
+            player["staff"] = status.STAFF
+        else:
+            player["staff"] = None
+        DB.upsert_player(player)
+
+    #
+    # config = DB.get_config()
+    # cur_staff = config["staff"]
+    #
+    # new_staff = np.union1d(np.setdiff1d(cur_staff, toggle_users), np.setdiff1d(toggle_users, cur_staff))
+    # print("new staff: "+ str(new_staff))
+    #
+    # config["staff"] = new_staff
+    # DB.upsert_config(config)
 
 
 
