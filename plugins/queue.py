@@ -77,6 +77,8 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         DB.upsert_queue(queue)
     else:
         await ctx.edit_initial_response("Queue is full. Creating match")
+        queue["player"] = None
+        DB.upsert_queue(queue)
         p1_info = DB.get_players(user_id=queue['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
         await start_new_match(ctx, queue, p1_info, p2_info)

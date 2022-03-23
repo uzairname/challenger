@@ -7,6 +7,8 @@ import pandas as pd
 import re
 
 
+DEFAULT_TIMEOUT = 120
+
 class results:
     PLAYER_1 = "player 1"
     PLAYER_2 = "player 2"

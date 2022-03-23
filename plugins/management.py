@@ -7,7 +7,6 @@ from __main__ import PelaBot
 from __init__ import *
 import re
 
-DEFAULT_TIMEOUT = 120
 
 
 component = tanjun.Component(name="management module")
