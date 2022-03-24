@@ -30,7 +30,7 @@ def check_errors(func):
 class Database:
 
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "staff"])
-    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome"])
+    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome", "staff_declared"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
     EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo"])
 
@@ -121,7 +121,7 @@ class Database:
             cur.limit(top_by_elo[1])
 
         players_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
-        updated_players_df = pd.concat([self.EMPTY_PLAYER, players_df])
+        updated_players_df = pd.concat([self.EMPTY_PLAYER, players_df]).replace(np.nan, None)
         return updated_players_df
 
     def get_new_player(self, user_id) -> pd.Series:
@@ -142,7 +142,7 @@ class Database:
 
         cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(number)
         matches_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
-        updated_matches = pd.concat([self.EMPTY_MATCH, matches_df])
+        updated_matches = pd.concat([self.EMPTY_MATCH, matches_df]).replace(np.nan, None)
         return updated_matches
 
     def get_new_match(self) -> pd.Series:
@@ -166,10 +166,7 @@ class Database:
 
         cur = self.guildDB[self.queues_tbl].find(cur_filter)
         queue_df =  pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
-        updated_queues = pd.concat([self.EMPTY_QUEUE, queue_df])
-        print("█ q df: \n" + str(queue_df))
-        print("█ q df: \n" + str(updated_queues))
-
+        updated_queues = pd.concat([self.EMPTY_QUEUE, queue_df]).replace(np.nan, None)
         return updated_queues
 
     def get_new_queue(self, channel_id) -> pd.Series:

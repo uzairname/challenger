@@ -47,7 +47,7 @@ def describe_input(input_params):
 
 
 @component.with_slash_command
-@tanjun.as_slash_command("config-help", "settings commands help")
+@tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=True)
 async def config_help(ctx:tanjun.abc.Context):
     pass
 
@@ -57,7 +57,7 @@ async def config_help(ctx:tanjun.abc.Context):
 @tanjun.with_str_slash_option("name", "lobby name", default="")
 @tanjun.with_str_slash_option("channel", "the channel. enter just the channel name to delete", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
-@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles")
+@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=True)
 async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot: PelaBot = tanjun.injected(type=PelaBot)):
 
     embed = hikari.Embed(
@@ -136,15 +136,7 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
     confirm_cancel.components[1].set_is_disabled(True)
     confirm_embed = hikari.Embed(title = "Done", description=confirm_message)
 
-    await ctx.edit_initial_response(embeds=[embed, input_embed, confirm_embed])
-
-
-
-    # validate input channel roles and name
-    #update the relevant fields of the queue
-
-
-    pass
+    await ctx.edit_initial_response(embeds=[embed, input_embed, confirm_embed], components=[confirm_cancel])
 
 
 @component.with_slash_command

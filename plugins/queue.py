@@ -62,10 +62,12 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         return
 
     #Ensure player declared last match
-    match = DB.get_matches(player_id=player_id)
-    if match["player_1"] == player_id and match["p1_declared"] is None or match["player_2"] == player_id and match["p2_declared"] is None:
-        await ctx.edit_initial_response("You need to /declare the results for match " + str(match["match_id"]))
-
+    matches = DB.get_matches(user_id=player_id)
+    if not matches.empty:
+        match = matches.iloc[0]
+        if match["player_1"] == player_id and match["p1_declared"] is None or match["player_2"] == player_id and match["p2_declared"] is None:
+            await ctx.edit_initial_response("You need to /declare the results for match " + str(match["match_id"]))
+            return
 
     #add player to queue
     if not queue["player"]:
@@ -94,10 +96,9 @@ async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
     new_match[["player_1", "player_2", "p1_elo", "p2_elo"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],
                                                                p2_info["elo"]]
     DB.upsert_match(new_match)
-
     queue["player"] = None
 
-    await ctx.get_channel().send("New match started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
+    await ctx.get_channel().send("Match " + str(new_match["match_id"]) + " started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
 
 
 #leave queue
@@ -139,15 +140,17 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     if player_info is None:
         return
 
-    match = DB.get_matches(user_id=ctx.author.id)
-    if match.empty:
+    matches = DB.get_matches(user_id=ctx.author.id)
+    if matches.empty:
         await ctx.edit_initial_response("You haven't played a match")
         return
-    match = match.iloc[0]
-        #note: changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
+    match = matches.iloc[0]
 
-    print("match: " + str(match))
-    print("outtome: " + str(match["outcome"]))
+    #check if result was declared by staf
+    if match["staff_declared"]:
+        await ctx.edit_initial_response("Staff already finalized this match's result")
+        return
+
     old_outcome = match["outcome"]
     new_outcome = old_outcome
 
@@ -177,11 +180,10 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 
     await ctx.respond(response)
 
-    # print(str(match["match_id"]) + "\ntype:\n" +str(type(match["match_id"])))
     DB.upsert_match(match)
 
 
-async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome):
+async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff_declared=False):
 
     if match["outcome"] == new_outcome:
         await ctx.edit_initial_response("outcome is already " + str(new_outcome))
@@ -203,6 +205,7 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome):
         return
 
     match["outcome"] = new_outcome
+    match["staff_declared"] = staff_declared
     DB.upsert_match(match)
 
     p1["elo"] = match["p1_elo"] + elo_change[0]
@@ -216,11 +219,14 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome):
         "\n" + str(p2["username"]) + ": " + str(round(match["p2_elo"])) + " + " + str(
             round(elo_change[1], 1)) + " = " + str(round(p2["elo"]))
 
+    if staff_declared:
+        announcement += f"\n\n(Results set by {ctx.author.username}#{ctx.author.discriminator})"
+
     config = DB.get_config()
     channel_id = config["results_channel"]
 
     if channel_id is None:
-        await ctx.get_channel().send(announcement + "\nNo match announcements channel specified")
+        await ctx.get_channel().send(announcement + "\nNo match announcements channel specified. Announcing here")
         return
 
     await bot.rest.create_message(channel_id, announcement)
@@ -322,7 +328,7 @@ async def force_match(ctx: tanjun.abc.Context, match_number, outcome):
         await ctx.edit_initial_response("No match found")
         return
     match = matches.iloc[0]
-    await update_match_outcome(ctx, match, outcome)
+    await update_match_outcome(ctx, match, outcome, True)
 
 
 
