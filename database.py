@@ -91,10 +91,6 @@ class Database:
         pass
 
 
-    #insert/update: update_one. upsert
-
-    #need getter and setter for every dataframe.
-
     def init_database(self):
         existing_tables = self.guildDB.list_collection_names()
         for i in self.required_tables:
@@ -114,6 +110,8 @@ class Database:
         if user_id:
             user_id = int(user_id)
             cur_filter["user_id"] = user_id
+        if staff:
+            cur_filter["staff"] = staff
 
         cur = self.guildDB[self.players_tbl].find(cur_filter)
 
@@ -122,12 +120,8 @@ class Database:
             cur.skip(top_by_elo[0])
             cur.limit(top_by_elo[1])
 
-        if staff:
-            cur_filter["staff"] = staff
-
         players_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
         updated_players_df = pd.concat([self.EMPTY_PLAYER, players_df])
-
         return updated_players_df
 
     def get_new_player(self, user_id) -> pd.Series:
@@ -164,7 +158,7 @@ class Database:
 
         return new_match
 
-    def get_queues(self, channel_id) -> pd.DataFrame:
+    def get_queues(self, channel_id = None) -> pd.DataFrame:
         cur_filter = {}
         if channel_id:
             channel_id = int(channel_id)  #mongo db doesn't recognize numpy.Int64 for some reason
@@ -209,6 +203,8 @@ class Database:
         player["user_id"] = int(player["user_id"])
         if player["staff"] is not None:
             player["staff"] = int(player["staff"])
+        if player["elo"] is not None:
+            player["elo"] = float(player["elo"])
 
         playerdict = player.to_dict()
         self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
@@ -243,6 +239,12 @@ class Database:
 
         queuedict = queue.to_dict()
         self.guildDB[self.queues_tbl].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
+
+    def remove_queue(self, queue:pd.Series):
+        channel_id = queue["channel_id"]
+
+        self.guildDB[self.queues_tbl].delete_one({"channel_id":channel_id})
+
 
 
     def upsert_config(self, config:pd.Series):

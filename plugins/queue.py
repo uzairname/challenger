@@ -54,13 +54,6 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.respond(f"{ctx.author.mention} You're missing the required roles to join this lobby")
         return
 
-
-    config_settings = DB.get_config()
-    rbe = config_settings["roles_by_elo"]
-    for index, row in rbe.iterrows():
-        print("role: " + str(index) + "\n with range:" + str(row["min"]) + " to " + str(row["max"]))
-
-
     player_id=ctx.author.id
 
     #Ensure player isn't already in queue
@@ -68,8 +61,13 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.respond(f"{ctx.author.mention} you're already in the queue")
         return
 
+    #Ensure player declared last match
+    match = DB.get_matches(player_id=player_id)
+    if match["player_1"] == player_id and match["p1_declared"] is None or match["player_2"] == player_id and match["p2_declared"] is None:
+        await ctx.edit_initial_response("You need to /declare the results for match " + str(match["match_id"]))
+
+
     #add player to queue
-    print(str(queue["player"]) + " is " + str(bool(queue["player"])) + str(type(queue["player"])))
     if not queue["player"]:
         queue["player"] = player_id
         await ctx.edit_initial_response(f"You silently joined the queue")
@@ -232,7 +230,9 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome):
 
 @component.with_slash_command
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
-async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
+async def queue_status(ctx: tanjun.abc.Context) -> None:
+
+    await ctx.edit_initial_response("...")
 
     DB = Database(ctx.guild_id)
 

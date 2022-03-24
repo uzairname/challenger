@@ -6,6 +6,7 @@ import hikari
 from __main__ import PelaBot
 from __init__ import *
 import re
+from hikari.interactions.base_interactions import ResponseType
 
 
 
@@ -22,13 +23,137 @@ class settings:
     ELO_ROLES = "elo to roles"
     STAFF = "staff"
 
+def describe_input(input_params):
+    description = ""
+    if input_params["text"]:
+        description += "Input: **" + str(input_params["text"]) + "**\n"
+
+    if input_params["channels"].size > 0:
+        description += "Selected channels:\n"
+        for i in input_params["channels"]:
+            description += "<#" + str(i) + ">\n"
+
+    if input_params["roles"].size > 0:
+        description += "Selected roles:\n"
+        for i in input_params["roles"]:
+            description += "<@&" + str(i) + ">\n"
+
+    if input_params["users"].size > 0:
+        description += "Selected users:\n"
+        for i in input_params["users"]:
+            description += "<@" + str(i) + ">\n"
+    return description
+
+
+
+@component.with_slash_command
+@tanjun.as_slash_command("config-help", "settings commands help")
+async def config_help(ctx:tanjun.abc.Context):
+    pass
+
+
+@component.with_slash_command
+@tanjun.with_str_slash_option("roles", "roles allowed", default="")
+@tanjun.with_str_slash_option("name", "lobby name", default="")
+@tanjun.with_str_slash_option("channel", "the channel. enter just the channel name to delete", default="")
+@tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
+@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles")
+async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot: PelaBot = tanjun.injected(type=PelaBot)):
+
+    embed = hikari.Embed(
+        title="Add a Lobby",
+        description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name and allowed roles. To remove required roles from a lobby, just enter the roles you want to toggle. A registered player with at least one of these roles can join the lobby")
+
+    DB = Database(ctx.guild_id)
+
+    lobbies_list = ""
+    all_queues = DB.get_queues()
+    for index, new_queue in all_queues.iterrows():
+        lobbies_list += "\nLobby \"**" + str(new_queue["lobby_name"]) + "**\" in channel <#" + str(new_queue["channel_id"]) + "> with roles: "
+        for role in new_queue["roles"]:
+            lobbies_list += "<@&" + str(role) + ">"
+
+    embed.add_field(name="Current lobbies", value=lobbies_list)
+
+    confirm_cancel = ctx.rest.build_action_row()
+    confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
+    confirm_cancel.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("❌").add_to_container()
+
+    print("█ component: " + str(confirm_cancel.components[0]))
+
+    input_embed = hikari.Embed(title="Your selection", description="\n")
+    if action == "delete":
+        input_embed.description += "**DELETING lobby:**\n"
+    input_params = parse_input(str(name) + str(channel) + str(roles))
+    print(input_params)
+    input_embed.description += describe_input(input_params)
+    await ctx.edit_initial_response(embeds=[embed, input_embed], components=[confirm_cancel])
+
+    confirm_message = "uh"
+    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.user.id", ctx.author.id)) as stream:
+        async for event in stream:
+            await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+
+            button_id = event.interaction.custom_id
+            if button_id == "Cancel":
+                confirm_message = "cancelled"
+                break
+            if button_id == "Confirm":
+
+                if input_params["channels"].size != 1:
+                    confirm_message = "Please enter one channel"
+                    break
+
+                existing_queues = DB.get_queues(channel_id=input_params["channels"][0])
+                if action == "delete":
+                    if existing_queues.empty:
+                        confirm_message = "No lobby in "  + str(input_params["channels"][0]) + ""
+                        break
+                    queue = existing_queues.iloc[0]
+                    DB.remove_queue(queue)
+                    confirm_message  = "Deleted"
+                    break
+                #action is update. exactly 1 channel entered.
+
+                if existing_queues.empty:
+                    new_queue = DB.get_new_queue(input_params["channels"][0])
+                    new_queue["lobby_name"] = input_params["text"]
+                    new_queue["roles"] = input_params["roles"]
+                    DB.upsert_queue(new_queue)
+                    confirm_message = "Added new lobby"
+                    break
+                else:
+                    existing_queue = existing_queues.loc[0]
+                    if input_params["text"]:
+                        existing_queue["lobby_name"] = input_params["text"]
+                    existing_queue["roles"] = np.union1d(np.setdiff1d(existing_queue["roles"], input_params["roles"]),
+                                                         np.setdiff1d(input_params["roles"], existing_queue["roles"]))
+                    DB.upsert_queue(existing_queue)
+                    confirm_message = "Updated existing lobby"
+                    break
+
+    confirm_cancel.components[0].set_is_disabled(True)
+    confirm_cancel.components[1].set_is_disabled(True)
+    confirm_embed = hikari.Embed(title = "Done", description=confirm_message)
+
+    await ctx.edit_initial_response(embeds=[embed, input_embed, confirm_embed])
+
+
+
+    # validate input channel roles and name
+    #update the relevant fields of the queue
+
+
+    pass
+
+
 @component.with_slash_command
 @tanjun.with_str_slash_option("setting", "What setting?",
-                              choices={"Add/edit a Lobby":settings.LOBBY,
+                              choices={"Add/edit a Lobby":settings.LOBBY, #config-lobby
                                        "Delete a Lobby":settings.REMOVE_LOBBY,
-                                       "Results Channel":settings.RESULTS,
-                                       "Elo Roles":settings.ELO_ROLES,
-                                       "Staff Members":settings.STAFF})
+                                       "Results Channel":settings.RESULTS, #config-results
+                                       "Elo Roles":settings.ELO_ROLES, #config-eloroles
+                                       "Staff Members":settings.STAFF}) #config-staff
 @tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
 async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = tanjun.injected(type=PelaBot), client: tanjun.Client = tanjun.injected(type=tanjun.Client)):
 

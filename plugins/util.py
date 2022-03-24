@@ -11,7 +11,7 @@ component = tanjun.Component(name="hi module")
 
 @component.with_slash_command
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
-async def hi_test(ctx: tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=PelaBot)) -> None:
+async def hi_test(ctx: tanjun.abc.Context) -> None:
 
     embed = hikari.Embed(title="About", description="This is the testing version. More features coming soon")
 
@@ -53,6 +53,14 @@ async def uptime(ctx:tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=PelaBo
     time_diff = time.time() - bot.start_time
     await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 
+
+
+@component.with_slash_command
+@tanjun.with_str_slash_option("name", "name")
+@tanjun.as_slash_command("name", "Change the bot's nickname lol", default_to_ephemeral=False)
+async def nickname(ctx:tanjun.abc.Context, name, bot:PelaBot = tanjun.injected(type=PelaBot)):
+    await bot.rest.edit_my_member(guild=ctx.guild_id, nickname=f"{name}")
+    await ctx.edit_initial_response("Updated name")
 
 @tanjun.as_loader
 def load(client: tanjun.abc.Client) -> None:

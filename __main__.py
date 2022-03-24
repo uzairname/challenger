@@ -18,7 +18,7 @@ class PelaBot (hikari.GatewayBot):
         self.subscribe(hikari.StartedEvent, self.on_started)
         self.subscribe(hikari.GuildAvailableEvent, self.on_guild_available)
 
-        activity=hikari.presences.Activity(name= "bloons", type=hikari.presences.ActivityType(value=3))
+        activity=hikari.presences.Activity(name= "bloons lets go!!", type=hikari.presences.ActivityType(value=5))
 
         super().run(activity=activity)
 
