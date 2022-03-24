@@ -91,7 +91,6 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
         elif match["outcome"] == losing_result:
             total_losses += 1
 
-#
 
     response = "Stats for **" + str(player_info["tag"]) + "**:\n" +\
         "```elo: " + str(round(player_info["elo"])) + \

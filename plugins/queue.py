@@ -76,6 +76,7 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
         DB.upsert_queue(queue)
     else:
+        print("█queue: " + str(queue))
         await ctx.edit_initial_response("Queue is full. Creating match")
         queue["player"] = None
         DB.upsert_queue(queue)
@@ -154,6 +155,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     old_outcome = match["outcome"]
     new_outcome = old_outcome
 
+    print()
     #set the player's declared result in the match
     is_p1 = match["player_1"] == ctx.author.id
     DECLARE_TO_RESULT = {
