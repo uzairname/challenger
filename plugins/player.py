@@ -66,7 +66,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
     if player:
         input_users = parse_input(str(player))["users"]
         if len(input_users) != 1:
-            await ctx.edit_initial_response("Invalid player id")
+            await ctx.edit_initial_response("Enter a valid player id")
             return
         players = DB.get_players(user_id=input_users[0])
         if players.empty:
@@ -74,8 +74,29 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
             return
         player_info = players.iloc[0]
 
-    response = "Stats for " + str(player_info["username"]) + ":\n" +\
-        "elo: " + str(round(player_info["elo"]))
+    matches = DB.get_matches(user_id=player_info["user_id"])
+
+    total_draws = 0
+    total_wins = 0
+    total_losses = 0
+    for index, match in matches.iterrows():
+        if match["outcome"] == results.DRAW:
+            total_draws += 1
+
+        winning_result = results.PLAYER_1 if match["player_1"] == player_info["user_id"] else results.PLAYER_2
+        losing_result = results.PLAYER_2 if match["player_1"] == player_info["user_id"] else results.PLAYER_1
+
+        if match["outcome"] == winning_result:
+            total_wins += 1
+        elif match["outcome"] == losing_result:
+            total_losses += 1
+
+
+    response = "Stats for **" + str(player_info["tag"]) + "**:\n" +\
+        "```elo: " + str(round(player_info["elo"])) + \
+        "\nwins:   " + str(total_wins) + \
+        "\ndraws:  " + str(total_draws) + \
+        "\nlosses: " + str(total_losses) + "```"
 
     await ctx.get_channel().send(response)
 

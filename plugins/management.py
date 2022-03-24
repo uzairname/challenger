@@ -15,7 +15,6 @@ component = tanjun.Component(name="management module")
 
 
 
-
 class settings:
     LOBBY = "lobbies"
     RESULTS = "results channel"
