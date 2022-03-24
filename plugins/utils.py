@@ -7,6 +7,8 @@ import pandas as pd
 import re
 
 
+DEFAULT_TIMEOUT = 120
+
 class results:
     PLAYER_1 = "player 1"
     PLAYER_2 = "player 2"
@@ -92,3 +94,5 @@ def parse_input(string):
 
     #text is all text at the start before any channel roles or users
     return {"text": name, "channels": channels, "roles": roles, "users":users}
+
+
