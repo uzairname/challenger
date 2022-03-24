@@ -7,6 +7,8 @@ import pandas as pd
 import re
 
 
+PELA_CYAN = "5effcc"
+
 DEFAULT_TIMEOUT = 120
 
 class results:

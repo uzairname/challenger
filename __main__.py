@@ -49,7 +49,7 @@ class PelaBot (hikari.GatewayBot):
 
 
 debug = (os.environ.get("DSP") == "testing")
-
+bot = None
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     pd.set_option("max_colwidth", 90)

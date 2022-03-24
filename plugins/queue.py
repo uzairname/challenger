@@ -65,9 +65,10 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     matches = DB.get_matches(user_id=player_id)
     if not matches.empty:
         match = matches.iloc[0]
-        if match["player_1"] == player_id and match["p1_declared"] is None or match["player_2"] == player_id and match["p2_declared"] is None:
-            await ctx.edit_initial_response("You need to /declare the results for match " + str(match["match_id"]))
-            return
+        if match["outcome"] is None:
+            if match["player_1"] == player_id and match["p1_declared"] is None or match["player_2"] == player_id and match["p2_declared"] is None:
+                await ctx.edit_initial_response("You need to /declare the results for match " + str(match["match_id"]))
+                return
 
     #add player to queue
     if not queue["player"]:
