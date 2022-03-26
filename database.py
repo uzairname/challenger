@@ -29,7 +29,7 @@ def check_errors(func):
 
 class Database:
 
-    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "staff"])
+    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "provisional_elo", "staff"])
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome", "staff_declared"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
     EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo"])
@@ -82,8 +82,6 @@ class Database:
         a = self.get_players(983573495)
         print(self.get_players(983573495))
         print(str(a.empty))
-
-        print("a: " + str(self.get_config()))
 
 
 
@@ -230,7 +228,8 @@ class Database:
         if queue["player"] is not None:
             queue["player"] = int(queue["player"])
         try:
-            queue["roles"] = queue["roles"].tolist()
+            print(queue)
+            queue["roles"] = np.array(queue["roles"]).astype("int64").tolist()
         except:
             pass
 

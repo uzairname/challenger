@@ -1,3 +1,4 @@
+import interactions
 import tanjun
 
 from plugins.utils import *
@@ -67,6 +68,8 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
 
     lobbies_list = ""
     all_queues = DB.get_queues()
+    if all_queues.empty:
+        lobbies_list = "No lobbies"
     for index, new_queue in all_queues.iterrows():
         lobbies_list += "\nLobby \"**" + str(new_queue["lobby_name"]) + "**\" in channel <#" + str(new_queue["channel_id"]) + "> with roles: "
         for role in new_queue["roles"]:
@@ -89,7 +92,7 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
     await ctx.edit_initial_response(embeds=[embed, input_embed], components=[confirm_cancel])
 
     confirm_message = "uh"
-    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.user.id", ctx.author.id)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
 
@@ -118,6 +121,7 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
                     new_queue = DB.get_new_queue(input_params["channels"][0])
                     new_queue["lobby_name"] = input_params["text"]
                     new_queue["roles"] = input_params["roles"]
+                    print("██CREATING NEW\n " + str(new_queue["roles"][0].dtype))
                     DB.upsert_queue(new_queue)
                     confirm_message = "Added new lobby"
                     break
@@ -127,6 +131,7 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
                         existing_queue["lobby_name"] = input_params["text"]
                     existing_queue["roles"] = np.union1d(np.setdiff1d(existing_queue["roles"], input_params["roles"]),
                                                          np.setdiff1d(input_params["roles"], existing_queue["roles"]))
+                    print("██UPDATING EXISTING WITH\n " + str(existing_queue["roles"][0].dtype))
                     DB.upsert_queue(existing_queue)
                     confirm_message = "Updated existing lobby"
                     break
