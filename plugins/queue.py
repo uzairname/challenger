@@ -1,5 +1,6 @@
 import logging
 
+import hikari
 import tanjun
 import functools
 from plugins.utils import *
@@ -13,7 +14,7 @@ component = tanjun.Component(name="queue module")
 async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series:
     player = DB.get_players(user_id=ctx.author.id)
     if player.empty:
-        await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
+        await ctx.edit_initial_response(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
         return
     return player.iloc[0]
 
@@ -21,7 +22,7 @@ async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series:
 async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series:
     queue = DB.get_queues(ctx.channel_id)
     if queue.empty:
-        await ctx.respond("This channel doesn't have a lobby")
+        await ctx.edit_initial_response("This channel doesn't have a lobby")
         return
     return queue.iloc[0]
 
@@ -298,14 +299,24 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     players = DB.get_players(top_by_elo=[0,20])
 
     response = "Leaderboard:```\n"
+
+    LB_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
+    ranks = ""
+    scores = ""
+    usernames = ""
+
     place = 0
-
     for index, player, in players.iterrows():
-        place = place + 1
-        response = response + str(place) + ":\t" + str(round(player["elo"])) + "\t" + str(player["tag"]) + "\n"
-    response = response + "```"
+        place += 1
+        ranks += str(place) + "\n"
+        scores += str(round(player["elo"])) + "\n"
+        usernames += str(player["tag"]) + "\n"
 
-    await ctx.respond(response)
+    LB_embed.add_field(name="Rank", value=ranks, inline=True)
+    LB_embed.add_field(name="Score",  value=scores, inline=True)
+    LB_embed.add_field(name="Username", value=usernames, inline=True)
+
+    await ctx.respond(embed=LB_embed)
 
 
 @component.with_slash_command

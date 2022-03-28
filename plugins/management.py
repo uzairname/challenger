@@ -1,4 +1,3 @@
-import interactions
 import tanjun
 
 from plugins.utils import *

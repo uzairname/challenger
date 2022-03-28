@@ -1,6 +1,5 @@
 import hikari
 
-import interactions
 from plugins.utils import *
 from __init__ import *
 from __main__ import PelaBot
