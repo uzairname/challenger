@@ -104,8 +104,6 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
 
 def calculate_elo_change(player1, player2, new_result, old_result):
     elo_change = {"player1":None, "player2":None}
-
-
     #old result is usually 0.
     #calculate elo for old result, then subtract it.
     #calculate elo for new result, then add it.
