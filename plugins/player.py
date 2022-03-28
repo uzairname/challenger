@@ -37,7 +37,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["username"] = name
         player["tag"] = ctx.author.username+ctx.author.discriminator
         player["time_registered"] = datetime.now()
-        player["elo"] = DEFAULT_ELO
+        player["provisional_elo"] = DEFAULT_ELO
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered!", user_mentions=True)
         return
@@ -104,8 +104,6 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
 
 def calculate_elo_change(player1, player2, new_result, old_result):
     elo_change = {"player1":None, "player2":None}
-
-
     #old result is usually 0.
     #calculate elo for old result, then subtract it.
     #calculate elo for new result, then add it.
