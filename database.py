@@ -92,7 +92,6 @@ class Database:
                 config = self.get_config()
                 self.upsert_config(config)
 
-
     #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
 
     def get_players(self, user_id=None, staff=None, top_by_elo=None) -> pd.DataFrame:
@@ -149,6 +148,7 @@ class Database:
 
         return new_match
 
+
     def get_queues(self, channel_id = None) -> pd.DataFrame:
         cur_filter = {}
         if channel_id:
@@ -159,6 +159,7 @@ class Database:
         queue_df =  pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
         updated_queues = pd.concat([self.EMPTY_QUEUE, queue_df]).replace(np.nan, None)
         return updated_queues
+
 
     def get_new_queue(self, channel_id) -> pd.Series:
         queue = pd.Series([channel_id], index=["channel_id"])
