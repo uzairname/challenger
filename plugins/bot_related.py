@@ -1,6 +1,6 @@
 import hikari
 
-from plugins.utils import *
+from utils.utils import *
 from __init__ import *
 from __main__ import PelaBot
 # from __main__ import bot
@@ -12,6 +12,7 @@ component = tanjun.Component(name="hi module")
 
 
 bot_todo = """
+
 **In order of priority**
 
 in order of priority: 
@@ -34,10 +35,12 @@ Players are unranked until provisional elo is done (2 games)
 • /compare (player) show your expected probability of beating opponent, and your winrate against them. Elo change for winning and losing 
 • make displayed results pretty
 • make a better bot icon
-• shorthand for commands ex. declare match results /d"""
+• shorthand for commands ex. declare match results /d
+• rename /declare to /claim
+"""
 
 bot_features = """
-Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search.
+Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search
 
 Ability to change old match results. When your elo change depends on the elo difference, fixing the result of an old match (for whatever reason, maybe it was declared wrong or someone was caught boosting and their impact needs to be reverted) has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo."""
 

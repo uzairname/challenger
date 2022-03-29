@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pandas as pd
 import re
+import sympy as sp
 
 
 PELA_CYAN = "5effcc"
@@ -25,28 +26,6 @@ class declares:
 
 class status:
     STAFF = 1
-
-
-DEFAULT_ELO = 50  # everyone's starting score
-DEFAULT_K = 12  # maximum change in one game
-DEFAULT_SCALE = 30  # elo difference approximating 10x skill difference
-
-def calc_elo_change(p1_elo, p2_elo, result): #
-    if result == results.CANCEL or result is None:
-        return [0,0]
-
-    k = DEFAULT_K
-    scale = DEFAULT_SCALE
-
-    def p(A, B):  #probability of A beating B
-        return 1 / (1 + math.pow(10, -(A - B) / scale))
-
-    allocated = {results.PLAYER_1:1, results.PLAYER_2:0, results.DRAW:0.5}[result] #what percent of the elo gets allocated to player 1
-    p1_elo_change = (  allocated   - p(p1_elo, p2_elo)) * k
-    p2_elo_change = ((1-allocated) - p(p2_elo, p1_elo)) * k
-
-    return [p1_elo_change, p2_elo_change]
-
 
 def check_errors(func):
     # for commands that take a context, respond with an error if it doesn't work

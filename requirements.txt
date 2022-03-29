@@ -6,3 +6,4 @@ pip~=22.0.4
 setuptools~=58.1.0
 numpy~=1.22.3
 pymongo[srv]
+sympy
