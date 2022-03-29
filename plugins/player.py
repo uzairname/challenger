@@ -102,13 +102,46 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
 
 
 
-def calculate_elo_change(player1, player2, new_result, old_result):
-    elo_change = {"player1":None, "player2":None}
-    #old result is usually 0.
-    #calculate elo for old result, then subtract it.
-    #calculate elo for new result, then add it.
+@component.with_slash_command
+@tanjun.with_str_slash_option("player", "their mention", default=None)
+@tanjun.with_str_slash_option("player", "their mention")
+async def compare_players(ctx: tanjun.abc.Context, player1, player2):
+    DB = Database(ctx.guild_id)
 
-    #player 1 lost and has -1.   they should win (loss should've given -3, win should've given +5). new elo is -1--3+5 = 7.
+    player1_info = await ensure_registered(ctx, DB)
+    if player1_info is None:
+        return
+    player1_info = player1_info.iloc[0]
+
+    player2_info = await ensure_registered(ctx, DB)
+    if player2_info is None:
+        return
+    player2_info = player2_info.iloc[0]
+
+    if player1:
+        input_users = parse_input(str(player1))["users"]
+        if len(input_users) != 1:
+            await ctx.edit_initial_response("Enter a valid player id")
+            return
+        players = DB.get_players(user_id=input_users[0])
+        if players.empty:
+            await ctx.edit_initial_response("Unknown or unregistered player")
+            return
+        player1_info = players.iloc[0]
+
+    if player2:
+        input_users = parse_input(str(player2))["users"]
+        if len(input_users) != 1:
+            await ctx.edit_initial_response("Enter a valid player id")
+            return
+        players = DB.get_players(user_id=input_users[0])
+        if players.empty:
+            await ctx.edit_initial_response("Unknown or unregistered player")
+            return
+        player2_info = players.iloc[0]
+
+
+
 
 
 @tanjun.as_loader

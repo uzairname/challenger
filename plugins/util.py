@@ -13,6 +13,8 @@ component = tanjun.Component(name="hi module")
 
 bot_todo = """
 **In order of priority**
+
+in order of priority: 
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Staff commands parameters should be an option within the slash command
@@ -25,6 +27,7 @@ Players are unranked until provisional elo is done (2 games)
 • show when opponent declares result, and when there's a conflict
 • /join records match time
 • /history show your recent matches
+• Automatically register players on commands
 • see distribution of everyone's elo
 • /stats show your percentile
 • Associate each match with a message id in match announcements, so that message can be edited
@@ -72,7 +75,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:PelaBot  = tanjun.injected(t
 
     await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             page = event.interaction.values[0]
@@ -86,7 +89,6 @@ async def help_command(ctx: tanjun.abc.Context, bot:PelaBot  = tanjun.injected(t
 @tanjun.as_slash_command("invite-pela", "invite pela to your own server", default_to_ephemeral=False)
 async def hi_test(ctx: tanjun.abc.Context) -> None:
     await ctx.respond(f"This is the invite link: " + INVITE_LINK)
-
 
 @component.with_slash_command
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
