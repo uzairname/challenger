@@ -25,6 +25,7 @@ class Database:
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "provisional_elo", "staff"])
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome", "staff_declared"])
     EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
+
     EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo"])
 
     players_tbl = "players"
@@ -75,9 +76,6 @@ class Database:
         a = self.get_players(983573495)
         print(self.get_players(983573495))
         print(str(a.empty))
-
-
-
 
         pass
 
@@ -254,3 +252,4 @@ class Database:
         configdict["roles_by_elo"] = configdict["roles_by_elo"].to_dict("tight") #bson.errors.InvalidDocument: cannot encode object: Empty DataFrame
 
         self.guildDB[self.config_tbl].update_one({}, {"$set":configdict}, upsert=True)
+
