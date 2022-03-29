@@ -1,9 +1,6 @@
-import logging
-
 import hikari
-import tanjun
-import functools
-from plugins.utils import *
+from utils.utils import *
+from utils.ELO import *
 from database import Database
 from __main__ import bot
 
@@ -204,6 +201,7 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     old_elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], match["outcome"])
     p1_elo_after = match["p1_elo"] + old_elo_change[0]
     p2_elo_after = match["p2_elo"] + old_elo_change[1]
+    print(old_elo_change, match["p1_elo"], match["p2_elo"], p1_elo_after, p2_elo_after)
     if abs(p1_elo_after - p1["elo"]) > 0.000000001 or abs(p2_elo_after - p2["elo"]) > 0.000000001:
         await ctx.edit_initial_response("Unable to change old match's results.") # Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
         return

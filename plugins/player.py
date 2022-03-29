@@ -1,10 +1,7 @@
-import pandas as pd
-
-from plugins.utils import *
+from utils.utils import *
 from database import Database
 from datetime import datetime
-import time
-
+from utils.ELO import *
 
 component = tanjun.Component(name="player module")
 
@@ -101,44 +98,44 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
     await ctx.get_channel().send(response)
 
 
-
-@component.with_slash_command
-@tanjun.with_str_slash_option("player", "their mention", default=None)
-@tanjun.with_str_slash_option("player", "their mention")
-async def compare_players(ctx: tanjun.abc.Context, player1, player2):
-    DB = Database(ctx.guild_id)
-
-    player1_info = await ensure_registered(ctx, DB)
-    if player1_info is None:
-        return
-    player1_info = player1_info.iloc[0]
-
-    player2_info = await ensure_registered(ctx, DB)
-    if player2_info is None:
-        return
-    player2_info = player2_info.iloc[0]
-
-    if player1:
-        input_users = parse_input(str(player1))["users"]
-        if len(input_users) != 1:
-            await ctx.edit_initial_response("Enter a valid player id")
-            return
-        players = DB.get_players(user_id=input_users[0])
-        if players.empty:
-            await ctx.edit_initial_response("Unknown or unregistered player")
-            return
-        player1_info = players.iloc[0]
-
-    if player2:
-        input_users = parse_input(str(player2))["users"]
-        if len(input_users) != 1:
-            await ctx.edit_initial_response("Enter a valid player id")
-            return
-        players = DB.get_players(user_id=input_users[0])
-        if players.empty:
-            await ctx.edit_initial_response("Unknown or unregistered player")
-            return
-        player2_info = players.iloc[0]
+#
+# @component.with_slash_command
+# @tanjun.with_str_slash_option("player", "their mention", default=None)
+# @tanjun.with_str_slash_option("player", "their mention")
+# async def compare_players(ctx: tanjun.abc.Context, player1, player2):
+#     DB = Database(ctx.guild_id)
+#
+#     player1_info = await ensure_registered(ctx, DB)
+#     if player1_info is None:
+#         return
+#     player1_info = player1_info.iloc[0]
+#
+#     player2_info = await ensure_registered(ctx, DB)
+#     if player2_info is None:
+#         return
+#     player2_info = player2_info.iloc[0]
+#
+#     if player1:
+#         input_users = parse_input(str(player1))["users"]
+#         if len(input_users) != 1:
+#             await ctx.edit_initial_response("Enter a valid player id")
+#             return
+#         players = DB.get_players(user_id=input_users[0])
+#         if players.empty:
+#             await ctx.edit_initial_response("Unknown or unregistered player")
+#             return
+#         player1_info = players.iloc[0]
+#
+#     if player2:
+#         input_users = parse_input(str(player2))["users"]
+#         if len(input_users) != 1:
+#             await ctx.edit_initial_response("Enter a valid player id")
+#             return
+#         players = DB.get_players(user_id=input_users[0])
+#         if players.empty:
+#             await ctx.edit_initial_response("Unknown or unregistered player")
+#             return
+#         player2_info = players.iloc[0]
 
 
 

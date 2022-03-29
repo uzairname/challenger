@@ -1,6 +1,4 @@
-import tanjun
-
-from plugins.utils import *
+from utils.utils import *
 from database import Database
 import hikari
 from __main__ import PelaBot
@@ -91,7 +89,7 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
     await ctx.edit_initial_response(embeds=[embed, input_embed], components=[confirm_cancel])
 
     confirm_message = "uh"
-    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
 

@@ -1,13 +1,7 @@
-import datetime
-
-import numpy as np
-import pandas as pd
-from typing import Mapping
-
 import pymongo
 from __init__ import *
 import os
-from plugins.utils import *
+from utils.utils import *
 
 
 def check_errors(func):
@@ -22,9 +16,9 @@ def check_errors(func):
 
 class Database:
 
-    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "provisional_elo", "staff"])
+    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "provisional_elo", "staff"]) #provisional elo is a bool
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome", "staff_declared"])
-    EMPTY_QUEUE = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
+    EMPTY_LOBBY = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
 
     EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo"])
 
@@ -155,13 +149,13 @@ class Database:
 
         cur = self.guildDB[self.queues_tbl].find(cur_filter)
         queue_df =  pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
-        updated_queues = pd.concat([self.EMPTY_QUEUE, queue_df]).replace(np.nan, None)
+        updated_queues = pd.concat([self.EMPTY_LOBBY, queue_df]).replace(np.nan, None)
         return updated_queues
 
 
     def get_new_queue(self, channel_id) -> pd.Series:
         queue = pd.Series([channel_id], index=["channel_id"])
-        new_queue = pd.concat([self.EMPTY_QUEUE, pd.DataFrame(queue).T]).iloc[0]
+        new_queue = pd.concat([self.EMPTY_LOBBY, pd.DataFrame(queue).T]).iloc[0]
         return new_queue
 
     def get_config(self) -> pd.Series:
@@ -214,7 +208,7 @@ class Database:
     def upsert_queue(self, queue:pd.Series): # only pass something returned from new_queue or get_queue
         queue = queue.replace(np.nan, None)
 
-        self.EMPTY_QUEUE #Make sure nothning is numpy type
+        self.EMPTY_LOBBY #Make sure nothning is numpy type
         if queue["channel_id"] is not None:
             queue["channel_id"] = int(queue["channel_id"])
         if queue["player"] is not None:
