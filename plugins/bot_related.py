@@ -16,19 +16,22 @@ bot_todo = """
 **In order of priority**
 
 in order of priority: 
+• fix leaderboard display on mobile
+• Leaderboard shows multiple pages
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Staff commands parameters should be an option within the slash command
 • Give better instructions with /help
 • Link staff roles with discord role
 • Automatically assign roles based on Elo
-Players are unranked until provisional elo is done (2 games)
+Players are unranked until provisional elo is done (4 games)
 • /configure option to select map when match starts, and /map choose random map
 • remove player from queue after 10 mins
 • show when opponent declares result, and when there's a conflict
 • /join records match time
 • /history show your recent matches
 • Automatically register players on commands
+• show more details in match outcome
 • see distribution of everyone's elo
 • /stats show your percentile
 • Associate each match with a message id in match announcements, so that message can be edited
@@ -37,6 +40,7 @@ Players are unranked until provisional elo is done (2 games)
 • make a better bot icon
 • shorthand for commands ex. declare match results /d
 • rename /declare to /claim
+
 """
 
 bot_features = """
@@ -78,7 +82,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:PelaBot  = tanjun.injected(t
 
     await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             page = event.interaction.values[0]
