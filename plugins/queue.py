@@ -295,26 +295,40 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     DB = Database(ctx.guild_id)
 
     players = DB.get_players(top_by_elo=[0,20])
+    if players.empty:
+        await ctx.respond("No players registered")
+        return
 
-    response = "Leaderboard:```\n"
+    ranked_players = players.loc[pd.notnull(players["elo"])]
+    print(ranked_players)
+    provisional_players = players.loc[pd.isnull(players["elo"])]
 
-    LB_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
-    ranks = ""
-    scores = ""
-    usernames = ""
-
+    max_len = 25
+    ranked_list = "```"
     place = 0
-    for index, player, in players.iterrows():
+    for index, player, in ranked_players.iterrows():
         place += 1
-        ranks += str(place) + "\n"
-        scores += str(round(player["elo"])) + "\n"
-        usernames += str(player["tag"]) + "\n"
+        tag = str(player["tag"])[:max_len]
+        ranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["elo"])) + "\n"
 
-    LB_embed.add_field(name="Rank", value=ranks, inline=True)
-    LB_embed.add_field(name="Score",  value=scores, inline=True)
-    LB_embed.add_field(name="Username", value=usernames, inline=True)
+    ranked_list += "```"
 
-    await ctx.respond(embed=LB_embed)
+    unranked_list = "```"
+    provisional_players.sort_values(by="provisional_elo", ascending=True, inplace=True)
+    place = 0
+    for index, player in provisional_players.iterrows():
+        tag = str(player["tag"])[:max_len]
+        unranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["provisional_elo"])) + "?\n"
+
+    unranked_list += "```"
+
+    ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
+    ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
+
+    unranked_embed = hikari.Embed(title="Unranked", description="Page 1: Top 20", color=PELA_CYAN)
+    unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
+
+    await ctx.respond(embeds=[ranked_embed, unranked_embed])
 
 
 @component.with_slash_command
