@@ -1,4 +1,5 @@
 from utils.utils import *
+import hikari
 from database import Database
 from datetime import datetime
 from utils.ELO import *
@@ -24,6 +25,8 @@ async def register(ctx: tanjun.abc.Context) -> None:
     player_id = ctx.author.id
     players = DB.get_players(user_id=player_id)
 
+    tag = ctx.author.username + "#" + ctx.author.discriminator
+
     if ctx.member.nickname is not None:
         name = ctx.member.nickname
     else:
@@ -32,16 +35,17 @@ async def register(ctx: tanjun.abc.Context) -> None:
     if players.empty:
         player = DB.get_new_player(ctx.author.id)
         player["username"] = name
-        player["tag"] = ctx.author.username+ctx.author.discriminator
+        player["tag"] = tag
         player["time_registered"] = datetime.now()
-        player["provisional_elo"] = DEFAULT_ELO
+        player["is_ranked"] = False
+        player["elo"] = DEFAULT_ELO
         DB.upsert_player(player)
-        await ctx.get_channel().send(f"{ctx.author.mention} has registered!", user_mentions=True)
+        await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return
 
     player = players.iloc[0]
     player["username"] = name
-    player["tag"] = ctx.author.username + "#" + ctx.author.discriminator
+    player["tag"] = tag
     DB.upsert_player(player)
     await ctx.edit_initial_response("You've already registered. Updated your username")
 
@@ -98,44 +102,47 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
     await ctx.get_channel().send(response)
 
 
-#
-# @component.with_slash_command
-# @tanjun.with_str_slash_option("player", "their mention", default=None)
-# @tanjun.with_str_slash_option("player", "their mention")
-# async def compare_players(ctx: tanjun.abc.Context, player1, player2):
-#     DB = Database(ctx.guild_id)
-#
-#     player1_info = await ensure_registered(ctx, DB)
-#     if player1_info is None:
-#         return
-#     player1_info = player1_info.iloc[0]
-#
-#     player2_info = await ensure_registered(ctx, DB)
-#     if player2_info is None:
-#         return
-#     player2_info = player2_info.iloc[0]
-#
-#     if player1:
-#         input_users = parse_input(str(player1))["users"]
-#         if len(input_users) != 1:
-#             await ctx.edit_initial_response("Enter a valid player id")
-#             return
-#         players = DB.get_players(user_id=input_users[0])
-#         if players.empty:
-#             await ctx.edit_initial_response("Unknown or unregistered player")
-#             return
-#         player1_info = players.iloc[0]
-#
-#     if player2:
-#         input_users = parse_input(str(player2))["users"]
-#         if len(input_users) != 1:
-#             await ctx.edit_initial_response("Enter a valid player id")
-#             return
-#         players = DB.get_players(user_id=input_users[0])
-#         if players.empty:
-#             await ctx.edit_initial_response("Unknown or unregistered player")
-#             return
-#         player2_info = players.iloc[0]
+@component.with_slash_command
+@tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
+async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
+
+    DB = Database(ctx.guild_id)
+
+    players = DB.get_players(top_by_elo=[0,20])
+    if players.empty:
+        await ctx.respond("No players registered")
+        return
+
+    ranked_players = players.loc[players["is_ranked"]]
+    unranked_players = players.loc[players["is_ranked"]==False]
+
+    max_len = 25
+    ranked_list = "```\n"
+    place = 0
+    for index, player, in ranked_players.iterrows():
+        place += 1
+        tag = str(player["tag"])[:max_len]
+        ranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["elo"])) + "\n"
+
+    ranked_list += "```"
+
+    unranked_list = "```\n"
+    unranked_players.sort_values(by="elo", ascending=True, inplace=True)
+    place = 0
+    for index, player in unranked_players.iterrows():
+        place += 1
+        tag = str(player["tag"])[:max_len]
+        unranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["elo"])) + "?\n"
+
+    unranked_list += "```"
+
+    ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
+    ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
+
+    unranked_embed = hikari.Embed(title="Unranked", description="Page 1: Top 20", color=PELA_CYAN)
+    unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
+
+    await ctx.respond(embeds=[ranked_embed, unranked_embed])
 
 
 

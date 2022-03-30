@@ -75,15 +75,15 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
         DB.upsert_queue(queue)
     else:
-        print("█queue: " + str(queue))
         await ctx.edit_initial_response("Queue is full. Creating match")
-        queue["player"] = None
-        DB.upsert_queue(queue)
+
         p1_info = DB.get_players(user_id=queue['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
+
+        queue["player"] = None
+        DB.upsert_queue(queue)
+
         await start_new_match(ctx, queue, p1_info, p2_info)
-
-
 
 
 async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
@@ -190,28 +190,30 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
         await ctx.edit_initial_response("outcome is already " + str(new_outcome))
         return
 
-    elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], new_outcome)
-
     DB = Database(ctx.guild_id)
 
     p1 = DB.get_players(user_id=match["player_1"]).iloc[0]
     p2 = DB.get_players(user_id=match["player_2"]).iloc[0]
 
-    #check if their current elo matches their elo after the match
-    old_elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], match["outcome"])
-    p1_elo_after = match["p1_elo"] + old_elo_change[0]
-    p2_elo_after = match["p2_elo"] + old_elo_change[1]
-    print(old_elo_change, match["p1_elo"], match["p2_elo"], p1_elo_after, p2_elo_after)
-    if abs(p1_elo_after - p1["elo"]) > 0.000000001 or abs(p2_elo_after - p2["elo"]) > 0.000000001:
-        await ctx.edit_initial_response("Unable to change old match's results.") # Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
+    #make sure this is the most recent match for both players
+    p1_latest_match = DB.get_matches(user_id=p1["user_id"]).iloc[0]["match_id"]
+    p2_latest_match = DB.get_matches(user_id=p2["user_id"]).iloc[0]["match_id"]
+
+    if p1_latest_match != match["match_id"] or p2_latest_match != match["match_id"]:
+        await ctx.edit_initial_response("Unable to change old match results")# Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
         return
 
-    match["outcome"] = new_outcome
-    match["staff_declared"] = staff_declared
-    DB.upsert_match(match)
+
+    #check whether player's elo is provisional
+    # if not match["is_ranked"]:
+    #     p1_elo_after = calc_bayeselo
+
+
+    elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], new_outcome)
 
     p1["elo"] = match["p1_elo"] + elo_change[0]
     p2["elo"] = match["p2_elo"] + elo_change[1]
+
     DB.upsert_player(p1)
     DB.upsert_player(p2)
 
@@ -224,6 +226,7 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     if staff_declared:
         announcement += f"\n\n(Results set by {ctx.author.username}#{ctx.author.discriminator})"
 
+
     config = DB.get_config()
     channel_id = config["results_channel"]
 
@@ -231,7 +234,22 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
         await ctx.get_channel().send(announcement + "\nNo match announcements channel specified. Announcing here")
         return
 
+    match["outcome"] = new_outcome
+    match["staff_declared"] = staff_declared
+    DB.upsert_match(match)
+
+
     await bot.rest.create_message(channel_id, announcement)
+
+
+def get_first_matches(ctx:tanjun.abc.Context, DB, num_matches, player_id):
+
+    matches = DB.get_matches(user_id=player_id)
+    if matches.empty:
+        return matches
+    matches = matches.sort_values(by="match_id", ascending=True)
+    return matches.iloc[:num_matches]
+
 
 
 
@@ -286,49 +304,6 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("Match " + str(match["match_id"]) + " outcome: " + str(result))
 
-
-
-@component.with_slash_command
-@tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
-async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
-
-    DB = Database(ctx.guild_id)
-
-    players = DB.get_players(top_by_elo=[0,20])
-    if players.empty:
-        await ctx.respond("No players registered")
-        return
-
-    ranked_players = players.loc[pd.notnull(players["elo"])]
-    print(ranked_players)
-    provisional_players = players.loc[pd.isnull(players["elo"])]
-
-    max_len = 25
-    ranked_list = "```"
-    place = 0
-    for index, player, in ranked_players.iterrows():
-        place += 1
-        tag = str(player["tag"])[:max_len]
-        ranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["elo"])) + "\n"
-
-    ranked_list += "```"
-
-    unranked_list = "```"
-    provisional_players.sort_values(by="provisional_elo", ascending=True, inplace=True)
-    place = 0
-    for index, player in provisional_players.iterrows():
-        tag = str(player["tag"])[:max_len]
-        unranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["provisional_elo"])) + "?\n"
-
-    unranked_list += "```"
-
-    ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
-    ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
-
-    unranked_embed = hikari.Embed(title="Unranked", description="Page 1: Top 20", color=PELA_CYAN)
-    unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
-
-    await ctx.respond(embeds=[ranked_embed, unranked_embed])
 
 
 @component.with_slash_command

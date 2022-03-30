@@ -24,9 +24,17 @@ def calc_elo_change(p1_elo, p2_elo, result): #
 
 
 
-def calc_bayeselo(results, avg_elo=DEFAULT_ELO, std_elo=150, initial_std=1):
-    pass
+def calc_bayeselo(game_results, avg_elo=DEFAULT_ELO, std_elo=150, initial_std=1):
 
+    elo = 0
+
+    for i in game_results:
+        if i == results.WIN:
+            elo += 1
+        elif i == results.LOSS:
+            elo -= 1
+
+    return elo
 
 
 
