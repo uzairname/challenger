@@ -16,8 +16,8 @@ def check_errors(func):
 
 class Database:
 
-    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "staff"]) #provisional elo is a bool
-    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "outcome", "staff_declared"])
+    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "matches", "staff"]) #ranked is a bool
+    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome", "staff_declared"])
     EMPTY_LOBBY = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
 
     EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo"])
@@ -46,8 +46,7 @@ class Database:
         player_id = 623257053879861248
         num_matches=4
 
-        matches = self.get_matches(user_id=player_id, number=num_matches)
-        matches = matches.sort_values(by="match_id", ascending=True)
+        matches = self.get_matches(user_id=player_id, number=num_matches, ascending=True)
         print(matches)
         pass
 
@@ -89,7 +88,7 @@ class Database:
         new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T]).iloc[0]
         return new_player
 
-    def get_matches(self, user_id=None, match_id=None, number=1) -> pd.DataFrame:
+    def get_matches(self, user_id=None, match_id=None, number=1, ascending=False) -> pd.DataFrame:
 
         cur_filter = {}
         if user_id:
@@ -100,7 +99,9 @@ class Database:
             match_id = int(match_id)
             cur_filter["match_id"] = match_id
 
-        cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", -1).limit(number)
+        sort_order = 1 if ascending else -1
+
+        cur = self.guildDB[self.matches_tbl].find(cur_filter).sort("match_id", sort_order).limit(number) #sort by match_id, descending
         matches_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
         updated_matches = pd.concat([self.EMPTY_MATCH, matches_df]).replace(np.nan, None)
         return updated_matches

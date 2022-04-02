@@ -19,7 +19,7 @@ async def ensure_registered(ctx: tanjun.abc.Context, DB:Database):
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
 async def register(ctx: tanjun.abc.Context) -> None:
 
-    await ctx.edit_initial_response("...")
+    await ctx.respond("please wait")
 
     DB = Database(ctx.guild_id)
     player_id = ctx.author.id
@@ -55,7 +55,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
 
-    await ctx.respond("...")
+    await ctx.respond("plese wait")
 
     DB = Database(ctx.guild_id)
 
@@ -113,7 +113,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
         await ctx.respond("No players registered")
         return
 
-    ranked_players = players.loc[players["is_ranked"]]
+    ranked_players = players.loc[players["is_ranked"]==True]
     unranked_players = players.loc[players["is_ranked"]==False]
 
     max_len = 25
@@ -139,7 +139,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
     ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
 
-    unranked_embed = hikari.Embed(title="Unranked", description="Page 1: Top 20", color=PELA_CYAN)
+    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="New players are initially scored by provisional elo. Once they play 3 games, they recieve an actual elo rating, so they don't have to grind to reach their elo. Page 1: Top 20", color=PELA_CYAN)
     unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
 
     await ctx.respond(embeds=[ranked_embed, unranked_embed])

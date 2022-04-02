@@ -57,6 +57,8 @@ async def config_help(ctx:tanjun.abc.Context):
 @tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=True)
 async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot: PelaBot = tanjun.injected(type=PelaBot)):
 
+    await ctx.respond("please wait")
+
     embed = hikari.Embed(
         title="Add a Lobby",
         description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name and allowed roles. To remove required roles from a lobby, just enter the roles you want to toggle. A registered player with at least one of these roles can join the lobby")
