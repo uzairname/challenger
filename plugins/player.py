@@ -106,6 +106,8 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
+    await ctx.respond("please wait")
+
     DB = Database(ctx.guild_id)
 
     players = DB.get_players(top_by_elo=[0,20])
@@ -139,7 +141,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
     ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
 
-    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="New players are initially scored by provisional elo. Once they play 3 games, they recieve an actual elo rating, so they don't have to grind to reach their elo. Page 1: Top 20", color=PELA_CYAN)
+    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="Players' first few games are scored by provisional elo.\nPage 1: Top 20", color=PELA_CYAN)
     unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
 
     await ctx.respond(embeds=[ranked_embed, unranked_embed])

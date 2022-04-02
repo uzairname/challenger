@@ -33,6 +33,8 @@ async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
     new_match = DB.get_new_match()
     new_match[["player_1", "player_2", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],
                                                                p2_info["elo"], p1_info["is_ranked"], p2_info["is_ranked"]]
+
+
     DB.upsert_match(new_match)
     queue["player"] = None
 
@@ -62,6 +64,8 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     p1_ranked_after, p2_ranked_after = False, False
     if match["p1_is_ranked"]:
         p1_elo_after = match["p1_elo"] + standard_elo_change[0]
+        p2_ranked_after = True
+
     else:
         p1_elo_after = match["p1_elo"] + standard_elo_change[0]*3
 
@@ -74,6 +78,7 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
 
     if match["p2_is_ranked"]:
         p2_elo_after = match["p2_elo"] + standard_elo_change[1]
+        p2_ranked_after = True
     else:
         p2_elo_after = match["p2_elo"] + standard_elo_change[1]*3 #temp
 
@@ -97,6 +102,13 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     if p2_ranked_after:
         p2["is_ranked"] = p2_ranked_after
 
+
+    print("p1 ranked before: ", match["p1_is_ranked"])
+    print("p1 ranked after: ", p1["is_ranked"])
+
+    print("p2 ranked before: ", match["p2_is_ranked"])
+    print("p2 ranked after: ", p2["is_ranked"])
+
     DB.upsert_player(p1)
     DB.upsert_player(p2)
 
@@ -109,26 +121,30 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     p1_ping = "<@" + str(match["player_1"]) + ">"
     p2_ping = "<@" + str(match["player_2"]) + ">"
 
-    p1_elo_change = str(round(match["p1_elo"] - p1_elo_after, 1))
-    p2_elo_change = str(round(match["p2_elo"] - p2_elo_after, 1))
+    p1_elo_change = str(round(p1_elo_after - match["p1_elo"], 1))
+    if p1_elo_change[0] != "-":
+        p1_elo_change = "+" + p1_elo_change
+    p2_elo_change = str(round(p2_elo_after - match["p2_elo"] , 1))
+    if p2_elo_change[0] != "-":
+        p2_elo_change = "+" + p2_elo_change
 
-    p1_prior_elo = str(round(match["p1_elo"]))
-    if match["p1_is_ranked"]:
-        p1_prior_elo += "?"
-    p2_prior_elo = str(round(match["p2_elo"]))
-    if match["p2_is_ranked"]:
-        p2_prior_elo += "?"
+    p1_prior_elo_message = str(round(match["p1_elo"]))
+    if not match["p1_is_ranked"]:
+        p1_prior_elo_message += "?"
+    p2_prior_elo_message = str(round(match["p2_elo"]))
+    if not match["p2_is_ranked"]:
+        p2_prior_elo_message += "?"
 
     p1_elo_after_message = str(round(p1_elo_after))
-    if p1_ranked_after:
+    if not p1_ranked_after:
         p1_elo_after_message += "?"
     p2_elo_after_message = str(round(p2_elo_after))
-    if p2_ranked_after:
+    if not p2_ranked_after:
         p2_elo_after_message += "?"
 
     result_embed = hikari.Embed(title="Match " + str(match["match_id"]) + " results", description="", color=PELA_CYAN)
-    result_embed.add_field(name="Player 1", value=p1_ping + ": " + p1_prior_elo + " -> " + p1_elo_after_message + " (" + p1_elo_change + ")", inline=True)
-    result_embed.add_field(name="Player 2", value=p2_ping + ": " + p2_prior_elo + " -> " + p2_elo_after_message + " (" + p2_elo_change + ")", inline=True)
+    result_embed.add_field(name="Player 1", value=p1_ping + ": " + p1_prior_elo_message + " -> " + p1_elo_after_message + " (" + p1_elo_change + ")", inline=True)
+    result_embed.add_field(name="Player 2", value=p2_ping + ": " + p2_prior_elo_message + " -> " + p2_elo_after_message + " (" + p2_elo_change + ")", inline=True)
 
     if staff_declared:
         result_embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
@@ -166,8 +182,6 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
 
     #Ensure player has at least 1 role required by the queue
     is_allowed = False
-    print(ctx.member.role_ids)
-    print("q: " + str(queue))
     for role in queue["roles"]:
         if role in ctx.member.role_ids:
             is_allowed = True
