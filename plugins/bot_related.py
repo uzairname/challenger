@@ -104,20 +104,6 @@ async def uptime(ctx:tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=PelaBo
     await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 
 
-
-@component.with_slash_command
-@tanjun.with_str_slash_option("name", "name")
-@tanjun.as_slash_command("name", "Change the bot's nickname lol", default_to_ephemeral=False)
-async def nickname(ctx:tanjun.abc.Context, name, bot:PelaBot = tanjun.injected(type=PelaBot)):
-
-    try:
-        await bot.rest.edit_my_member(guild=ctx.guild_id, nickname=f"{name}")
-    except hikari.errors.BadRequestError as err:
-        await ctx.edit_initial_response("```" + str(err.errors) + "```")
-        return
-    await ctx.respond(f"{ctx.author.mention} Changed my name to \"**" + str(name) + "**\" !!", user_mentions=True)
-
-
 @tanjun.as_loader
 def load(client: tanjun.abc.Client) -> None:
     client.add_component(component.copy())

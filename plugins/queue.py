@@ -24,17 +24,140 @@ async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series:
     return queue.iloc[0]
 
 
+async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
+    DB = Database(ctx.guild_id)
+
+    p1_ping = "<@" + str(p1_info["user_id"]) + ">"
+    p2_ping = "<@" + str(p2_info["user_id"]) + ">"
+
+    new_match = DB.get_new_match()
+    new_match[["player_1", "player_2", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],
+                                                               p2_info["elo"], p1_info["is_ranked"], p2_info["is_ranked"]]
+    DB.upsert_match(new_match)
+    queue["player"] = None
+
+    await ctx.get_channel().send("Match " + str(new_match["match_id"]) + " started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
+
+
+
+
+async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff_declared=False):
+
+    DB = Database(ctx.guild_id)
+
+    p1 = DB.get_players(user_id=match["player_1"]).iloc[0]
+    p2 = DB.get_players(user_id=match["player_2"]).iloc[0]
+
+    #make sure this is the most recent match for both players
+    p1_latest_match = DB.get_matches(user_id=p1["user_id"]).iloc[0]["match_id"]
+    p2_latest_match = DB.get_matches(user_id=p2["user_id"]).iloc[0]["match_id"]
+
+    if p1_latest_match != match["match_id"] or p2_latest_match != match["match_id"]:
+        await ctx.edit_initial_response("Unable to change old match results")# Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
+        return
+
+    standard_elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], new_outcome)
+
+    #check whether player's elo is provisional
+    p1_ranked_after, p2_ranked_after = False, False
+    if match["p1_is_ranked"]:
+        p1_elo_after = match["p1_elo"] + standard_elo_change[0]
+    else:
+        p1_elo_after = match["p1_elo"] + standard_elo_change[0]*3
+
+        p1_matches = DB.get_matches(user_id=match["player_1"], number=NUM_UNRANKED_MATCHES, ascending=True)
+
+        print("p1_matches:", p1_matches)
+
+        if len(p1_matches.index) >= NUM_UNRANKED_MATCHES:
+            p1_ranked_after = True
+
+    if match["p2_is_ranked"]:
+        p2_elo_after = match["p2_elo"] + standard_elo_change[1]
+    else:
+        p2_elo_after = match["p2_elo"] + standard_elo_change[1]*3 #temp
+
+        p2_matches = DB.get_matches(user_id=match["player_2"], number=NUM_UNRANKED_MATCHES, ascending=True)
+
+        print("p2_matches", p2_matches)
+
+        if len(p2_matches.index) >= NUM_UNRANKED_MATCHES:
+            p2_ranked_after = True
+
+
+
+    #after updating all the matches then
+
+    p1["elo"] = p1_elo_after
+    p2["elo"] = p2_elo_after
+
+    if p1_ranked_after:
+        p1["is_ranked"] = p1_ranked_after
+
+    if p2_ranked_after:
+        p2["is_ranked"] = p2_ranked_after
+
+    DB.upsert_player(p1)
+    DB.upsert_player(p2)
+
+    match["outcome"] = new_outcome
+    match["staff_declared"] = staff_declared
+    DB.upsert_match(match)
+
+    #create the announcement message
+
+    p1_ping = "<@" + str(match["player_1"]) + ">"
+    p2_ping = "<@" + str(match["player_2"]) + ">"
+
+    p1_elo_change = str(round(match["p1_elo"] - p1_elo_after, 1))
+    p2_elo_change = str(round(match["p2_elo"] - p2_elo_after, 1))
+
+    p1_prior_elo = str(round(match["p1_elo"]))
+    if match["p1_is_ranked"]:
+        p1_prior_elo += "?"
+    p2_prior_elo = str(round(match["p2_elo"]))
+    if match["p2_is_ranked"]:
+        p2_prior_elo += "?"
+
+    p1_elo_after_message = str(round(p1_elo_after))
+    if p1_ranked_after:
+        p1_elo_after_message += "?"
+    p2_elo_after_message = str(round(p2_elo_after))
+    if p2_ranked_after:
+        p2_elo_after_message += "?"
+
+    result_embed = hikari.Embed(title="Match " + str(match["match_id"]) + " results", description="", color=PELA_CYAN)
+    result_embed.add_field(name="Player 1", value=p1_ping + ": " + p1_prior_elo + " -> " + p1_elo_after_message + " (" + p1_elo_change + ")", inline=True)
+    result_embed.add_field(name="Player 2", value=p2_ping + ": " + p2_prior_elo + " -> " + p2_elo_after_message + " (" + p2_elo_change + ")", inline=True)
+
+    if staff_declared:
+        result_embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
+
+    #send the announcement message
+    config = DB.get_config()
+    channel_id = config["results_channel"]
+
+    if channel_id is None:
+        await ctx.get_channel().send("\nNo match announcements channel specified. Announcing here", embed=result_embed)
+        return
+
+    await bot.rest.create_message(channel_id, embed=result_embed)
+
+
+
+
 #join the queue
 @component.with_slash_command
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True)
 async def join_q(ctx: tanjun.abc.Context) -> None:
 
+    await ctx.respond("please wait")
+
     DB = Database(ctx.guild_id)
 
     #Ensure the current channel has a queue associated with it
     queue = await get_available_queue(ctx, DB)
-    if queue.empty:
-        print("queue didn't exist")
+    if queue is None:
         return
 
     player_info = await ensure_registered(ctx, DB)
@@ -71,40 +194,28 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     #add player to queue
     if not queue["player"]:
         queue["player"] = player_id
+        DB.upsert_queue(queue)
+
         await ctx.edit_initial_response(f"You silently joined the queue")
         await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
-        DB.upsert_queue(queue)
     else:
-        print("█queue: " + str(queue))
         await ctx.edit_initial_response("Queue is full. Creating match")
-        queue["player"] = None
-        DB.upsert_queue(queue)
+
         p1_info = DB.get_players(user_id=queue['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
+
+        queue["player"] = None
+        DB.upsert_queue(queue)
+
         await start_new_match(ctx, queue, p1_info, p2_info)
-
-
-
-
-async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
-    DB = Database(ctx.guild_id)
-
-    p1_ping = "<@" + str(p1_info["user_id"]) + ">"
-    p2_ping = "<@" + str(p2_info["user_id"]) + ">"
-
-    new_match = DB.get_new_match()
-    new_match[["player_1", "player_2", "p1_elo", "p2_elo"]] = [p1_info["user_id"], p2_info["user_id"], p1_info["elo"],
-                                                               p2_info["elo"]]
-    DB.upsert_match(new_match)
-    queue["player"] = None
-
-    await ctx.get_channel().send("Match " + str(new_match["match_id"]) + " started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
 
 
 #leave queue
 @component.with_slash_command
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True)
 async def leave_q(ctx: tanjun.abc.Context) -> None:
+
+    await ctx.respond("please wait")
 
     DB = Database(ctx.guild_id)
 
@@ -134,6 +245,8 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True)
 async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 
+    await ctx.respond("please wait")
+
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
@@ -151,10 +264,6 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
         await ctx.edit_initial_response("Staff already finalized this match's result")
         return
 
-    old_outcome = match["outcome"]
-    new_outcome = old_outcome
-
-    print()
     #set the player's declared result in the match
     is_p1 = match["player_1"] == ctx.author.id
     DECLARE_TO_RESULT = {
@@ -169,69 +278,32 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     else:
         match["p2_declared"] = declared_result
 
-    response = "Declared " + str(result)
+    response = "Declared " + str(result) + " for match " + str(match["match_id"])
 
     #refresh match and check whether both declares are equal
 
     if match["p1_declared"] == match["p2_declared"]:
         new_outcome = declared_result
 
-    if old_outcome != new_outcome:
-        await update_match_outcome(ctx, match, new_outcome)
+        if match["outcome"] != new_outcome:
+            await update_match_outcome(ctx, match, new_outcome)
+        else:
+            response += "\nOutcome is already " + str(new_outcome)
 
-    await ctx.respond(response)
+    await ctx.edit_initial_response(response)
 
     DB.upsert_match(match)
 
 
-async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff_declared=False):
 
-    if match["outcome"] == new_outcome:
-        await ctx.edit_initial_response("outcome is already " + str(new_outcome))
-        return
+def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
 
-    elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], new_outcome)
+    matches = DB.get_matches(user_id=player_id, limit=num_matches)
+    if matches.empty:
+        return matches
+    matches = matches.sort_values(by="match_id", ascending=True)
+    return matches.iloc[:num_matches]
 
-    DB = Database(ctx.guild_id)
-
-    p1 = DB.get_players(user_id=match["player_1"]).iloc[0]
-    p2 = DB.get_players(user_id=match["player_2"]).iloc[0]
-
-    #check if their current elo matches their elo after the match
-    old_elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], match["outcome"])
-    p1_elo_after = match["p1_elo"] + old_elo_change[0]
-    p2_elo_after = match["p2_elo"] + old_elo_change[1]
-    print(old_elo_change, match["p1_elo"], match["p2_elo"], p1_elo_after, p2_elo_after)
-    if abs(p1_elo_after - p1["elo"]) > 0.000000001 or abs(p2_elo_after - p2["elo"]) > 0.000000001:
-        await ctx.edit_initial_response("Unable to change old match's results.") # Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
-        return
-
-    match["outcome"] = new_outcome
-    match["staff_declared"] = staff_declared
-    DB.upsert_match(match)
-
-    p1["elo"] = match["p1_elo"] + elo_change[0]
-    p2["elo"] = match["p2_elo"] + elo_change[1]
-    DB.upsert_player(p1)
-    DB.upsert_player(p2)
-
-    announcement = "Match " + str(match["match_id"]) + " results: " + str(new_outcome) + \
-        "\n" + str(p1["username"]) + ": " + str(round(match["p1_elo"])) + " + " + str(
-            round(elo_change[0], 1)) + " = " + str(round(p1["elo"])) + \
-        "\n" + str(p2["username"]) + ": " + str(round(match["p2_elo"])) + " + " + str(
-            round(elo_change[1], 1)) + " = " + str(round(p2["elo"]))
-
-    if staff_declared:
-        announcement += f"\n\n(Results set by {ctx.author.username}#{ctx.author.discriminator})"
-
-    config = DB.get_config()
-    channel_id = config["results_channel"]
-
-    if channel_id is None:
-        await ctx.get_channel().send(announcement + "\nNo match announcements channel specified. Announcing here")
-        return
-
-    await bot.rest.create_message(channel_id, announcement)
 
 
 
@@ -289,55 +361,12 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 
 
 @component.with_slash_command
-@tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
-async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
-
-    DB = Database(ctx.guild_id)
-
-    players = DB.get_players(top_by_elo=[0,20])
-    if players.empty:
-        await ctx.respond("No players registered")
-        return
-
-    ranked_players = players.loc[pd.notnull(players["elo"])]
-    print(ranked_players)
-    provisional_players = players.loc[pd.isnull(players["elo"])]
-
-    max_len = 25
-    ranked_list = "```"
-    place = 0
-    for index, player, in ranked_players.iterrows():
-        place += 1
-        tag = str(player["tag"])[:max_len]
-        ranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["elo"])) + "\n"
-
-    ranked_list += "```"
-
-    unranked_list = "```"
-    provisional_players.sort_values(by="provisional_elo", ascending=True, inplace=True)
-    place = 0
-    for index, player in provisional_players.iterrows():
-        tag = str(player["tag"])[:max_len]
-        unranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["provisional_elo"])) + "?\n"
-
-    unranked_list += "```"
-
-    ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
-    ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
-
-    unranked_embed = hikari.Embed(title="Unranked", description="Page 1: Top 20", color=PELA_CYAN)
-    unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
-
-    await ctx.respond(embeds=[ranked_embed, unranked_embed])
-
-
-@component.with_slash_command
 @tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":results.PLAYER_1, "2":results.PLAYER_2, "draw":results.DRAW, "cancel":results.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
 @tanjun.as_slash_command("set", "set a match's outcome", default_to_ephemeral=False)
 async def force_match(ctx: tanjun.abc.Context, match_number, outcome):
 
-    await ctx.respond("...")
+    await ctx.respond("please wait")
 
     DB = Database(ctx.guild_id)
 
@@ -354,7 +383,13 @@ async def force_match(ctx: tanjun.abc.Context, match_number, outcome):
         await ctx.edit_initial_response("No match found")
         return
     match = matches.iloc[0]
-    await update_match_outcome(ctx, match, outcome, True)
+
+    if match["outcome"] != outcome:
+        await update_match_outcome(ctx, match, outcome, True)
+        await ctx.edit_initial_response("Match " + str(match["match_id"]) + " updated")
+    else:
+        await ctx.edit_initial_response("Outcome is already " + str(outcome))
+
 
 
 

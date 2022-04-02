@@ -15,8 +15,11 @@ DEFAULT_TIMEOUT = 120
 class results:
     PLAYER_1 = "player 1"
     PLAYER_2 = "player 2"
+    WIN = "win"
+    LOSS = "loss"
     DRAW = "draw"
-    CANCEL = "cancel"
+    CANCEL = "cancelled"
+    UNDECIDED = "undecided"
 
 class declares:
     WIN = "win"
