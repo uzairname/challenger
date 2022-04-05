@@ -39,6 +39,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["time_registered"] = datetime.now()
         player["is_ranked"] = False
         player["elo"] = DEFAULT_ELO
+        player["staff"] = status.NONE
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return
@@ -53,29 +54,32 @@ async def register(ctx: tanjun.abc.Context) -> None:
 @component.with_slash_command
 @tanjun.with_str_slash_option("player", "their mention", default=None)
 @tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=True)
-async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
+async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
     await ctx.respond("plese wait")
 
     DB = Database(ctx.guild_id)
 
-    player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
-        return
-    player_info = player_info.iloc[0]
-
+    #get the selected player
     if player:
-        input_users = parse_input(str(player))["users"]
+        input_users = InputParams(str(player)).users
         if len(input_users) != 1:
             await ctx.edit_initial_response("Enter a valid player id")
             return
+
         players = DB.get_players(user_id=input_users[0])
         if players.empty:
             await ctx.edit_initial_response("Unknown or unregistered player")
             return
-        player_info = players.iloc[0]
+        player = players.iloc[0]
+    else:
+        player = await ensure_registered(ctx, DB)
+        if player is None:
+            return
+        player = player.iloc[0]
 
-    matches = DB.get_matches(user_id=player_info["user_id"])
+
+    matches = DB.get_matches(user_id=player["user_id"])
 
     total_draws = 0
     total_wins = 0
@@ -84,8 +88,8 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
         if match["outcome"] == results.DRAW:
             total_draws += 1
 
-        winning_result = results.PLAYER_1 if match["player_1"] == player_info["user_id"] else results.PLAYER_2
-        losing_result = results.PLAYER_2 if match["player_1"] == player_info["user_id"] else results.PLAYER_1
+        winning_result = results.PLAYER_1 if match["player_1"] == player["user_id"] else results.PLAYER_2
+        losing_result = results.PLAYER_2 if match["player_1"] == player["user_id"] else results.PLAYER_1
 
         if match["outcome"] == winning_result:
             total_wins += 1
@@ -93,24 +97,31 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None: #TODO show winrate
             total_losses += 1
 
 
-    response = "Stats for **" + str(player_info["tag"]) + "**:\n" +\
-        "```elo: " + str(round(player_info["elo"])) + \
-        "\nwins:   " + str(total_wins) + \
-        "\ndraws:  " + str(total_draws) + \
-        "\nlosses: " + str(total_losses) + "```"
+    displayed_elo = str(round((player["elo"]),2))
+    if not player["is_ranked"]:
+        displayed_elo += " (unranked)"
 
-    await ctx.get_channel().send(response)
+    stats_embed = hikari.Embed(title=f"{player['tag']}", description="Stats", color=Colors.PRIMARY)
+    stats_embed.add_field(name="Elo", value=displayed_elo)
+    stats_embed.add_field(name="Total matches", value=f"{matches.shape[0]}")
+    stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)
+    stats_embed.add_field(name="Losses", value=f"{total_losses}", inline=True)
+    stats_embed.add_field(name="Draws", value=f"{total_draws}", inline=True)
+
+    await ctx.get_channel().send(embed=stats_embed)
 
 
 @component.with_slash_command
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
+    await ctx.respond("please wait")
+
     DB = Database(ctx.guild_id)
 
     players = DB.get_players(top_by_elo=[0,20])
     if players.empty:
-        await ctx.respond("No players registered")
+        await ctx.edit_initial_response("No players registered")
         return
 
     ranked_players = players.loc[players["is_ranked"]==True]
@@ -136,13 +147,13 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     unranked_list += "```"
 
-    ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=PELA_CYAN)
+    ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=Colors.PRIMARY)
     ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
 
-    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="New players are initially scored by provisional elo. Once they play 3 games, they recieve an actual elo rating, so they don't have to grind to reach their elo. Page 1: Top 20", color=PELA_CYAN)
+    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="Players' first few games are scored by provisional elo.\nPage 1: Top 20", color=Colors.PRIMARY)
     unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
 
-    await ctx.respond(embeds=[ranked_embed, unranked_embed])
+    await ctx.edit_initial_response("", embeds=[ranked_embed, unranked_embed])
 
 
 

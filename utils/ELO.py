@@ -6,7 +6,7 @@ DEFAULT_ELO = 1000  # everyone's starting score
 DEFAULT_SCALE = ELO_STDEV*2.7  # Used in elo calculation. 2.7 is just an arbitrary scaling factor
 DEFAULT_K = 30  # maximum change in one game
 
-NUM_UNRANKED_MATCHES = 3  # number of matches to play before ranking
+NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
 
 
 def calc_elo_change(p1_elo, p2_elo, result): #

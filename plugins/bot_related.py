@@ -16,20 +16,16 @@ bot_todo = """
 **In order of priority**
 
 in order of priority: 
-• fix leaderboard display on mobile
-• Leaderboard shows multiple pages
+• Link staff with roles
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• Staff commands parameters should be an option within the slash command
-• Give better instructions with /help
-• Link staff roles with discord role
-• Automatically assign roles based on Elo
-Players are unranked until provisional elo is done (4 games)
-• /configure option to select map when match starts, and /map choose random map
-• remove player from queue after 10 mins
 • show when opponent declares result, and when there's a conflict
+• Give better instructions with /help
+• Automatically assign roles based on Elo
+• remove player from queue after 10 mins
 • /join records match time
 • /history show your recent matches
+• Leaderboard shows multiple pages
 • Automatically register players on commands
 • show more details in match outcome
 • see distribution of everyone's elo
@@ -37,6 +33,7 @@ Players are unranked until provisional elo is done (4 games)
 • Associate each match with a message id in match announcements, so that message can be edited
 • /compare (player) show your expected probability of beating opponent, and your winrate against them. Elo change for winning and losing 
 • make displayed results pretty
+• fix leaderboard display on mobile
 • make a better bot icon
 • shorthand for commands ex. declare match results /d
 • rename /declare to /claim
@@ -52,20 +49,20 @@ Ability to change old match results. When your elo change depends on the elo dif
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
 async def help_command(ctx: tanjun.abc.Context, bot:PelaBot  = tanjun.injected(type=PelaBot)) -> None:
 
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}😋! This is a competetive ranking bot. 1v1 other players to climb the elo leaderboards! \n\nDM me with any comments, questions, or suggestions", colour=PELA_CYAN)
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}😋! This is a competetive ranking bot. 1v1 other players to climb the elo leaderboards! \n\nDM me with any comments, questions, or suggestions", colour=Colors.PRIMARY)
     about_embed.set_footer("Lilapela#1234")
 
-    basic_embed = hikari.Embed(title="Getting Started", description="To get started, type /register", colour=PELA_CYAN)
+    basic_embed = hikari.Embed(title="Getting Started", description="To get started, type /register", colour=Colors.PRIMARY)
     basic_embed.add_field(name="QUEUE", value="**/join** - Join the queue to be matched with another player\n**/leave** - Leave the queue\n**/queue** - View the status of the queue\n**/declare [win, loss, draw, or cancel]** - declare the results of the match. Both players must agree for result to be decided. If there's a dispute, ask staff to handle it", inline=True)
     basic_embed.add_field(name="PLAYERS", value="**/register** - Register your username and gain access to most features!\n**/stats** - View your stats\n/leaderboard - View the leaderboard\n", inline=True)
 
-    util_embed = hikari.Embed(title="Utility", description="Useful and fun commands", colour=PELA_CYAN)
+    util_embed = hikari.Embed(title="Utility", description="Useful and fun commands", colour=Colors.PRIMARY)
     util_embed.add_field(name="Other commands", value="**/help** - help\n**/uptime** - See how long since the bot's last reset\n**/invite-pela** - Get the link to invite the bot to your own server")
 
-    staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=PELA_CYAN)
+    staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=Colors.PRIMARY)
     staff_embed.add_field(name="COMMANDS", value="**/lobby-config**\n**/elo-roles**\n/**set** - force a match's result, in the event of a dispute or mistake\n**/reset** Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season")
 
-    notes_embed = hikari.Embed(title="Notes", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=PELA_CYAN)
+    notes_embed = hikari.Embed(title="Notes", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
     notes_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
     notes_embed.add_field(name="Possible Future Features", value=bot_features)
     notes_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")

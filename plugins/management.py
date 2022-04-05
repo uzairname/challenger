@@ -20,28 +20,6 @@ class settings:
     ELO_ROLES = "elo to roles"
     STAFF = "staff"
 
-def describe_input(input_params):
-    description = ""
-    if input_params["text"]:
-        description += "Input: **" + str(input_params["text"]) + "**\n"
-
-    if input_params["channels"].size > 0:
-        description += "Selected channels:\n"
-        for i in input_params["channels"]:
-            description += "<#" + str(i) + ">\n"
-
-    if input_params["roles"].size > 0:
-        description += "Selected roles:\n"
-        for i in input_params["roles"]:
-            description += "<@&" + str(i) + ">\n"
-
-    if input_params["users"].size > 0:
-        description += "Selected users:\n"
-        for i in input_params["users"]:
-            description += "<@" + str(i) + ">\n"
-    return description
-
-
 
 @component.with_slash_command
 @tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=True)
@@ -52,18 +30,22 @@ async def config_help(ctx:tanjun.abc.Context):
 @component.with_slash_command
 @tanjun.with_str_slash_option("roles", "roles allowed", default="")
 @tanjun.with_str_slash_option("name", "lobby name", default="")
-@tanjun.with_str_slash_option("channel", "the channel. enter just the channel name to delete", default="")
+@tanjun.with_str_slash_option("channel", "the channel to update or delete", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
 @tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=True)
 async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot: PelaBot = tanjun.injected(type=PelaBot)):
 
     await ctx.respond("please wait")
+    DB = Database(ctx.guild_id)
+
+    if not await is_staff(ctx, DB):
+        await ctx.edit_initial_response("Missing permissions")
+        return
 
     embed = hikari.Embed(
         title="Add a Lobby",
         description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name and allowed roles. To remove required roles from a lobby, just enter the roles you want to toggle. A registered player with at least one of these roles can join the lobby")
 
-    DB = Database(ctx.guild_id)
 
     lobbies_list = ""
     all_queues = DB.get_queues()
@@ -80,17 +62,114 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
     confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
     confirm_cancel.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("❌").add_to_container()
 
-    print("█ component: " + str(confirm_cancel.components[0]))
-
     input_embed = hikari.Embed(title="Your selection", description="\n")
     if action == "delete":
         input_embed.description += "**DELETING lobby:**\n"
-    input_params = parse_input(str(name) + str(channel) + str(roles))
-    print(input_params)
-    input_embed.description += describe_input(input_params)
+    input_params = InputParams(str(name) + str(channel) + str(roles))
+
+    input_embed.description += input_params.describe()
     await ctx.edit_initial_response(embeds=[embed, input_embed], components=[confirm_cancel])
 
     confirm_message = "uh"
+    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+        async for event in stream:
+            # event.interaction.set_response_type(ResponseType.REPLACE)
+            await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+
+            button_id = event.interaction.custom_id
+            if button_id == "Cancel":
+                confirm_message = "cancelled"
+                break
+            if button_id == "Confirm":
+
+                if input_params.channels.size != 1:
+                    confirm_message = "Please enter one channel"
+                    break
+
+                existing_queues = DB.get_queues(channel_id=input_params.channels[0])
+                if action == "delete":
+                    if existing_queues.empty:
+                        confirm_message = "No lobby in "  + str(input_params.channels[0]) + ""
+                        break
+                    queue = existing_queues.iloc[0]
+                    DB.remove_queue(queue)
+                    confirm_message  = "Deleted"
+                    break
+                #action is update. exactly 1 channel entered.
+
+                if existing_queues.empty:
+                    new_queue = DB.get_new_queue(input_params.channels[0])
+                    new_queue["lobby_name"] = input_params.text
+                    new_queue["roles"] = input_params.roles
+                    print("██CREATING NEW\n " + str(new_queue["roles"][0].dtype))
+                    DB.upsert_queue(new_queue)
+                    confirm_message = "Added new lobby"
+                    break
+                else:
+                    existing_queue = existing_queues.loc[0]
+                    if input_params.text:
+                        existing_queue["lobby_name"] = input_params.text
+                    existing_queue["roles"] = np.union1d(np.setdiff1d(existing_queue["roles"], input_params.roles),
+                                                         np.setdiff1d(input_params.roles, existing_queue["roles"]))
+                    print("██UPDATING EXISTING WITH\n " + str(existing_queue["roles"][0].dtype))
+                    DB.upsert_queue(existing_queue)
+                    confirm_message = "Updated existing lobby"
+                    break
+
+    confirm_embed = hikari.Embed(title = "Done", description=confirm_message, color=Colors.SUCCESS)
+
+    await ctx.edit_initial_response(embeds=[embed, input_embed, confirm_embed])
+
+
+
+@component.with_slash_command
+@tanjun.with_str_slash_option("role", "role", default="")
+@tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
+@tanjun.as_slash_command("config-staff", "link a role to bot staff", default_to_ephemeral=True)
+async def config_staff(ctx:tanjun.abc.Context, action, role, bot: PelaBot = tanjun.injected(type=PelaBot)):
+
+    await ctx.respond("please wait")
+    DB = Database(ctx.guild_id)
+
+    if not await is_staff(ctx, DB):
+        await ctx.edit_initial_response("Not authorized")
+        return
+
+
+    all_players = DB.get_players()
+    staff_role = DB.get_config()["staff_role"]
+
+    staff_list = "Staff role: <@&" + str(staff_role) + ">\n"
+    if staff_role is None:
+        staff_list = "No staff"
+    else:
+        members = bot.rest.fetch_members(ctx.guild_id)
+        async for member in members:
+            if staff_role in member.role_ids:
+                staff_list += "\n" + member.username
+
+
+    instructions_embed = hikari.Embed(title="Add or remove staff members", description="Link a role to bot staff. Staff are able to force match results, and have access to all config commands", color=Colors.PRIMARY)
+    instructions_embed.add_field(name="Current staff", value=staff_list)
+
+    input_embed = hikari.Embed(title="Your selection", description="\n", color = Colors.CONFIRM)
+    if action == "link role":
+        input_embed.description += "**Linking**\n"
+    elif action == "unlink role":
+        input_embed.description += "**Unlinking**\n"
+    else:
+        input_embed.description += "**Nothing**\n"
+
+    input_params = InputParams(str(role))
+    input_embed.description += input_params.describe()
+
+    confirm_cancel = ctx.rest.build_action_row()
+    confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
+    confirm_cancel.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("❌").add_to_container()
+
+    await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[confirm_cancel])
+
+    confirm_message = "Error"
     with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
@@ -101,55 +180,44 @@ async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot
                 break
             if button_id == "Confirm":
 
-                if input_params["channels"].size != 1:
-                    confirm_message = "Please enter one channel"
+                if len(input_params.roles) == 0:
+                    confirm_message = "Select one role"
                     break
 
-                existing_queues = DB.get_queues(channel_id=input_params["channels"][0])
-                if action == "delete":
-                    if existing_queues.empty:
-                        confirm_message = "No lobby in "  + str(input_params["channels"][0]) + ""
-                        break
-                    queue = existing_queues.iloc[0]
-                    DB.remove_queue(queue)
-                    confirm_message  = "Deleted"
-                    break
-                #action is update. exactly 1 channel entered.
+                config = DB.get_config()
+                staff_role = config["staff_role"]
 
-                if existing_queues.empty:
-                    new_queue = DB.get_new_queue(input_params["channels"][0])
-                    new_queue["lobby_name"] = input_params["text"]
-                    new_queue["roles"] = input_params["roles"]
-                    print("██CREATING NEW\n " + str(new_queue["roles"][0].dtype))
-                    DB.upsert_queue(new_queue)
-                    confirm_message = "Added new lobby"
-                    break
-                else:
-                    existing_queue = existing_queues.loc[0]
-                    if input_params["text"]:
-                        existing_queue["lobby_name"] = input_params["text"]
-                    existing_queue["roles"] = np.union1d(np.setdiff1d(existing_queue["roles"], input_params["roles"]),
-                                                         np.setdiff1d(input_params["roles"], existing_queue["roles"]))
-                    print("██UPDATING EXISTING WITH\n " + str(existing_queue["roles"][0].dtype))
-                    DB.upsert_queue(existing_queue)
-                    confirm_message = "Updated existing lobby"
-                    break
+                if action == "link role":
+                    staff_role = input_params.roles[0]
+                    confirm_message = "Linked staff with " + "<@&" + str(staff_role) + ">"
+                elif action == "unlink role":
+                    staff_role = None
+                    confirm_message = "Removed staff role"
 
-    confirm_cancel.components[0].set_is_disabled(True)
-    confirm_cancel.components[1].set_is_disabled(True)
-    confirm_embed = hikari.Embed(title = "Done", description=confirm_message)
-
-    await ctx.edit_initial_response(embeds=[embed, input_embed, confirm_embed], components=[confirm_cancel])
+                config["staff_role"] = staff_role
+                DB.upsert_config(config)
+                break
 
 
-@component.with_slash_command
-@tanjun.with_str_slash_option("setting", "What setting?",
-                              choices={"Add/edit a Lobby":settings.LOBBY, #config-lobby
-                                       "Delete a Lobby":settings.REMOVE_LOBBY,
-                                       "Results Channel":settings.RESULTS, #config-results
-                                       "Elo Roles":settings.ELO_ROLES, #config-eloroles
-                                       "Staff Members":settings.STAFF}) #config-staff
-@tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
+    confirm_embed = hikari.Embed(title="Done", description=confirm_message, color=Colors.SUCCESS)
+    await ctx.edit_initial_response(embeds=[instructions_embed, input_embed, confirm_embed], components=[])
+
+
+
+
+async def config_elo_roles(ctx:tanjun.abc.Context, action, role, bot: PelaBot = tanjun.injected(type=PelaBot)):
+    pass
+
+
+
+# @component.with_slash_command
+# @tanjun.with_str_slash_option("setting", "What setting?",
+#                               choices={"Add/edit a Lobby":settings.LOBBY, #config-lobby
+#                                        "Delete a Lobby":settings.REMOVE_LOBBY,
+#                                        "Results Channel":settings.RESULTS, #config-results
+#                                        "Elo Roles":settings.ELO_ROLES, #config-eloroles
+#                                        "Staff Members":settings.STAFF}) #config-staff
+# @tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
 async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = tanjun.injected(type=PelaBot), client: tanjun.Client = tanjun.injected(type=tanjun.Client)):
 
     #check that player is staff or lilapela
@@ -222,9 +290,9 @@ async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: PelaBot = ta
                 await event.message.delete()
 
             input_embed = hikari.Embed(title="Updating Settings", description="")
-            input_params = parse_input(event.content)
+            input_params = InputParams(event.content)
 
-            if input_params["text"]:
+            if input_params.text:
                 input_embed.description += "Input: **" + str(input_params["text"]) + "**\n"
 
             if input_params["channels"].size > 0:
