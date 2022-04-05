@@ -1,5 +1,6 @@
 import functools
 import logging
+import hikari
 import tanjun
 import math
 import numpy as np
@@ -8,7 +9,10 @@ import re
 import sympy as sp
 
 
-PELA_CYAN = "5effcc"
+class Colors:
+    PRIMARY = "37dedb"
+    CONFIRM = "ffe373"
+    SUCCESS = "#5dde07"
 
 DEFAULT_TIMEOUT = 120
 
@@ -28,6 +32,7 @@ class declares:
     CANCEL = "cancel"
 
 class status:
+    NONE = 0
     STAFF = 1
 
 def check_errors(func):
@@ -61,22 +66,65 @@ def sqlarray_to_list(string):
     return re.findall(text_pat, string)
 
 
-def parse_input(string):
-    text_pat = r"[a-zA-Z\d\s]+"
-
-    channel_pat = r"<#(\d{17,19})>"
-    role_pat = r"<@&(\d{17,19})>"
-    user_pat = r"<@!?(\d{17,19})>"
-#(
-    name = re.match(text_pat, string)
-    if name:
-        name = name[0].strip()
-
-    channels = np.array(re.findall(channel_pat, string)).astype("int64")
-    roles = np.array(re.findall(role_pat, string)).astype("int64")
-    users = np.array(re.findall(user_pat, string)).astype("int64")
-
-    #text is all text at the start before any channel roles or users
-    return {"text": name, "channels": channels, "roles": roles, "users":users}
 
 
+
+class InputParams():
+    def __init__(self, input_string):
+        text_pat = r"[a-zA-Z\d\s]+"
+
+        channel_pat = r"<#(\d{17,19})>"
+        role_pat = r"<@&(\d{17,19})>"
+        user_pat = r"<@!?(\d{17,19})>"
+
+        name = re.match(text_pat, input_string)
+        if name:
+            name = name[0].strip()
+
+        self.channels = np.array(re.findall(channel_pat, input_string)).astype("int64")
+        self.roles = np.array(re.findall(role_pat, input_string)).astype("int64")
+        self.users = np.array(re.findall(user_pat, input_string)).astype("int64")
+        self.text = name
+
+
+    def describe(self):
+
+        description = ""
+        if self.text:
+            description += "Input: **" + str(self.text) + "**\n"
+
+        if self.channels.size > 0:
+            description += "Selected channels:\n"
+            for i in self.channels:
+                description += "<#" + str(i) + ">\n"
+
+        if self.roles.size > 0:
+            description += "Selected roles:\n"
+            for i in self.roles:
+                description += "<@&" + str(i) + ">\n"
+
+        if self.users.size > 0:
+            description += "Selected users:\n"
+            for i in self.users:
+                description += "<@" + str(i) + ">\n"
+
+        return description
+
+
+async def is_staff(ctx:tanjun.abc.Context, DB):
+    staff_role = DB.get_config()["staff_role"]
+
+    if staff_role is None:
+        guild = await ctx.fetch_guild()
+
+        roles = ctx.member.role_ids
+        role_mapping = {}
+        for role in roles:
+            role_mapping[role] = guild.get_role(role)
+
+        perms = tanjun.utilities.calculate_permissions(member=ctx.member, guild=guild, roles=role_mapping)
+        if perms & hikari.Permissions.MANAGE_GUILD:
+            return True
+        return False
+
+    return bool(staff_role in ctx.member.role_ids)

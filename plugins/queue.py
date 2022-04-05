@@ -15,6 +15,12 @@ async def ensure_registered(ctx: tanjun.abc.Context, DB:Database) -> pd.Series:
         return
     return player.iloc[0]
 
+def is_registered(ctx: tanjun.abc.Context, DB:Database) -> bool:
+    player = DB.get_players(user_id=ctx.author.id)
+    if player.empty:
+        return False
+    return True
+
 
 async def get_available_queue(ctx:tanjun.abc.Context, DB:Database) -> pd.Series:
     queue = DB.get_queues(ctx.channel_id)
@@ -142,7 +148,7 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     if not p2_ranked_after:
         p2_elo_after_message += "?"
 
-    result_embed = hikari.Embed(title="Match " + str(match["match_id"]) + " results", description="", color=PELA_CYAN)
+    result_embed = hikari.Embed(title="Match " + str(match["match_id"]) + " results: " + str(new_outcome), description="", color=Colors.PRIMARY)
     result_embed.add_field(name="Player 1", value=p1_ping + ": " + p1_prior_elo_message + " -> " + p1_elo_after_message + " (" + p1_elo_change + ")", inline=True)
     result_embed.add_field(name="Player 2", value=p2_ping + ": " + p2_prior_elo_message + " -> " + p2_elo_after_message + " (" + p2_elo_change + ")", inline=True)
 
@@ -176,9 +182,10 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
     if queue is None:
         return
 
-    player_info = await ensure_registered(ctx, DB)
-    if player_info is None:
+    if not is_registered(ctx, DB):
+        await ctx.respond(f"Hi {ctx.author.mention}! Please register with /register to play", user_mentions=True)
         return
+
 
     #Ensure player has at least 1 role required by the queue
     is_allowed = False
@@ -345,6 +352,8 @@ async def queue_status(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("match", "Your latest match's status", default_to_ephemeral=True)
 async def get_match(ctx: tanjun.abc.Context) -> None:
 
+    await ctx.respond("please wait")
+
     DB = Database(ctx.guild_id)
 
     player_info = await ensure_registered(ctx, DB)
@@ -384,13 +393,15 @@ async def force_match(ctx: tanjun.abc.Context, match_number, outcome):
 
     DB = Database(ctx.guild_id)
 
+    if not is_staff(ctx, DB):
+        await ctx.edit_initial_response("Missing permissions")
+        return
+
     player_info = await ensure_registered(ctx, DB)
     if player_info is None:
         return
 
-    if player_info["staff"] != status.STAFF:
-        await ctx.edit_initial_response("Missing permissions")
-        return
+
 
     matches = DB.get_matches(match_id=match_number)
     if matches.empty:

@@ -15,6 +15,7 @@ class PelaBot (hikari.GatewayBot):
     def run(self):
         self.create_client()
 
+        self.subscribe(hikari.StartingEvent, self.on_starting)
         self.subscribe(hikari.StartedEvent, self.on_started)
         self.subscribe(hikari.GuildAvailableEvent, self.on_guild_available)
 
@@ -26,6 +27,9 @@ class PelaBot (hikari.GatewayBot):
         self.client = (tanjun.Client.from_gateway_bot(self))
         self.client.load_modules("plugins.bot_related", "plugins.queue", "plugins.player", "plugins.management")
         self.client.set_auto_defer_after(1)
+
+    async def on_starting(self, evetn:hikari.StartingEvent):
+        logging.info("█ starting")
 
     async def on_started(self, event:hikari.StartedEvent):
         self.start_time = time.time()
