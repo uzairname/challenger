@@ -16,25 +16,22 @@ bot_todo = """
 **In order of priority**
 
 in order of priority: 
-• Link staff with roles
+• Leaderboard shows multiple pages
+• show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• show when opponent declares result, and when there's a conflict
 • Give better instructions with /help
 • Automatically assign roles based on Elo
 • remove player from queue after 10 mins
-• /join records match time
 • /history show your recent matches
-• Leaderboard shows multiple pages
 • Automatically register players on commands
-• show more details in match outcome
 • see distribution of everyone's elo
 • /stats show your percentile
 • Associate each match with a message id in match announcements, so that message can be edited
 • /compare (player) show your expected probability of beating opponent, and your winrate against them. Elo change for winning and losing 
 • make displayed results pretty
+• /join records match time
 • fix leaderboard display on mobile
-• make a better bot icon
 • shorthand for commands ex. declare match results /d
 • rename /declare to /claim
 

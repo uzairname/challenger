@@ -393,7 +393,7 @@ async def force_match(ctx: tanjun.abc.Context, match_number, outcome):
 
     DB = Database(ctx.guild_id)
 
-    if not is_staff(ctx, DB):
+    if not await is_staff(ctx, DB):
         await ctx.edit_initial_response("Missing permissions")
         return
 

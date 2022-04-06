@@ -2,6 +2,7 @@ from utils.utils import *
 from database import Database
 import hikari
 from __main__ import PelaBot
+from __main__ import bot as bot_instance
 from __init__ import *
 import re
 from hikari.interactions.base_interactions import ResponseType
@@ -21,10 +22,70 @@ class settings:
     STAFF = "staff"
 
 
+def as_staff_command(func):
+    @functools.wraps(func)
+    async def wrapper_as_staff_command(ctx, *args, **kwargs):
+        response = await ctx.respond("please wait", ensure_result=True)
+        DB = Database(ctx.guild_id)
+
+        confirm_cancel = ctx.rest.build_action_row()
+        confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji(
+            "✔️").add_to_container()
+        confirm_cancel.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji(
+            "❌").add_to_container()
+
+        return await func(ctx=ctx, response=response, DB=DB, confirm_cancel=confirm_cancel, *args, **kwargs)
+
+    return wrapper_as_staff_command
+
+
+@component.with_slash_command
+@tanjun.as_slash_command("staff_command", "testing")
+@as_staff_command
+async def staff_command(ctx, response, DB, confirm_cancel):
+
+    help_embed = hikari.Embed(title="Staff commands", description="idk", color=0x00ff00)
+
+    print(DB.get_config())
+
+    print(response.content)
+    await ctx.edit_initial_response("", embeds=[help_embed])
+
+
+
 @component.with_slash_command
 @tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=True)
-async def config_help(ctx:tanjun.abc.Context):
-    pass
+@as_staff_command
+async def config_help(ctx:tanjun.abc.Context, DB, response, confirm_cancel):
+
+
+    help_embed = hikari.Embed(title="Config Settings Help", description="config settings help")
+
+
+    await ctx.edit_initial_response("", embeds=[help_embed], components=[confirm_cancel])
+
+    confirm_message = "Error"
+    with bot_instance.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT), ("interaction.user.id", ctx.author.id), ("interaction.message.id", response.id)) as stream:
+        async for event in stream:
+            await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+            print(event.interaction.message)
+
+            button_id = event.interaction.custom_id
+
+            if button_id == "Cancel":
+                confirm_message = "Cancelled"
+                break
+            if button_id == "Confirm":
+                confirm_message = "Confirmed"
+                break
+
+    confirm_embed = hikari.Embed(title = "Done", description=confirm_message, color=Colors.SUCCESS)
+    await ctx.edit_initial_response(embeds=[help_embed, confirm_embed], components=[])
+
+
+
+
+
 
 
 @component.with_slash_command
@@ -135,8 +196,6 @@ async def config_staff(ctx:tanjun.abc.Context, action, role, bot: PelaBot = tanj
         await ctx.edit_initial_response("Not authorized")
         return
 
-
-    all_players = DB.get_players()
     staff_role = DB.get_config()["staff_role"]
 
     staff_list = "Staff role: <@&" + str(staff_role) + ">\n"
