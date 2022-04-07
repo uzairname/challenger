@@ -16,7 +16,7 @@ bot_todo = """
 **In order of priority**
 
 in order of priority: 
-• Leaderboard shows multiple pages
+• Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
@@ -31,10 +31,10 @@ in order of priority:
 • /compare (player) show your expected probability of beating opponent, and your winrate against them. Elo change for winning and losing 
 • make displayed results pretty
 • /join records match time
+• ping command
 • fix leaderboard display on mobile
 • shorthand for commands ex. declare match results /d
 • rename /declare to /claim
-
 """
 
 bot_features = """
@@ -51,28 +51,54 @@ Best of 3 and 5
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
 async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY)
-    about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
-    about_embed.add_field(name="Invite", value=f"Invite the bot to your own server\n{INVITE_LINK}")
-    about_embed.set_footer("By Lilapela#1234")
-
-    basic_embed = hikari.Embed(title="Getting Started", description="To get started, type /register", colour=Colors.PRIMARY)
-    basic_embed.add_field(name="QUEUE", value="**/join** - Join the queue to be matched with another player\n**/leave** - Leave the queue\n**/queue** - View the status of the queue\n**/declare [win, loss, draw, or cancel]** - declare the results of the match. Both players must agree for result to be decided. If there's a dispute, ask staff to handle it", inline=True)
-    basic_embed.add_field(name="PLAYERS", value="**/register** - Register your username and gain access to most features!\n**/stats** - View your stats\n/leaderboard - View the leaderboard\n", inline=True)
+    basics_embed = hikari.Embed(title="Basic Use", description="To get started, type /register. Make sure you're in a channel with a 1v1 lobby. Join the queue to get matched with another player. When the queue is full, a match is created, and you can see its status in whichever channel is set up to record matches", colour=Colors.PRIMARY)
+    basics_embed.add_field(name="Commands", value="`/register` - Register your username and gain access to most features!\n`/join` - Join the queue to be matched with another player\n`/leave` - Leave the queue\n`/declare [win, loss, draw, or cancel]` - declare the results of the match. Both players must agree for result to be decided. Staff can handle disputes", inline=True)
 
     util_embed = hikari.Embed(title="Utility", description="Useful and fun commands", colour=Colors.PRIMARY)
-    util_embed.add_field(name="Other commands", value="**/help** - help\n**/uptime** - See how long since the bot's last reset\n**/invite-pela** - Get the link to invite the bot to your own server")
+    util_embed.add_field(name="General", value="`/queue` - View the status of the queue\n`/stats` - View your stats\n`/leaderboard` - View the leaderboard\n", inline=True)
+    util_embed.add_field(name="Bot related", value="`/about` - Get information about the bot\n`/help` - Get help on how to use the bot\n`/uptime` - See how long since the bot's last reset\n`/ping` - Check the bot's response time\n")
 
     staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=Colors.PRIMARY)
-    staff_embed.add_field(name="COMMANDS", value="**/lobby-config**\n**/elo-roles**\n/**set** - force a match's result, in the event of a dispute or mistake\n**/reset** Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season")
+    staff_embed.add_field(name="Configurating settings", value="`/config-help` - Detailed help on staff config commands, which include:\n`/config-lobby`, `/config-staff`, `/config-eloroles`")
+    staff_embed.add_field(name="Matches", value="/`setmatch` - force a match's result, in the event of a dispute or mistake\n`/reset` Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season")
+
+    pages = {"Basics": basics_embed, "Staff Commands":staff_embed, "Utility":util_embed}
+
+    page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
+    for i in pages:
+        page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="Basics").add_to_menu()
+    page_dropdown = page_dropdown.add_to_container()
+
+    await ctx.edit_initial_response(embeds=[basics_embed], components=[page_dropdown], user_mentions=[ctx.author])
+
+    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+        async for event in stream:
+            await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+            page = event.interaction.values[0]
+            for i in page_dropdown.components[0]._options:
+                i.set_is_default(i._label == page)
+
+            await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
+
+
+
+
+@component.with_slash_command
+@tanjun.as_slash_command("about", "About", default_to_ephemeral=True)
+async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
+
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY)
+    about_embed.add_field(name=f"How to use", value=f"Use `/help` to learn how to use the bot")
+    about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
+    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({INVITE_LINK})")
+    about_embed.set_footer("By Lilapela#1234")
 
     notes_embed = hikari.Embed(title="Notes", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
     notes_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
     notes_embed.add_field(name="Possible Future Features", value=bot_features)
     notes_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
 
-
-    pages = {"About": about_embed, "Basics": basic_embed, "Staff Commands":staff_embed, "Utility":util_embed, "Development Notes": notes_embed}
+    pages = {"About": about_embed, "Notes": notes_embed}
 
     page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
     for i in pages:
