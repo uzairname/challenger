@@ -13,6 +13,8 @@ class Colors:
     PRIMARY = "37dedb"
     CONFIRM = "ffe373"
     SUCCESS = "#5dde07"
+    ERROR = "#ff0000"
+    CANCEL = "#ff5500"
 
 DEFAULT_TIMEOUT = 120
 
@@ -34,6 +36,22 @@ class declares:
 class status:
     NONE = 0
     STAFF = 1
+
+class Embed_Type:
+    ERROR = 1
+    SUCCESS = 2
+    CANCEL = 3
+
+class Custom_Embed(hikari.Embed):
+
+    def __init__(self, type, title=None, description=None, url=None, color=None, colour=None, timestamp=None):
+        if type == Embed_Type.ERROR:
+            super().__init__(color=color or Colors.ERROR, title=title or "Error", description=description, url=url, timestamp=timestamp)
+        elif type == Embed_Type.SUCCESS:
+            super().__init__(color=color or Colors.SUCCESS, title=title or "Success", description=description, url=url, timestamp=timestamp)
+        elif type == Embed_Type.CANCEL:
+            super().__init__(color=Colors.CANCEL, title=title or "Cancelled", description=description, url=url, timestamp=timestamp)
+
 
 def check_errors(func):
     # for commands that take a context, respond with an error if it doesn't work

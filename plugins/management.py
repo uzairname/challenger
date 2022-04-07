@@ -21,12 +21,19 @@ class settings:
     ELO_ROLES = "elo to roles"
     STAFF = "staff"
 
-def decorator_as_staff(instructions_embed):
-    def as_staff_command(func):
+def as_staff_command(instructions_embed):
+    def decorator_as_staff(func):
         @functools.wraps(func)
         async def wrapper_as_staff_command(ctx, *args, **kwargs):
             response = await ctx.respond("please wait", ensure_result=True)
+
             DB = Database(ctx.guild_id)
+
+            if not await is_staff(ctx, DB):
+                await ctx.edit_initial_response("Missing permissions")
+                return
+
+
 
             confirm_cancel = ctx.rest.build_action_row()
             confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji(
@@ -36,25 +43,27 @@ def decorator_as_staff(instructions_embed):
 
             await ctx.edit_initial_response(embeds=[instructions_embed], components=[confirm_cancel])
 
+            confirm_embed = hikari.Embed(title="Confirm", description="Nothing selected")
             with bot_instance.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
                 ("interaction.user.id", ctx.author.id),
-                ("interaction.message.id", response.id)) as stream:
+                ("interaction.message.id", response.id)
+            ) as stream:
                 async for event in stream:
                     await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
 
-                    confirm_embed = await func(event, *args, **kwargs)
+                    confirm_embed = await func(ctx=ctx, event=event, *args, **kwargs)
                     break
 
             await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])
 
         return wrapper_as_staff_command
-    return as_staff_command
+    return decorator_as_staff
 
 
 @component.with_slash_command
 @tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=True)
-@decorator_as_staff(instructions_embed = hikari.Embed(title="Config Settings Help", description="config settings help"))
+@as_staff_command(instructions_embed = hikari.Embed(title="Config Settings Help", description="config settings help"))
 async def config_help(event):
 
     confirm_message = "Error"
@@ -80,93 +89,80 @@ async def config_help(event):
 @tanjun.with_str_slash_option("channel", "the channel to update or delete", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
 @tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=True)
-async def config_lobby(ctx:tanjun.abc.Context, action, channel, name, roles, bot: PelaBot = tanjun.injected(type=PelaBot)):
+@as_staff_command(instructions_embed = hikari.Embed(
+        title="Add a Lobby",
+        description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name and allowed roles. To remove required roles from a lobby, just enter the roles you want to toggle. A registered player with at least one of these roles can join the lobby"))
+async def config_lobby(ctx, event, action, name, roles, channel):
 
-    await ctx.respond("please wait")
+
+    # lobbies_list = ""
+    # all_queues = DB.get_queues()
+    # if all_queues.empty:
+    #     lobbies_list = "No lobbies"
+    # for index, new_queue in all_queues.iterrows():
+    #     lobbies_list += "\nLobby \"**" + str(new_queue["lobby_name"]) + "**\" in channel <#" + str(new_queue["channel_id"]) + "> with roles: "
+    #     for role in new_queue["roles"]:
+    #         lobbies_list += "<@&" + str(role) + ">"
+    #
+    # embed.add_field(name="Current lobbies", value=lobbies_list)
+
+
+    # input_embed = hikari.Embed(title="Your selection", description="\n")
+    # if action == "delete":
+    #     input_embed.description += "**DELETING lobby:**\n"
+    # input_params = InputParams(str(name) + str(channel) + str(roles))
+    #
+    # input_embed.description += input_params.describe()
+    # await ctx.edit_initial_response(embeds=[embed, input_embed], components=[confirm_cancel])
+
     DB = Database(ctx.guild_id)
 
-    if not await is_staff(ctx, DB):
-        await ctx.edit_initial_response("Missing permissions")
-        return
+    user_input = InputParams(str(name) + str(channel) + str(roles))
 
-    embed = hikari.Embed(
-        title="Add a Lobby",
-        description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name and allowed roles. To remove required roles from a lobby, just enter the roles you want to toggle. A registered player with at least one of these roles can join the lobby")
+    button_id = event.interaction.custom_id
 
 
-    lobbies_list = ""
-    all_queues = DB.get_queues()
-    if all_queues.empty:
-        lobbies_list = "No lobbies"
-    for index, new_queue in all_queues.iterrows():
-        lobbies_list += "\nLobby \"**" + str(new_queue["lobby_name"]) + "**\" in channel <#" + str(new_queue["channel_id"]) + "> with roles: "
-        for role in new_queue["roles"]:
-            lobbies_list += "<@&" + str(role) + ">"
+    def confirm_update():
+        if button_id == "Cancel":
+            return "cancelled", Embed_Type.CANCEL
 
-    embed.add_field(name="Current lobbies", value=lobbies_list)
+        if button_id != "Confirm":
+            return "Error", Embed_Type.ERROR
 
-    confirm_cancel = ctx.rest.build_action_row()
-    confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
-    confirm_cancel.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("❌").add_to_container()
+        if user_input.channels.size != 1:
+            return "Please enter one channel", Embed_Type.ERROR
 
-    input_embed = hikari.Embed(title="Your selection", description="\n")
-    if action == "delete":
-        input_embed.description += "**DELETING lobby:**\n"
-    input_params = InputParams(str(name) + str(channel) + str(roles))
+        existing_queues = DB.get_queues(channel_id=user_input.channels[0])
 
-    input_embed.description += input_params.describe()
-    await ctx.edit_initial_response(embeds=[embed, input_embed], components=[confirm_cancel])
+        if action == "delete":
+            if existing_queues.empty:
+                return "No lobby in <#" + str(user_input.channels[0]) + ">", Embed_Type.ERROR
 
-    confirm_message = "uh"
-    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
-        async for event in stream:
-            # event.interaction.set_response_type(ResponseType.REPLACE)
-            await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+            queue = existing_queues.iloc[0]
+            DB.remove_queue(queue)
+            return "Deleted lobby in <#" + str(user_input.channels[0]) + ">", Embed_Type.SUCCESS
 
-            button_id = event.interaction.custom_id
-            if button_id == "Cancel":
-                confirm_message = "cancelled"
-                break
-            if button_id == "Confirm":
+        if existing_queues.empty:
+            new_queue = DB.get_new_queue(user_input.channels[0])
+            new_queue["lobby_name"] = user_input.text
+            new_queue["roles"] = user_input.roles
+            DB.upsert_queue(new_queue)
+            return "Added new lobby", Embed_Type.SUCCESS
 
-                if input_params.channels.size != 1:
-                    confirm_message = "Please enter one channel"
-                    break
+        existing_queue = existing_queues.loc[0]
+        if user_input.text:
+            existing_queue["lobby_name"] = user_input.text
 
-                existing_queues = DB.get_queues(channel_id=input_params.channels[0])
-                if action == "delete":
-                    if existing_queues.empty:
-                        confirm_message = "No lobby in "  + str(input_params.channels[0]) + ""
-                        break
-                    queue = existing_queues.iloc[0]
-                    DB.remove_queue(queue)
-                    confirm_message  = "Deleted"
-                    break
-                #action is update. exactly 1 channel entered.
+        existing_queue["roles"] = np.union1d(np.setdiff1d(existing_queue["roles"], user_input.roles),
+                                             np.setdiff1d(user_input.roles, existing_queue["roles"]))
+        DB.upsert_queue(existing_queue)
+        return "Updated existing lobby", Embed_Type.SUCCESS
 
-                if existing_queues.empty:
-                    new_queue = DB.get_new_queue(input_params.channels[0])
-                    new_queue["lobby_name"] = input_params.text
-                    new_queue["roles"] = input_params.roles
-                    print("██CREATING NEW\n " + str(new_queue["roles"][0].dtype))
-                    DB.upsert_queue(new_queue)
-                    confirm_message = "Added new lobby"
-                    break
-                else:
-                    existing_queue = existing_queues.loc[0]
-                    if input_params.text:
-                        existing_queue["lobby_name"] = input_params.text
-                    existing_queue["roles"] = np.union1d(np.setdiff1d(existing_queue["roles"], input_params.roles),
-                                                         np.setdiff1d(input_params.roles, existing_queue["roles"]))
-                    print("██UPDATING EXISTING WITH\n " + str(existing_queue["roles"][0].dtype))
-                    DB.upsert_queue(existing_queue)
-                    confirm_message = "Updated existing lobby"
-                    break
 
-    confirm_embed = hikari.Embed(title = "Done", description=confirm_message, color=Colors.SUCCESS)
+    confirm_message, embed_type = confirm_update()
+    confirm_embed = Custom_Embed(type=embed_type, title="", description=confirm_message)
 
-    await ctx.edit_initial_response(embeds=[embed, input_embed, confirm_embed])
-
+    return confirm_embed
 
 
 @component.with_slash_command
