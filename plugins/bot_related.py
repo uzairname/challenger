@@ -20,8 +20,8 @@ in order of priority:
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• Give better instructions with /help
 • Automatically assign roles based on Elo
+• Command to reset all server data in bot
 • remove player from queue after 10 mins
 • /history show your recent matches
 • Automatically register players on commands
@@ -40,14 +40,21 @@ in order of priority:
 bot_features = """
 Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search
 
-Ability to change old match results. When your elo change depends on the elo difference, fixing the result of an old match (for whatever reason, maybe it was declared wrong or someone was caught boosting and their impact needs to be reverted) has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo."""
+Ability to change old match results. When your elo change depends on the elo difference, fixing the result of an old match (for whatever reason, maybe it was declared wrong or someone was caught boosting and their impact needs to be reverted) has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo.
+
+Support for tournaments
+
+Best of 3 and 5
+"""
 
 @component.with_slash_command
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
 async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}😋! This is a competetive ranking bot. 1v1 other players to climb the elo leaderboards! \n\nDM me with any comments, questions, or suggestions", colour=Colors.PRIMARY)
-    about_embed.set_footer("Lilapela#1234")
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY)
+    about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
+    about_embed.add_field(name="Invite", value=f"Invite the bot to your own server\n{INVITE_LINK}")
+    about_embed.set_footer("By Lilapela#1234")
 
     basic_embed = hikari.Embed(title="Getting Started", description="To get started, type /register", colour=Colors.PRIMARY)
     basic_embed.add_field(name="QUEUE", value="**/join** - Join the queue to be matched with another player\n**/leave** - Leave the queue\n**/queue** - View the status of the queue\n**/declare [win, loss, draw, or cancel]** - declare the results of the match. Both players must agree for result to be decided. If there's a dispute, ask staff to handle it", inline=True)
@@ -67,12 +74,10 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
 
     pages = {"About": about_embed, "Basics": basic_embed, "Staff Commands":staff_embed, "Utility":util_embed, "Development Notes": notes_embed}
 
-    page_dropdown = ctx.rest.build_action_row().add_select_menu("page select")
+    page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
     for i in pages:
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="About").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
-
-    cur_page = "About"
 
     await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
 
