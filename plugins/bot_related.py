@@ -2,7 +2,7 @@ import hikari
 
 from utils.utils import *
 from __init__ import *
-from __main__ import PelaBot
+from __main__ import Bot
 # from __main__ import bot
 import time
 from hikari.interactions.base_interactions import ResponseType
@@ -44,7 +44,7 @@ Ability to change old match results. When your elo change depends on the elo dif
 
 @component.with_slash_command
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
-async def help_command(ctx: tanjun.abc.Context, bot:PelaBot  = tanjun.injected(type=PelaBot)) -> None:
+async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}😋! This is a competetive ranking bot. 1v1 other players to climb the elo leaderboards! \n\nDM me with any comments, questions, or suggestions", colour=Colors.PRIMARY)
     about_embed.set_footer("Lilapela#1234")
@@ -93,7 +93,7 @@ async def hi_test(ctx: tanjun.abc.Context) -> None:
 
 @component.with_slash_command
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
-async def uptime(ctx:tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=PelaBot)) -> None:
+async def uptime(ctx:tanjun.abc.Context, bot:Bot=tanjun.injected(type=Bot)) -> None:
     time_diff = time.time() - bot.start_time
     await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 

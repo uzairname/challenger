@@ -7,7 +7,7 @@ import time
 from database import Database
 import pandas as pd
 
-class PelaBot (hikari.GatewayBot):
+class Bot (hikari.GatewayBot):
 
     def __init__(self, token):
         super().__init__(token)
@@ -54,7 +54,7 @@ class PelaBot (hikari.GatewayBot):
         DB = Database(event.guild_id)
         DB.init_database()
 
-bot = PelaBot(os.environ.get('DISCORD_TOKEN'))
+bot = Bot(os.environ.get('DISCORD_TOKEN'))
 
 debug = (os.environ.get("DSP") == "testing")
 if __name__ == "__main__":

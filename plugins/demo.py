@@ -11,7 +11,7 @@ from hikari.interactions.base_interactions import ResponseType
 from hikari.messages import ButtonStyle
 
 from tanjun.abc import SlashContext
-from __main__ import PelaBot
+from __main__ import Bot
 
 component = tanjun.Component()
 
@@ -22,7 +22,7 @@ embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work w
 @tanjun.as_slash_command("interactive-post", f"Build an Embed!")
 async def interactive_post(
     ctx: SlashContext,
-    bot: hikari.GatewayBot = tanjun.injected(type=PelaBot),
+    bot: hikari.GatewayBot = tanjun.injected(type=Bot),
     client: tanjun.Client = tanjun.injected(type=tanjun.Client)
 ) -> None:
     client.metadata['embed'] = hikari.Embed(title="New Embed")
@@ -58,7 +58,7 @@ async def interactive_post(
         await ctx.edit_initial_response("Waited for 60 seconds... Timeout.", embed=None, components=[])
 
 
-async def title(ctx: SlashContext, bot: PelaBot, client: tanjun.Client):
+async def title(ctx: SlashContext, bot: Bot, client: tanjun.Client):
     embed_dict, *_ = bot.entity_factory.serialize_embed(client.metadata['embed'])
     await ctx.edit_initial_response(content="Set Title for embed:", components=[])
     try:
