@@ -2,7 +2,7 @@ import hikari
 
 from utils.utils import *
 from __init__ import *
-from __main__ import PelaBot
+from __main__ import Bot
 # from __main__ import bot
 import time
 from hikari.interactions.base_interactions import ResponseType
@@ -16,25 +16,22 @@ bot_todo = """
 **In order of priority**
 
 in order of priority: 
-• Link staff with roles
+• Leaderboard shows multiple pages
+• show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• show when opponent declares result, and when there's a conflict
 • Give better instructions with /help
 • Automatically assign roles based on Elo
 • remove player from queue after 10 mins
-• /join records match time
 • /history show your recent matches
-• Leaderboard shows multiple pages
 • Automatically register players on commands
-• show more details in match outcome
 • see distribution of everyone's elo
 • /stats show your percentile
 • Associate each match with a message id in match announcements, so that message can be edited
 • /compare (player) show your expected probability of beating opponent, and your winrate against them. Elo change for winning and losing 
 • make displayed results pretty
+• /join records match time
 • fix leaderboard display on mobile
-• make a better bot icon
 • shorthand for commands ex. declare match results /d
 • rename /declare to /claim
 
@@ -47,7 +44,7 @@ Ability to change old match results. When your elo change depends on the elo dif
 
 @component.with_slash_command
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
-async def help_command(ctx: tanjun.abc.Context, bot:PelaBot  = tanjun.injected(type=PelaBot)) -> None:
+async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}😋! This is a competetive ranking bot. 1v1 other players to climb the elo leaderboards! \n\nDM me with any comments, questions, or suggestions", colour=Colors.PRIMARY)
     about_embed.set_footer("Lilapela#1234")
@@ -96,7 +93,7 @@ async def hi_test(ctx: tanjun.abc.Context) -> None:
 
 @component.with_slash_command
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
-async def uptime(ctx:tanjun.abc.Context, bot:PelaBot=tanjun.injected(type=PelaBot)) -> None:
+async def uptime(ctx:tanjun.abc.Context, bot:Bot=tanjun.injected(type=Bot)) -> None:
     time_diff = time.time() - bot.start_time
     await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 

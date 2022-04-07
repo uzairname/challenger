@@ -2,6 +2,12 @@ import functools
 import logging
 import hikari
 import tanjun
+
+from database import Database
+from __main__ import bot as bot_instance
+
+import typing
+
 import math
 import numpy as np
 import pandas as pd
@@ -11,8 +17,11 @@ import sympy as sp
 
 class Colors:
     PRIMARY = "37dedb"
+    NEUTRAL = "a5a5a5"
     CONFIRM = "ffe373"
     SUCCESS = "#5dde07"
+    ERROR = "#ff0000"
+    CANCEL = "#ff5500"
 
 DEFAULT_TIMEOUT = 120
 
@@ -35,6 +44,25 @@ class status:
     NONE = 0
     STAFF = 1
 
+class Embed_Type:
+    ERROR = 1
+    CONFIRM = 2
+    CANCEL = 3
+    INFO = 4
+
+class Custom_Embed(hikari.Embed):
+
+    def __init__(self, type, title=None, description=None, url=None, color=None, colour=None, timestamp=None):
+        if type == Embed_Type.ERROR:
+            super().__init__(color=color or Colors.ERROR, title=title or "Error", description=description or "Error.", url=url, timestamp=timestamp)
+        elif type == Embed_Type.CONFIRM:
+            super().__init__(color=color or Colors.SUCCESS, title=title or "Confirmed", description=description or "Confirmed.", url=url, timestamp=timestamp)
+        elif type == Embed_Type.CANCEL:
+            super().__init__(color=color or Colors.NEUTRAL, title=title or "Cancelled", description=description or "Cancelled.", url=url, timestamp=timestamp)
+        elif type == Embed_Type.INFO:
+            super().__init__(color=color or Colors.PRIMARY, title=title or "Info", description=description, url=url, timestamp=timestamp)
+
+
 def check_errors(func):
     # for commands that take a context, respond with an error if it doesn't work
     @functools.wraps(func)
@@ -53,19 +81,12 @@ def construct_df(rows, columns, index_column: str = None):
         df.set_index(df[index_column], inplace=True)
     return df
 
-
 def replace_row_if_col_matches(df:pd.DataFrame, row:pd.Series, column:str):
 
     drop_index = df.loc[df[column] == row[column]].index
     new_df = pd.concat([df.drop(drop_index), pd.DataFrame(row).T])
 
     return new_df
-
-def sqlarray_to_list(string):
-    text_pat = r"[\d]+"
-    return re.findall(text_pat, string)
-
-
 
 
 
@@ -89,25 +110,26 @@ class InputParams():
 
     def describe(self):
 
-        description = ""
+        description = "Input:```"
         if self.text:
-            description += "Input: **" + str(self.text) + "**\n"
+            description += "\nName:" + str(self.text)
 
         if self.channels.size > 0:
-            description += "Selected channels:\n"
+            description += "\nSelected channels:"
             for i in self.channels:
-                description += "<#" + str(i) + ">\n"
+                description += "\n<#" + str(i) + ">"
 
         if self.roles.size > 0:
-            description += "Selected roles:\n"
+            description += "\nSelected roles:"
             for i in self.roles:
-                description += "<@&" + str(i) + ">\n"
+                description += "\n<@&" + str(i) + ">"
 
         if self.users.size > 0:
-            description += "Selected users:\n"
+            description += "\nSelected users:"
             for i in self.users:
-                description += "<@" + str(i) + ">\n"
+                description += "\n<@" + str(i) + ">"
 
+        description += "```"
         return description
 
 
@@ -119,12 +141,64 @@ async def is_staff(ctx:tanjun.abc.Context, DB):
 
         roles = ctx.member.role_ids
         role_mapping = {}
-        for role in roles:
-            role_mapping[role] = guild.get_role(role)
+        for role_id in roles:
+            role_mapping[role_id] = guild.get_role(role_id)
 
-        perms = tanjun.utilities.calculate_permissions(member=ctx.member, guild=guild, roles=role_mapping)
-        if perms & hikari.Permissions.MANAGE_GUILD:
+        user_perms = tanjun.utilities.calculate_permissions(member=ctx.member, guild=guild, roles=role_mapping)
+        if user_perms & hikari.Permissions.MANAGE_GUILD:
             return True
         return False
 
     return bool(staff_role in ctx.member.role_ids)
+
+
+
+def take_input(input_instructions:typing.Callable, staff_only=False):
+
+    """
+    Calls function with input to the slash command.
+    params:
+        decorated function: slash command function called when confirm button is pressed. function that takes in a hikari.ComponentInteraction event and/or additional kwargs and returns an embed
+        input_instructions: function that takes in a tanjun.abc.Context, Database, and/or additional kwargs and returns an embed
+    """
+
+    def decorator_take_input(func):
+        @functools.wraps(func)
+        async def wrapper_take_input(ctx, **kwargs):
+
+            response = await ctx.respond("please wait", ensure_result=True)
+
+            DB = Database(ctx.guild_id)
+
+            if staff_only and not await is_staff(ctx, DB):
+                await ctx.edit_initial_response("Missing permissions")
+                return
+
+            confirm_cancel_row = ctx.rest.build_action_row()
+            confirm_cancel_row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
+            confirm_cancel_row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("❌").add_to_container()
+
+            instructions_embed = await input_instructions(ctx=ctx, **kwargs)
+            await ctx.edit_initial_response(embeds=[instructions_embed], components=[confirm_cancel_row])
+
+            confirm_embed = Custom_Embed(type=Embed_Type.INFO, title="Confirm?", description="Nothing selected")
+            with bot_instance.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(
+                ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
+                ("interaction.user.id", ctx.author.id),
+                ("interaction.message.id", response.id)
+            ) as stream:
+                async for event in stream:
+                    await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
+                    if event.interaction.custom_id == "Confirm":
+                        confirm_embed = await func(event=event, ctx=ctx, **kwargs)
+                        break
+                    elif event.interaction.custom_id == "Cancel":
+                        confirm_embed = Custom_Embed(type=Embed_Type.CANCEL)
+                        break
+                    else:
+                        confirm_embed = Custom_Embed(type=Embed_Type.ERROR, description="Invalid action.")
+
+            await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])
+
+        return wrapper_take_input
+    return decorator_take_input

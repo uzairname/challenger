@@ -33,7 +33,7 @@ def calc_bayeselo(game_results, avg_elo=DEFAULT_ELO, std_elo=150, initial_std=1)
 
 
 def calc_prov_elo(p1_elo, p2_elo, result):
-    return np.array(calc_elo_change(p1_elo, p2_elo, result))*2
+    return np.array(calc_elo_change(p1_elo, p2_elo, result))*3
 
 
 

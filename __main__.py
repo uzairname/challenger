@@ -7,7 +7,7 @@ import time
 from database import Database
 import pandas as pd
 
-class PelaBot (hikari.GatewayBot):
+class Bot (hikari.GatewayBot):
 
     def __init__(self, token):
         super().__init__(token)
@@ -41,7 +41,10 @@ class PelaBot (hikari.GatewayBot):
                 print("declared " + command.name)
         else:
             logging.info("███ Bot is in a testing environment")
-            await self.rest.edit_my_member(guild=TESTING_GUILD_ID, nickname=f"Pela ({os.environ.get('DSP')})")
+
+            self.client.load_modules("plugins.demo")
+
+            await self.rest.edit_my_member(guild=TESTING_GUILD_ID, nickname=f"vibing :p")
             commands = await self.client.declare_global_commands(guild=TESTING_GUILD_ID, force=True)
             for command in commands:
                 print("declared " + command.name)
@@ -51,16 +54,16 @@ class PelaBot (hikari.GatewayBot):
         DB = Database(event.guild_id)
         DB.init_database()
 
+bot = Bot(os.environ.get('DISCORD_TOKEN'))
 
 debug = (os.environ.get("DSP") == "testing")
-bot = None
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     pd.set_option("max_colwidth", 90)
     pd.options.display.width = 100
     pd.options.mode.chained_assignment = None
 
-    bot = PelaBot(os.environ.get("PELA_TOKEN"))
+    # bot = PelaBot(os.environ.get("DISCORD_TOKEN"))
 
     if debug:
         DB = Database(TESTING_GUILD_ID)

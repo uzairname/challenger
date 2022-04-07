@@ -150,7 +150,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
     ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=Colors.PRIMARY)
     ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
 
-    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="Players' first few games are scored by provisional elo.\nPage 1: Top 20", color=Colors.PRIMARY)
+    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="Everyone's first few games are scored by provisional elo.\nPage 1: Top 20", color=Colors.PRIMARY)
     unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
 
     await ctx.edit_initial_response("", embeds=[ranked_embed, unranked_embed])
