@@ -2,6 +2,7 @@ import hikari
 
 from utils.utils import *
 from __init__ import *
+import config
 from __main__ import Bot
 # from __main__ import bot
 import time
@@ -88,9 +89,9 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
 async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY)
-    about_embed.add_field(name=f"How to use", value=f"Use `/help` to learn how to use the bot")
+    about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands")
     about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
-    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({INVITE_LINK})")
+    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})")
     about_embed.set_footer("By Lilapela#1234")
 
     notes_embed = hikari.Embed(title="Notes", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)

@@ -1,5 +1,6 @@
 import os
 from __init__ import *
+import config
 import logging
 import hikari
 import tanjun
@@ -66,7 +67,7 @@ if __name__ == "__main__":
     # bot = PelaBot(os.environ.get("DISCORD_TOKEN"))
 
     if debug:
-        DB = Database(TESTING_GUILD_ID)
+        DB = Database(config.Config.testing_guild_id)
         DB.setup_test()
 
     bot.run()

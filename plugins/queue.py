@@ -186,7 +186,6 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         await ctx.respond(f"Hi {ctx.author.mention}! Please register with /register to play", user_mentions=True)
         return
 
-
     #Ensure player has at least 1 role required by the queue
     is_allowed = False
     for role in queue["roles"]:

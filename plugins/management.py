@@ -253,15 +253,12 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role, **kwargs) -> hika
             return "Min elo cannot be greater than max elo", Embed_Type.ERROR
 
         DB = Database(ctx.guild_id)
-
         df = DB.get_elo_roles()
 
         df = df.loc[df["role"] != role].sort_values("priority")
         df["priority"] = range(len(df.index))
         row = pd.Series([role_id, len(df.index), elo_min, elo_max], index=["role", "priority", "elo_min", "elo_max"])
-        df = pd.concat([df, pd.DataFrame(row).T])
-
-        print(df)
+        df = pd.concat([df, pd.DataFrame(row).T]).reset_index(drop=True)
 
         DB.upsert_elo_roles(df)
         return "Updated Elo Role", Embed_Type.CONFIRM
