@@ -22,24 +22,28 @@ class Database:
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome", "staff_declared"])
     EMPTY_LOBBY = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
 
-    EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "roles_by_elo", "staff_role"])
+    EMPTY_CONFIG = pd.DataFrame([], columns=["results_channel", "staff_role"])
+    EMPTY_ELO_ROLES = pd.DataFrame([], columns=["role", "elo_min", "elo_max", "priority"])
 
     players_tbl = "players"
     matches_tbl = "matches"
     queues_tbl = "queues"
     config_tbl = "config"
+    elo_roles_tbl = "elo_roles"
 
-    required_tables = [players_tbl, matches_tbl, queues_tbl, config_tbl]
+    required_tables = [players_tbl, matches_tbl, queues_tbl, config_tbl, elo_roles_tbl]
 
     def __init__(self, guild_id):
         url = os.environ.get("MONGODB_URL")
         client = pymongo.MongoClient(url)
 
         self.guild_name = str(guild_id)
+
         if guild_id == PROJECT_X:
             self.guild_name = "PX"
         elif guild_id == TESTING_GUILD_ID:
             self.guild_name = "testing"
+
         self.guildDB = client["guild_" + self.guild_name]
 
 
@@ -48,8 +52,8 @@ class Database:
         player_id = 623257053879861248
         num_matches=4
 
-        matches = self.get_matches(user_id=player_id, number=num_matches, ascending=True)
-        # print(matches)
+        elo_roles = self.get_elo_roles()
+        print(elo_roles)
         pass
 
     def init_database(self):
@@ -58,9 +62,6 @@ class Database:
             if i in existing_tables:
                 continue
             self.guildDB.create_collection(i)
-            if i == self.config_tbl:
-                config = self.get_config()
-                self.upsert_config(config)
 
     #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
 
@@ -82,12 +83,28 @@ class Database:
 
         players_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
         updated_players_df = pd.concat([self.EMPTY_PLAYER, players_df]).replace(np.nan, None)
-        return updated_players_df
+        return updated_players_df.reset_index(drop=True)
 
     def get_new_player(self, user_id) -> pd.Series:
         player = pd.Series([user_id], index=["user_id"])
         new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame(player).T]).iloc[0]
         return new_player
+
+    def upsert_player(self, player:pd.Series): #takes a series returned from get_players or new_player
+
+        player = player.replace(np.nan, None)
+
+        self.EMPTY_PLAYER #Make sure nothing is numpy type
+        player["user_id"] = int(player["user_id"])
+        if player["staff"] is not None:
+            player["staff"] = int(player["staff"])
+        if player["elo"] is not None:
+            player["elo"] = float(player["elo"])
+
+        playerdict = player.to_dict()
+        self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
+
+
 
     def get_matches(self, user_id=None, match_id=None, number=None, ascending=False) -> pd.DataFrame:
 
@@ -107,7 +124,7 @@ class Database:
             cur.limit(number)
         matches_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
         updated_matches = pd.concat([self.EMPTY_MATCH, matches_df]).replace(np.nan, None)
-        return updated_matches
+        return updated_matches.reset_index(drop=True)
 
     def get_new_match(self) -> pd.Series:
 
@@ -122,57 +139,6 @@ class Database:
 
         return new_match
 
-
-    def get_queues(self, channel_id = None) -> pd.DataFrame:
-        cur_filter = {}
-        if channel_id:
-            channel_id = int(channel_id)  #mongo db doesn't recognize numpy.Int64 for some reason
-            cur_filter["channel_id"] = channel_id
-
-        cur = self.guildDB[self.queues_tbl].find(cur_filter)
-        queue_df =  pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
-        updated_queues = pd.concat([self.EMPTY_LOBBY, queue_df]).replace(np.nan, None)
-        return updated_queues
-
-
-    def get_new_queue(self, channel_id) -> pd.Series:
-        queue = pd.Series([channel_id], index=["channel_id"])
-        new_queue = pd.concat([self.EMPTY_LOBBY, pd.DataFrame(queue).T]).iloc[0]
-        return new_queue
-
-    def get_config(self) -> pd.Series:
-        cur = self.guildDB[self.config_tbl].find()
-        df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
-
-        if not df.empty:
-            ret = df.iloc[0]
-            ret["roles_by_elo"] = pd.DataFrame.from_dict(ret["roles_by_elo"], orient="tight")
-            return ret
-        else:
-            config = pd.DataFrame([[pd.DataFrame([], columns=["priority", "min", "max"])]], columns=["roles_by_elo"])
-            config_df = pd.concat([self.EMPTY_CONFIG, config]).iloc[0]
-            self.upsert_config(config_df)
-            return self.get_config()
-
-
-    #Above: standard. Change everything else to match it
-
-
-    def upsert_player(self, player:pd.Series): #only pass something returned from get_players or new_player
-
-        player = player.replace(np.nan, None)
-
-        self.EMPTY_PLAYER #Make sure nothing is numpy type
-        player["user_id"] = int(player["user_id"])
-        if player["staff"] is not None:
-            player["staff"] = int(player["staff"])
-        if player["elo"] is not None:
-            player["elo"] = float(player["elo"])
-
-        playerdict = player.to_dict()
-        self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
-
-
     def upsert_match(self, match:pd.Series):
         match = match.replace(np.nan, None) #all DB updates should go throughh this. this takes care of fixing the types
 
@@ -186,6 +152,22 @@ class Database:
         matchdict = match.to_dict()
         self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
 
+
+    def get_queues(self, channel_id = None) -> pd.DataFrame:
+        cur_filter = {}
+        if channel_id:
+            channel_id = int(channel_id)  #mongo db doesn't recognize numpy.Int64 for some reason
+            cur_filter["channel_id"] = channel_id
+
+        cur = self.guildDB[self.queues_tbl].find(cur_filter)
+        queue_df =  pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        updated_queues = pd.concat([self.EMPTY_LOBBY, queue_df]).replace(np.nan, None)
+        return updated_queues.reset_index(drop=True)
+
+    def get_new_queue(self, channel_id) -> pd.Series:
+        queue = pd.Series([channel_id], index=["channel_id"])
+        new_queue = pd.concat([self.EMPTY_LOBBY, pd.DataFrame(queue).T]).iloc[0]
+        return new_queue
 
     def upsert_queue(self, queue:pd.Series): # only pass something returned from new_queue or get_queue
         queue = queue.replace(np.nan, None)
@@ -210,22 +192,33 @@ class Database:
         self.guildDB[self.queues_tbl].delete_one({"channel_id":channel_id})
 
 
+    def get_config(self) -> pd.Series:
+        cur = self.guildDB[self.config_tbl].find()
+        config_df = pd.DataFrame(list(cur)).drop("_id", axis=1, errors="ignore")
+        config_df = pd.concat([self.EMPTY_CONFIG, config_df]).iloc[0]
+        return config_df
 
-    def upsert_config(self, config:pd.Series):
-        """
-            Only pass a series returned from get_config
-        """
-
+    def upsert_config(self, config:pd.Series): # takes a series returned from get_config
         config = config.replace(np.nan, None)
-
-        self.EMPTY_CONFIG #make sure nothing is a numpy type
-        # if config["roles_by_elo"] is None:
-        #     rbe_df = pd.DataFrame([], columns=["min", "max", "priority"])
-        #     rbe_df.index.name = "role"
-        #     config["roles_by_elo"] = rbe_df
-
-        configdict = config.to_dict()
-        configdict["roles_by_elo"] = configdict["roles_by_elo"].to_dict("tight") #bson.errors.InvalidDocument: cannot encode object: Empty DataFrame
-
+        configdict = config.to_dict() #bson.errors.InvalidDocument: cannot encode object: Empty DataFrame
         self.guildDB[self.config_tbl].update_one({}, {"$set":configdict}, upsert=True)
 
+
+
+
+    def upsert_elo_roles(self, elo_roles_df):
+        self.guildDB[self.elo_roles_tbl].update_many({}, {"$set":elo_roles_df.to_dict("tight")}, upsert=True)
+
+
+    def get_elo_roles(self) -> pd.DataFrame:
+        cur = self.guildDB[self.elo_roles_tbl].find_one()
+
+        if cur is None:
+            df = pd.DataFrame.to_dict(self.EMPTY_ELO_ROLES, orient="tight")
+            df = pd.DataFrame.from_dict(df, orient="tight")
+            self.upsert_elo_roles(self.EMPTY_ELO_ROLES)
+            return df
+
+        elo_roles_df = pd.DataFrame.from_dict(cur, orient="tight")
+        elo_roles_df = pd.concat([self.EMPTY_ELO_ROLES, elo_roles_df]).replace(np.nan, None)
+        return elo_roles_df.reset_index(drop=True)

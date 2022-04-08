@@ -110,26 +110,26 @@ class InputParams():
 
     def describe(self):
 
-        description = "Input:```"
+        description = ""
         if self.text:
-            description += "\nName:" + str(self.text)
+            description += "\nName:\n> " + str(self.text)
 
         if self.channels.size > 0:
             description += "\nSelected channels:"
             for i in self.channels:
-                description += "\n<#" + str(i) + ">"
+                description += "\n> <#" + str(i) + ">"
 
         if self.roles.size > 0:
             description += "\nSelected roles:"
             for i in self.roles:
-                description += "\n<@&" + str(i) + ">"
+                description += "\n> <@&" + str(i) + ">"
 
         if self.users.size > 0:
             description += "\nSelected users:"
             for i in self.users:
-                description += "\n<@" + str(i) + ">"
+                description += "\n> <@" + str(i) + ">"
 
-        description += "```"
+        description += "\n"
         return description
 
 
@@ -173,7 +173,6 @@ def take_input(input_instructions:typing.Callable, staff_only=False):
             if staff_only and not await is_staff(ctx, DB):
                 await ctx.edit_initial_response("Missing permissions")
                 return
-
             confirm_cancel_row = ctx.rest.build_action_row()
             confirm_cancel_row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
             confirm_cancel_row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("❌").add_to_container()

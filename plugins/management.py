@@ -18,29 +18,16 @@ class settings:
     STAFF = "staff"
 
 
-# async def default_instructions(DB: Database, **kwargs):
-#     embed = Custom_Embed(type=Embed_Type.INFO, title="Config", description="")
-#
-#     input_str = ""
-#     for i in kwargs:
-#         input_str += f"{kwargs[i]}"
-#     input_params = InputParams(input_str)
-#     embed.add_field(name="Input", value=input_params.describe())
-#     return embed
-
-
-
-
-
 async def config_help_instructions(**kwargs):
     action = kwargs.get("action")
     embed = Custom_Embed(type=Embed_Type.INFO, title="Config Help", description="Config settings help")
     embed.description += "\n" + action
     return embed
 
+
 @component.with_slash_command
 @tanjun.with_str_slash_option("action", "action to perform")
-@tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=True)
+@tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=False)
 @take_input(input_instructions=config_help_instructions)
 async def config_help(event, **kwargs) -> hikari.Embed:
 
@@ -59,8 +46,7 @@ async def config_help(event, **kwargs) -> hikari.Embed:
 
 
 
-
-async def config_lobby_instructions(ctx:tanjun.abc.Context, **kwargs):
+async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel, roles, **kwargs):
     """
     Displays all configured lobbies in the guild as a field added onto the embed
     params:
@@ -70,13 +56,8 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, **kwargs):
     DB = Database(ctx.guild_id)
 
     embed = Custom_Embed(type=Embed_Type.INFO,
-        title="Configure 1v1 lobbies",
-        description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name and allowed roles. To remove required roles from a lobby, just enter the roles you want to toggle. A registered player with at least one of these roles can join the lobby")
-
-    action = kwargs.get("action")
-    name= kwargs.get("name")
-    channel = kwargs.get("channel")
-    roles = kwargs.get("roles")
+        title="Setup 1v1 lobbies",
+        description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name (optional) and allowed roles. To remove required roles from a lobby, enter no roles. A registered player with at least one of these roles can join the lobby")
 
     lobbies_list = ""
     all_lobbies = DB.get_queues()
@@ -107,7 +88,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, **kwargs):
 @tanjun.with_str_slash_option("name", "lobby name", default="")
 @tanjun.with_str_slash_option("channel", "the channel to update or delete", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="")
-@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=True)
+@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False)
 @take_input(input_instructions=config_lobby_instructions)
 async def config_lobby(ctx, event, action, name, roles, channel, **kwargs) -> hikari.Embed:
 
@@ -115,15 +96,7 @@ async def config_lobby(ctx, event, action, name, roles, channel, **kwargs) -> hi
 
     user_input = InputParams(str(name) + str(channel) + str(roles))
 
-    button_id = event.interaction.custom_id
-
-
     def process_response():
-        if button_id == "Cancel":
-            return "cancelled", Embed_Type.CANCEL
-
-        if button_id != "Confirm":
-            return "Error", Embed_Type.ERROR
 
         if user_input.channels.size != 1:
             return "Please enter one channel", Embed_Type.ERROR
@@ -149,11 +122,9 @@ async def config_lobby(ctx, event, action, name, roles, channel, **kwargs) -> hi
         if user_input.text:
             existing_queue["lobby_name"] = user_input.text
 
-        existing_queue["roles"] = np.union1d(np.setdiff1d(existing_queue["roles"], user_input.roles),
-                                             np.setdiff1d(user_input.roles, existing_queue["roles"]))
+        existing_queue["roles"] = user_input.roles
         DB.upsert_queue(existing_queue)
         return "Updated existing lobby", Embed_Type.CONFIRM
-
 
     confirm_message, embed_type = process_response()
     confirm_embed = Custom_Embed(type=embed_type, title="", description=confirm_message)
@@ -199,25 +170,19 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, **kwargs):
 
     return embed
 
-
 @component.with_slash_command
 @tanjun.with_str_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
-@tanjun.as_slash_command("config-staff", "link a role to bot staff", default_to_ephemeral=True)
+@tanjun.as_slash_command("config-staff", "link a role to bot staff", default_to_ephemeral=False)
 @take_input(input_instructions=config_staff_instructions)
-async def config_staff(ctx:tanjun.abc.Context, DB, event, action, role, **kwargs) -> hikari.Embed:
+async def config_staff(ctx:tanjun.abc.Context, event, action, role, **kwargs) -> hikari.Embed:
+
+    DB = Database(ctx.guild_id)
 
     def process_response():
-        button_id = event.interaction.custom_id
-        if button_id == "Cancel":
-            return "Cancelled", Embed_Type.CANCEL
-
-        if button_id != "Confirm":
-            return "Error", Embed_Type.ERROR
-
         input_params = InputParams(str(role))
 
-        if len(input_params.roles) == 0:
+        if len(input_params.roles) != 1:
             return "Select one role", Embed_Type.ERROR
 
         config = DB.get_config()
@@ -235,20 +200,75 @@ async def config_staff(ctx:tanjun.abc.Context, DB, event, action, role, **kwargs
             return "Removed staff role", Embed_Type.CONFIRM
 
     confirm_message, embed_type = process_response()
-    confirm_embed = Custom_Embed(type=embed_type, description=confirm_message, color=Colors.SUCCESS)
+    confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
     return confirm_embed
 
 
-async def config_elo_roles(ctx:tanjun.abc.Context, action, role, bot: Bot = tanjun.injected(type=Bot)):
-    pass
+#config elo roles
+async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, min_elo, max_elo, **kwargs):
 
+    DB = Database(ctx.guild_id)
 
+    selection = ""
+    if action == "link role":
+        selection += "**Linking**\n"
+    elif action == "unlink role":
+        selection += "**Unlinking**\n"
+    else:
+        selection += "**No action specified**\n"
+    input_params = InputParams(str(role))
+    selection += input_params.describe()
 
+    if min_elo and max_elo:
+        selection += "Elo range:\n> " + str(min_elo) + " - " + str(max_elo)
 
+    embed = hikari.Embed(title="Add or remove elo roles",
+                        description="Link a role to an elo rank. Elo roles are displayed in the lobby and can be used to force match results",
+                        color=Colors.PRIMARY)
 
+    embed.add_field(name="Selection", value=selection)
 
+    return embed
 
+@component.with_slash_command()
+@tanjun.with_str_slash_option("max_elo", "max elo", default="")
+@tanjun.with_str_slash_option("min_elo", "min elo", default="")
+@tanjun.with_str_slash_option("role", "role", default="")
+@tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="")
+@tanjun.as_slash_command("config-elo-roles", "link a role to an elo range", default_to_ephemeral=False)
+@take_input(input_instructions=config_elo_roles_instructions)
+async def config_elo_roles(ctx, event, min_elo, max_elo, role, **kwargs) -> hikari.Embed:
 
+    def process_response():
+        input_params = InputParams(str(role))
+
+        if len(input_params.roles) != 1:
+            return "Select one role", Embed_Type.ERROR
+        role_id = input_params.roles[0]
+
+        elo_min = float(min_elo) if min_elo else float("-inf")
+        elo_max = float(max_elo) if max_elo else float("inf")
+
+        if elo_min > elo_max:
+            return "Min elo cannot be greater than max elo", Embed_Type.ERROR
+
+        DB = Database(ctx.guild_id)
+
+        df = DB.get_elo_roles()
+
+        df = df.loc[df["role"] != role].sort_values("priority")
+        df["priority"] = range(len(df.index))
+        row = pd.Series([role_id, len(df.index), elo_min, elo_max], index=["role", "priority", "elo_min", "elo_max"])
+        df = pd.concat([df, pd.DataFrame(row).T])
+
+        print(df)
+
+        DB.upsert_elo_roles(df)
+        return "Updated Elo Role", Embed_Type.CONFIRM
+
+    confirm_message, embed_type = process_response()
+    confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
+    return confirm_embed
 
 
 
@@ -490,7 +510,7 @@ def update_elo_roles(ctx:tanjun.abc.Context, input_params):
 
 
 @component.with_slash_command
-@tanjun.as_slash_command("reset", "reset the data for this server", default_to_ephemeral=True)
+@tanjun.as_slash_command("reset", "reset the data for this server", default_to_ephemeral=False)
 async def reset_cmd(ctx: tanjun.abc.Context):
     if ctx.author.id != 623257053879861248:
         await ctx.respond("not authorized")
