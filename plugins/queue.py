@@ -386,8 +386,8 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
 @component.with_slash_command
 @tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":results.PLAYER_1, "2":results.PLAYER_2, "draw":results.DRAW, "cancel":results.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
-@tanjun.as_slash_command("set", "set a match's outcome", default_to_ephemeral=False)
-async def force_match(ctx: tanjun.abc.Context, match_number, outcome):
+@tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False)
+async def set_match_command(ctx: tanjun.abc.Context, match_number, outcome):
 
     await ctx.respond("please wait")
 
