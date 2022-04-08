@@ -49,7 +49,7 @@ async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
 
 
 
-async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff_declared=False):
+async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff_declared=None):
 
     DB = Database(ctx.guild_id)
 
@@ -57,8 +57,8 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     p2 = DB.get_players(user_id=match["player_2"]).iloc[0]
 
     #make sure this is the most recent match for both players
-    p1_latest_match = DB.get_matches(user_id=p1["user_id"]).iloc[0]["match_id"]
-    p2_latest_match = DB.get_matches(user_id=p2["user_id"]).iloc[0]["match_id"]
+    p1_latest_match = DB.get_matches(player_id=p1["user_id"]).iloc[0]["match_id"]
+    p2_latest_match = DB.get_matches(player_id=p2["user_id"]).iloc[0]["match_id"]
 
     if p1_latest_match != match["match_id"] or p2_latest_match != match["match_id"]:
         await ctx.edit_initial_response("Unable to change old match results")# Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
@@ -75,7 +75,7 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     else:
         p1_elo_after = match["p1_elo"] + standard_elo_change[0]*3
 
-        p1_matches = DB.get_matches(user_id=match["player_1"], number=NUM_UNRANKED_MATCHES, ascending=True)
+        p1_matches = DB.get_matches(player_id=match["player_1"], number=NUM_UNRANKED_MATCHES, from_first=True)
 
         print("p1_matches:", p1_matches)
 
@@ -88,7 +88,7 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff
     else:
         p2_elo_after = match["p2_elo"] + standard_elo_change[1]*3 #temp
 
-        p2_matches = DB.get_matches(user_id=match["player_2"], number=NUM_UNRANKED_MATCHES, ascending=True)
+        p2_matches = DB.get_matches(player_id=match["player_2"], number=NUM_UNRANKED_MATCHES, from_first=True)
 
         print("p2_matches", p2_matches)
 
@@ -203,7 +203,7 @@ async def join_q(ctx: tanjun.abc.Context) -> None:
         return
 
     #Ensure player declared last match
-    matches = DB.get_matches(user_id=player_id)
+    matches = DB.get_matches(player_id=player_id)
     if not matches.empty:
         match = matches.iloc[0]
         if match["outcome"] is None:
@@ -273,7 +273,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
     if player_info is None:
         return
 
-    matches = DB.get_matches(user_id=ctx.author.id)
+    matches = DB.get_matches(player_id=ctx.author.id)
     if matches.empty:
         await ctx.edit_initial_response("You haven't played a match")
         return
@@ -318,7 +318,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result) -> None:
 
 def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
 
-    matches = DB.get_matches(user_id=player_id, limit=num_matches)
+    matches = DB.get_matches(player_id=player_id, number=num_matches)
     if matches.empty:
         return matches
     matches = matches.sort_values(by="match_id", ascending=True)
@@ -359,7 +359,7 @@ async def get_match(ctx: tanjun.abc.Context) -> None:
     if player_info is None:
         return
 
-    matches = DB.get_matches(user_id=ctx.author.id)
+    matches = DB.get_matches(player_id=ctx.author.id)
     if matches.empty:
         await ctx.respond("you haven't played any matches")
         return
@@ -408,11 +408,12 @@ async def set_match_command(ctx: tanjun.abc.Context, match_number, outcome):
         return
     match = matches.iloc[0]
 
-    if match["outcome"] != outcome:
-        await update_match_outcome(ctx, match, outcome, True)
-        await ctx.edit_initial_response("Match " + str(match["match_id"]) + " updated")
-    else:
+    if match["outcome"] == outcome:
         await ctx.edit_initial_response("Outcome is already " + str(outcome))
+        return
+
+    await update_match_outcome(ctx, match, outcome, staff_declared=outcome)
+    await ctx.edit_initial_response("Match " + str(match["match_id"]) + " updated")
 
 
 

@@ -5,6 +5,7 @@ import tanjun
 
 from database import Database
 from __main__ import bot as bot_instance
+import config
 
 import typing
 
@@ -134,6 +135,10 @@ class InputParams():
 
 
 async def is_staff(ctx:tanjun.abc.Context, DB):
+
+    if ctx.author.id == config.Config.owner_id:
+        return True
+
     staff_role = DB.get_config()["staff_role"]
 
     if staff_role is None:

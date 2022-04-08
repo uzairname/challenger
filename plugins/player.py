@@ -79,7 +79,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         player = player.iloc[0]
 
 
-    matches = DB.get_matches(user_id=player["user_id"])
+    matches = DB.get_matches(player_id=player["user_id"])
 
     total_draws = 0
     total_wins = 0
