@@ -17,10 +17,12 @@ bot_todo = """
 **In order of priority**
 
 in order of priority: 
+• Be able to change old matchs
 • Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
+• add permission checks to commands
 • Automatically assign roles based on Elo
 • Command to reset all server data in bot
 • remove player from queue after 10 mins

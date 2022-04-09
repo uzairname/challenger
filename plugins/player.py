@@ -27,10 +27,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
     tag = ctx.author.username + "#" + ctx.author.discriminator
 
-    if ctx.member.nickname is not None:
-        name = ctx.member.nickname
-    else:
-        name = ctx.author.username
+    name = ctx.member.nickname or ctx.member.username
 
     if players.empty:
         player = DB.get_new_player(ctx.author.id)
@@ -79,7 +76,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         player = player.iloc[0]
 
 
-    matches = DB.get_matches(player_id=player["user_id"])
+    matches = DB.get_matches(user_id=player["user_id"])
 
     total_draws = 0
     total_wins = 0
@@ -96,10 +93,9 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         elif match["outcome"] == losing_result:
             total_losses += 1
 
-
     displayed_elo = str(round((player["elo"]),2))
     if not player["is_ranked"]:
-        displayed_elo += " (unranked)"
+        displayed_elo += "? (unranked)"
 
     stats_embed = hikari.Embed(title=f"{player['tag']}", description="Stats", color=Colors.PRIMARY)
     stats_embed.add_field(name="Elo", value=displayed_elo)
