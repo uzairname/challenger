@@ -48,6 +48,11 @@ async def start_new_match(ctx:tanjun.abc.Context, queue, p1_info, p2_info):
 
 
 
+async def update_match(matches, match_id, new_result = None, updated_players=None):
+    updated_players = updated_players or []
+
+    match = matches.loc[match_id]
+
 
 async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, staff_declared=None):
 

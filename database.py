@@ -19,18 +19,16 @@ def check_errors(func):
 class Database:
 
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "staff"])
-    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "player_1", "player_2", "p1_declared", "p2_declared", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome", "staff_declared"])
+    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "p1_id", "p1_declared", "p2_declared", "p1_elo", "p2_id", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome", "staff_declared"]).set_index("match_id")
     EMPTY_LOBBY = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
-
-    DEFAULT_CONFIG = pd.Series(index=["results_channel", "staff_role"], dtype="float64").replace(np.nan, None)
     EMPTY_ELO_ROLES = pd.DataFrame([], columns=["role", "elo_min", "elo_max", "priority"])
+    DEFAULT_CONFIG = pd.Series(index=["results_channel", "staff_role"], dtype="float64").replace(np.nan, None)
 
     players_tbl = "players"
     matches_tbl = "matches"
     queues_tbl = "queues"
     config_tbl = "config"
     elo_roles_tbl = "elo_roles"
-
     required_tables = [players_tbl, matches_tbl, queues_tbl, config_tbl, elo_roles_tbl]
 
     def __init__(self, guild_id):
@@ -50,14 +48,18 @@ class Database:
     def setup_test(self): #always called at the start
 
         player_id = np.array([623257053879861248])[0]
-        num_matches=4
+        num_matches=3
 
-        elo_roles = self.get_config()
-        print("before\n", elo_roles)
-        elo_roles["role"] = 32432
-        self.upsert_config(elo_roles)
-        elo_roles = self.get_config()
-        print("after", elo_roles)
+        match = self.get_matches(user_id=player_id, number=1, from_first=False)
+
+        print(match)
+
+        # elo_roles = self.get_config()
+        # print("before\n", elo_roles)
+        # elo_roles["role"] = 32432
+        # self.upsert_config(elo_roles)
+        # elo_roles = self.get_config()
+        # print("after", elo_roles)
         pass
 
     def init_database(self):
@@ -127,9 +129,9 @@ class Database:
         if number:
             cur.limit(number)
 
-        matches_df = pd.DataFrame(list(cur))
+        matches_df = pd.DataFrame(list(cur)).set_index("match_id")
         full_matches_df = pd.concat([self.EMPTY_MATCH, matches_df])[self.EMPTY_MATCH.columns].replace(np.nan, None)
-        return full_matches_df.reset_index(drop=True)
+        return full_matches_df
 
     def get_new_match(self) -> pd.Series:
 
@@ -144,9 +146,9 @@ class Database:
         return new_match
 
     def upsert_match(self, match:pd.Series):
+        match["match_id"] = match.name #match_id is the index of the match
         match = match.replace(np.nan, None) #all DB updates should go throughh this. this takes care of fixing the types
 
-        self.EMPTY_MATCH #Make sure nothing is numpy type
         match["match_id"] = int(match["match_id"])
         if match["player_1"] is not None:
             match["player_1"] = int(match["player_1"])
@@ -155,6 +157,9 @@ class Database:
 
         matchdict = match.to_dict()
         self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
+
+    def upsert_matches(self, matches:pd.DataFrame):
+        self.guildDB[self.matches_tbl].update_many(matches.reset_index().to_dict(orient="records"), upsert=True)
 
 
     def get_queues(self, channel_id = None) -> pd.DataFrame:
