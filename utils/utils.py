@@ -4,8 +4,7 @@ import hikari
 import tanjun
 
 from database import Database
-from __main__ import bot as bot_instance
-from config import Config
+from config import *
 
 import typing
 
@@ -16,15 +15,15 @@ import re
 import sympy as sp
 
 
-class Colors:
-    PRIMARY = "37dedb"
-    NEUTRAL = "a5a5a5"
-    CONFIRM = "ffe373"
-    SUCCESS = "#5dde07"
-    ERROR = "#ff0000"
-    CANCEL = "#ff5500"
 
-DEFAULT_TIMEOUT = 120
+
+# def get_client_callback(client=tanjun.injected(type=hikari.GatewayBot)):
+#     print(client.is_alive)
+#
+#
+# def get_client(callback=get_client_callback):
+#     return tanjun.injected(callback=callback)
+
 
 class results:
     PLAYER_1 = "player 1"
@@ -64,18 +63,6 @@ class Custom_Embed(hikari.Embed):
             super().__init__(color=color or Colors.PRIMARY, title=title or "Info", description=description, url=url, timestamp=timestamp)
 
 
-def check_errors(func):
-    # for commands that take a context, respond with an error if it doesn't work
-    @functools.wraps(func)
-    async def wrapper_check_errors(ctx: tanjun.abc.Context, *args, **kwargs):
-        try:
-            await func(ctx, *args, **kwargs)
-        except BaseException:
-            await ctx.respond("didnt work :(", ensure_result=True)
-            logging.info("command failed: " + str(kwargs.values()))
-    return wrapper_check_errors
-
-
 def construct_df(rows, columns, index_column: str = None):
     df = pd.DataFrame(rows, columns=columns)
     if index_column:
@@ -88,7 +75,6 @@ def replace_row_if_col_matches(df:pd.DataFrame, row:pd.Series, column:str):
     new_df = pd.concat([df.drop(drop_index), pd.DataFrame(row).T])
 
     return new_df
-
 
 
 class InputParams():
@@ -132,6 +118,19 @@ class InputParams():
 
         description += "\n"
         return description
+
+
+def check_errors(func):
+    # for slash commands, respond with an error if it doesn't work
+    @functools.wraps(func)
+    async def wrapper_check_errors(ctx: tanjun.abc.Context, *args, **kwargs):
+        try:
+            await func(ctx, *args, **kwargs)
+        except Exception as e:
+            await ctx.respond(Custom_Embed(Embed_Type.ERROR, description="```" + str(e) + "\n```"))
+            logging.error(f"Error in {func.__name__}", exc_info=True)
+    return wrapper_check_errors
+
 
 
 def ensure_registered(func):
@@ -204,15 +203,16 @@ def ensure_staff(func):
 def take_input(input_instructions:typing.Callable):
 
     """
-    Calls function with input to the slash command.
+    Calls function with input and lets the user confirm/cancel the command
     params:
         decorated function: slash command function called when confirm button is pressed. function that takes in a hikari.ComponentInteraction event and/or additional kwargs and returns an embed to show when the command is executed.
         input_instructions: function that takes in a tanjun.abc.Context, Database, and/or additional kwargs and returns an embed to show before user confirms their input
     """
 
     def decorator_take_input(func):
+
         @functools.wraps(func)
-        async def wrapper_take_input(ctx, **kwargs):
+        async def wrapper(ctx, bot, **kwargs):
 
             confirm_cancel_row = ctx.rest.build_action_row()
             confirm_cancel_row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
@@ -222,7 +222,8 @@ def take_input(input_instructions:typing.Callable):
             response = await ctx.respond(embeds=[instructions_embed], components=[confirm_cancel_row], ensure_result=True)
 
             confirm_embed = Custom_Embed(type=Embed_Type.INFO, title="Confirm?", description="Nothing selected")
-            with bot_instance.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(
+
+            with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
                 ("interaction.user.id", ctx.author.id),
                 ("interaction.message.id", response.id)
@@ -240,5 +241,5 @@ def take_input(input_instructions:typing.Callable):
 
             await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])
 
-        return wrapper_take_input
+        return wrapper
     return decorator_take_input

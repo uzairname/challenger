@@ -16,3 +16,14 @@ class Config:
     DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. 2.7 is an arbitrary scaling factor
     DEFAULT_K = 30  # maximum change in one game
     NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
+
+    DEFAULT_TIMEOUT = 120
+
+
+class Colors:
+    PRIMARY = "fff0cc"
+    NEUTRAL = "a5a5a5"
+    CONFIRM = "ffe373"
+    SUCCESS = "#5dde07"
+    ERROR = "#ff0000"
+    CANCEL = "#ff5500"

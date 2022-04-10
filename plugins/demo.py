@@ -12,17 +12,27 @@ from hikari.messages import ButtonStyle
 
 from tanjun.abc import SlashContext
 from __main__ import Bot
+from utils.utils import *
 
 component = tanjun.Component()
 
 embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False))
 
 
+@component.with_slash_command()
+@tanjun.as_slash_command("command", "test")
+@check_errors
+async def test_command(ctx, bot=tanjun.injected(type=tanjun.abc.Client)) -> None:
+
+    print(bot.is_alive)
+
+    await ctx.respond(".")
+
 @embed.with_command
 @tanjun.as_slash_command("interactive-post", f"Build an Embed!")
 async def interactive_post(
     ctx: SlashContext,
-    bot: hikari.GatewayBot = tanjun.injected(type=Bot),
+    bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot),
     client: tanjun.Client = tanjun.injected(type=tanjun.Client)
 ) -> None:
     client.metadata['embed'] = hikari.Embed(title="New Embed")

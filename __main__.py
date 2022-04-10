@@ -1,4 +1,5 @@
 import os
+
 from __init__ import *
 from config import Config
 import logging
@@ -7,6 +8,8 @@ import tanjun
 import time
 from database import Database
 import pandas as pd
+
+from utils.utils import *
 
 class Bot (hikari.GatewayBot):
 
@@ -67,6 +70,7 @@ if __name__ == "__main__":
     # bot = PelaBot(os.environ.get("DISCORD_TOKEN"))
 
     if debug:
+
         DB = Database(Config.testing_guild_id)
         DB.setup_test()
 

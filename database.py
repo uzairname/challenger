@@ -186,7 +186,6 @@ class Database:
         if queue["player"] is not None:
             queue["player"] = int(queue["player"])
         try:
-            print(queue)
             queue["roles"] = np.array(queue["roles"]).astype("int64").tolist()
         except:
             pass
@@ -207,7 +206,7 @@ class Database:
             self.upsert_config(self.DEFAULT_CONFIG)
             return self.DEFAULT_CONFIG
 
-        return pd.Series(cur[0]).replace(np.nan, None)
+        return pd.Series(cur[0], dtype="object").replace(np.nan, None)
 
     def upsert_config(self, config:pd.Series): # takes a series returned from get_config
         configdict = config.to_dict()

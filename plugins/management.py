@@ -4,8 +4,7 @@ from utils.utils import *
 from database import Database
 import tanjun
 import hikari
-from __init__ import *
-import re
+from __main__ import Bot
 
 component = tanjun.Component(name="management module")
 
@@ -26,6 +25,7 @@ async def config_help_instructions(**kwargs):
 @component.with_slash_command
 @tanjun.with_str_slash_option("action", "action to perform")
 @tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=False, always_defer=True)
+@check_errors
 @take_input(input_instructions=config_help_instructions)
 @ensure_staff
 async def config_help(event, **kwargs) -> hikari.Embed:
@@ -83,11 +83,12 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
     return embed
 
 @component.with_slash_command
-@tanjun.with_str_slash_option("roles", "roles allowed", default="")
+@tanjun.with_role_slash_option("roles", "roles allowed", default="")
 @tanjun.with_str_slash_option("name", "lobby name", default="")
 @tanjun.with_str_slash_option("channel", "the channel to update or delete", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="")
 @tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
+@check_errors
 @take_input(input_instructions=config_lobby_instructions)
 @ensure_staff
 async def config_lobby(ctx, event, action, name, roles, channel, **kwargs) -> hikari.Embed:
@@ -171,9 +172,10 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
     return embed
 
 @component.with_slash_command
-@tanjun.with_str_slash_option("role", "role", default="")
+@tanjun.with_role_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
 @tanjun.as_slash_command("config-staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
+@check_errors
 @take_input(input_instructions=config_staff_instructions)
 @ensure_staff
 async def config_staff(ctx: tanjun.abc.Context, event, action, role, **kwargs) -> hikari.Embed:
@@ -234,9 +236,10 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @component.with_slash_command()
 @tanjun.with_str_slash_option("max_elo", "max elo", default="")
 @tanjun.with_str_slash_option("min_elo", "min elo", default="")
-@tanjun.with_str_slash_option("role", "role", default="")
+@tanjun.with_role_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="")
 @tanjun.as_slash_command("config-elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
+@check_errors
 @take_input(input_instructions=config_elo_roles_instructions)
 @ensure_staff
 async def config_elo_roles(ctx, event, min_elo, max_elo, role, **kwargs) -> hikari.Embed:
@@ -304,9 +307,10 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"add/update channel", "remove":"reset to default"}, default="update")
 @tanjun.with_str_slash_option("channel", "channel", default="")
 @tanjun.as_slash_command("config-results-channel", "Set a results channel", default_to_ephemeral=False, always_defer=True)
+@check_errors
 @take_input(input_instructions=config_results_channel_instructions)
-async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, **kwargs):
-    
+async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=Bot), **kwargs):
+
     def process_repsonse():
         input_params = InputParams(str(channel))
 
