@@ -2,9 +2,8 @@ import typing
 
 from utils.utils import *
 from database import Database
+import tanjun
 import hikari
-from __main__ import Bot
-from __main__ import bot as bot_instance
 from __init__ import *
 import re
 
@@ -24,11 +23,11 @@ async def config_help_instructions(**kwargs):
     embed.description += "\n" + action
     return embed
 
-
 @component.with_slash_command
 @tanjun.with_str_slash_option("action", "action to perform")
-@tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=False)
+@tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_help_instructions)
+@ensure_staff
 async def config_help(event, **kwargs) -> hikari.Embed:
 
     button_id = event.interaction.custom_id
@@ -88,8 +87,9 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @tanjun.with_str_slash_option("name", "lobby name", default="")
 @tanjun.with_str_slash_option("channel", "the channel to update or delete", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="")
-@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False)
+@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_lobby_instructions)
+@ensure_staff
 async def config_lobby(ctx, event, action, name, roles, channel, **kwargs) -> hikari.Embed:
 
     DB = Database(ctx.guild_id)
@@ -133,17 +133,17 @@ async def config_lobby(ctx, event, action, name, roles, channel, **kwargs) -> hi
 
 
 
-async def config_staff_instructions(ctx:tanjun.abc.Context, **kwargs):
+async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.injected(type=tanjun.abc.Client), **kwargs):
 
     DB = Database(ctx.guild_id)
 
     staff_role = DB.get_config()["staff_role"]
 
-    staff_list = "Staff role: <@&" + str(staff_role) + ">\n"
     if staff_role is None:
-        staff_list = "No staff"
+        staff_list = "No staff role specified. Anyone with the manage server permission is considered staff"
     else:
-        members = bot_instance.rest.fetch_members(ctx.guild_id)
+        staff_list = "Current staff role: <@&" + str(staff_role) + ">\nStaff:"
+        members = client.rest.fetch_members(ctx.guild_id)
         async for member in members:
             if staff_role in member.role_ids:
                 staff_list += "\n" + member.username
@@ -173,9 +173,10 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, **kwargs):
 @component.with_slash_command
 @tanjun.with_str_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
-@tanjun.as_slash_command("config-staff", "link a role to bot staff", default_to_ephemeral=False)
+@tanjun.as_slash_command("config-staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_staff_instructions)
-async def config_staff(ctx:tanjun.abc.Context, event, action, role, **kwargs) -> hikari.Embed:
+@ensure_staff
+async def config_staff(ctx: tanjun.abc.Context, event, action, role, **kwargs) -> hikari.Embed:
 
     DB = Database(ctx.guild_id)
 
@@ -235,8 +236,9 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @tanjun.with_str_slash_option("min_elo", "min elo", default="")
 @tanjun.with_str_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="")
-@tanjun.as_slash_command("config-elo-roles", "link a role to an elo range", default_to_ephemeral=False)
+@tanjun.as_slash_command("config-elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_elo_roles_instructions)
+@ensure_staff
 async def config_elo_roles(ctx, event, min_elo, max_elo, role, **kwargs) -> hikari.Embed:
 
     def process_response():
@@ -269,250 +271,69 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role, **kwargs) -> hika
 
 
 
-
-# @component.with_slash_command
-# @tanjun.with_str_slash_option("setting", "What setting?",
-#                               choices={"Add/edit a Lobby":settings.LOBBY, #config-lobby
-#                                        "Delete a Lobby":settings.REMOVE_LOBBY,
-#                                        "Results Channel":settings.RESULTS, #config-results
-#                                        "Elo Roles":settings.ELO_ROLES, #config-eloroles
-#                                        "Staff Members":settings.STAFF}) #config-staff
-# @tanjun.as_slash_command("config", "settings (admin only)", default_to_ephemeral=True)
-async def config_command(ctx:tanjun.abc.SlashContext, setting, bot: Bot = tanjun.injected(type=Bot), client: tanjun.Client = tanjun.injected(type=tanjun.Client)):
-
-    #check that player is staff or lilapela
+async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, channel, **kwargs):
 
     DB = Database(ctx.guild_id)
 
-    player_info = DB.get_players(ctx.author.id)
-    if player_info.empty:
-        await ctx.respond("pls register")
-        return
-    player_info = player_info.iloc[0]
+    results_channel = DB.get_config()["results_channel"]
 
-    if player_info["staff"] != status.STAFF and player_info["user_id"] != LILAPELA:
-        await ctx.respond("Missing permissions")
-        return
-
-
-    cancel_row = ctx.rest.build_action_row()
-    (cancel_row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel")
-            .set_label("Cancel")
-            .set_emoji("❌")
-            .add_to_container())
-
-    if setting == settings.LOBBY:
-        instructions_embed = hikari.Embed(
-            title="Add a Lobby",
-            description="Type the lobby name followed by its channel and allowed roles. Players must have at least one of your specified roles to join this lobby. \n\nFor example, \"Beginner Lobby #channel @beginner-role @verified-role\"")
-    elif setting == settings.RESULTS:
-        instructions_embed = hikari.Embed(
-            title="Set the Result Announcements Channel",
-            description="Select a channel to configure by typing it in chat")
-    elif setting == settings.REMOVE_LOBBY:
-        instructions_embed = hikari.Embed(
-            title="Remove a Lobby",
-            description="Type a channel to remove its lobby")
-    elif setting == settings.ELO_ROLES:
-
-        rbe_df = DB.get_config()["roles_by_elo"]
-
-        rbe_list = "```\n"
-        for i in rbe_df.index:
-            guild_roles = (await ctx.fetch_guild()).get_roles()
-            role_name = guild_roles[i]
-            rbe_list += "\"" + str(role_name) + "\": " + str(rbe_df.loc[i]["min"]) + " to " + str(rbe_df.loc[i]["max"]) + " elo\n"
-        rbe_list += "```"
-
-        instructions_embed = hikari.Embed(
-            title="Edit an elo Role",
-            description="Automatically assign players in a certain elo range to a role. Type an elo range followed by the role to set it to. \n([min elo] to [max elo]) For example: \"`50 to 70 @gold-rank`\" \n(Negative elo is also possible lol)")
-        instructions_embed.add_field(name="Current roles", value=rbe_list)
-
-    elif setting == settings.STAFF:
-
-        all_staff = DB.get_players(staff=status.STAFF)
-        staff_list = "```\n"
-        for i in all_staff["tag"]:
-            staff_list += i + "\n"
-        staff_list += "```"
-
-        instructions_embed = hikari.Embed(
-            title="Add/remove members from staff",
-            description="Mention the players that you want to toggle staff permissions for")
-        instructions_embed.add_field(name="Current staff", value=staff_list)
-
-    await ctx.edit_initial_response(embed=instructions_embed)
-
-    with bot.stream(hikari.MessageCreateEvent, timeout=DEFAULT_TIMEOUT).filter(('author', ctx.author)) as stream:
-        async for event in stream:
-            if event.message:
-                await event.message.delete()
-
-            input_embed = hikari.Embed(title="Updating Settings", description="")
-            input_params = InputParams(event.content)
-
-            if input_params.text:
-                input_embed.description += "Input: **" + str(input_params["text"]) + "**\n"
-
-            if input_params["channels"].size > 0:
-                input_embed.description += "Selected channels:\n"
-                for i in input_params["channels"]:
-                    input_embed.description += "<#" + str(i) + ">\n"
-
-            if input_params["roles"].size > 0:
-                input_embed.description += "Selected roles:\n"
-                for i in input_params["roles"]:
-                    input_embed.description += "<@&" + str(i) + ">\n"
-
-            if input_params["users"].size > 0:
-                input_embed.description += "Selected users:\n"
-                for i in input_params["users"]:
-                    input_embed.description += "<@" + str(i) + ">\n"
-
-            client.metadata['instructions embed'] = instructions_embed
-            client.metadata['input embed'] = input_embed
-            client.metadata['input params'] = input_params
-            client.metadata['done embed'] = hikari.Embed(title="Done", description=" ")
-
-            await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[])
-            input_error = await confirm_settings_update(ctx, bot, client, setting)
-            if input_error is not None:
-                error_embed = hikari.Embed(title="**" + str(input_error) + "**")
-                await ctx.edit_initial_response(embeds=[instructions_embed, error_embed], components=[])
-            else:
-                await ctx.edit_initial_response("Done", embeds=[client.metadata["done embed"]], components=[])
-                return
-
-    await ctx.edit_initial_response("Timed out", embeds=[], components=[])
-
-
-async def confirm_settings_update(ctx: tanjun.abc.SlashContext, bot: Bot, client: tanjun.Client, setting):
-
-    instructions_embed = client.metadata["instructions embed"]
-    input_embed = client.metadata["input embed"]
-
-    confirm_cancel = ctx.rest.build_action_row()
-    (confirm_cancel.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm")
-            .set_label("Confirm")
-            .set_emoji("✔️")
-            .add_to_container())
-    (confirm_cancel.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel")
-            .set_label("Cancel")
-            .set_emoji("❌")
-            .add_to_container())
-
-    input_embed.title = "Confirm?"
-
-    if setting == settings.LOBBY:
-        if client.metadata["input params"]["roles"].size == 0:
-            input_embed.description += "\n❗Warning: No roles entered. No one will be able to join this lobby\n"
-
-    await ctx.edit_initial_response(embeds=[instructions_embed, input_embed], components=[confirm_cancel])
-
-    with bot.stream(hikari.InteractionCreateEvent, timeout=DEFAULT_TIMEOUT).filter(("interaction.user.id", ctx.author.id)) as stream:
-        async for event in stream:
-
-            button_id = event.interaction.custom_id
-
-            if button_id == "Cancel":
-                return
-            elif button_id != "Confirm":
-                return "idk lol"
-
-            if setting == settings.LOBBY:
-                return update_lobby(ctx, client)
-            elif setting == settings.RESULTS:
-                return update_results_channel(ctx, client.metadata["input params"])
-            elif setting == settings.ELO_ROLES:
-                return update_elo_roles(ctx, client.metadata["input params"])
-
-    await ctx.edit_initial_response("Timed out in confirmlobbyupdate", embeds=[], components=[])
-    return
-
-
-def update_lobby(ctx:tanjun.abc.Context, client:tanjun.Client):
-
-    input_params = client.metadata["input params"]
-
-    if not input_params["text"]:
-        return "No name entered"
-    elif not input_params["channels"].size == 1:
-        return "Choose one channel"
-
-    channel_id, roles, lobby_name = input_params["channels"][0], input_params["roles"], input_params["text"]
-
-    DB = Database(ctx.guild_id)
-
-    queue = DB.get_queues(channel_id)
-
-    if not queue.empty:
-        queue = queue.loc[0]
-        queue["lobby_name"] = lobby_name
-        queue["roles"] = roles
-        DB.upsert_queue(queue)
+    if results_channel is not None:
+        cur_results_channel = "<#" + str(results_channel) + ">"
     else:
-        queue = DB.get_new_queue(channel_id)
-        queue["lobby_name"] = lobby_name
-        queue["roles"] = roles
-        DB.upsert_queue(queue)
+        cur_results_channel = "No results channel set"
 
-    client.metadata["done embed"].description="Updated lobby"
+    selection = ""
+    if action == "update":
+        selection += "**Setting channel to**\n"
+    elif action == "remove":
+        selection += "**Removing channel**\n"
+    else:
+        selection += "**No action specified**\n"
+    input_params = InputParams(str(channel))
+    selection += input_params.describe()
 
+    embed = hikari.Embed(title="Add or remove results channel",
+                        description="Link a channel to the results channel. Results channel is where match results are posted",
+                        color=Colors.PRIMARY)
+    embed.add_field(name="Current Results Channel", value=cur_results_channel)
+    embed.add_field(name="Selection", value=selection)
 
-def update_results_channel(ctx:tanjun.abc.Context, input_params):
+    return embed
 
-    if input_params["channels"].size != 1:
-        return "Enter one channel to send results to"
+@component.with_slash_command()
+@tanjun.with_str_slash_option("action", "what to do", choices={"update":"add/update channel", "remove":"reset to default"}, default="update")
+@tanjun.with_str_slash_option("channel", "channel", default="")
+@tanjun.as_slash_command("config-results-channel", "Set a results channel", default_to_ephemeral=False, always_defer=True)
+@take_input(input_instructions=config_results_channel_instructions)
+async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, **kwargs):
+    
+    def process_repsonse():
+        input_params = InputParams(str(channel))
 
-    DB = Database(ctx.guild_id)
+        DB = Database(ctx.guild_id)
+        config = DB.get_config()
 
-    config = DB.get_config()
-    config["results_channel"] = input_params["channels"][0]
-    DB.upsert_config(config)
+        if action == "remove":
+            config["results_channel"] = None
+            DB.upsert_config(config)
+            return "Removed results channel", Embed_Type.CONFIRM
 
+        if len(input_params.channels) != 1:
+            return "Select one channel", Embed_Type.ERROR
 
-def update_elo_roles(ctx:tanjun.abc.Context, input_params):
+        config["results_channel"] = input_params.channels[0]
+        DB.upsert_config(config)
+        return "Updated results channel", Embed_Type.CONFIRM
 
-    if input_params["roles"].size != 1:
-        return "Enter one role"
-
-    pat = r"(-?[\d]+) to (-?[\d]+)"
-
-    res = re.match(pat, input_params["text"])
-
-    try:
-        minelo = int(res.groups()[0])
-        maxelo = int(res.groups()[1])
-    except:
-        return "Invalid input"
-
-    role = input_params["roles"][0]
-
-    DB = Database(ctx.guild_id)
-
-    config = DB.get_config()
-    rbe_df = config["roles_by_elo"]
-
-    rbe_df = rbe_df.loc[rbe_df.index != role].sort_values("priority")
-    rbe_df["priority"] = range(len(rbe_df.index))
-    role_info = pd.Series([len(rbe_df.index), minelo, maxelo], index=["priority", "min", "max"], name=role)
-    rbe_df = pd.concat([rbe_df, pd.DataFrame(role_info).T])
-
-    config["roles_by_elo"] = rbe_df
-    DB.upsert_config(config)
-
-
-
+    confirm_message, embed_type = process_repsonse()
+    confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
+    return confirm_embed
 
 
 @component.with_slash_command
 @tanjun.as_slash_command("reset", "reset the data for this server", default_to_ephemeral=False)
-async def reset_cmd(ctx: tanjun.abc.Context):
-    if ctx.author.id != 623257053879861248:
-        await ctx.respond("not authorized")
-        return
-
+async def reset_data(ctx: tanjun.abc.SlashContext, client: tanjun.Client):
+    pass
 
 
 @tanjun.as_loader

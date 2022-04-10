@@ -1,19 +1,8 @@
 import pymongo
-from __init__ import *
+import config
 import os
 import pandas as pd
-import functools
 import numpy as np
-
-
-def check_errors(func):
-    @functools.wraps(func)
-    def wrapper_check_errors(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except:
-            print("error in " + str(func))
-    return wrapper_check_errors
 
 
 class Database:
@@ -37,9 +26,9 @@ class Database:
 
         self.guild_name = str(guild_id)
 
-        if guild_id == PROJECT_X:
+        if guild_id == config.Config.project_x_guild_id:
             self.guild_name = "PX"
-        elif guild_id == TESTING_GUILD_ID:
+        elif guild_id == config.Config.testing_guild_id:
             self.guild_name = "testing"
 
         self.guildDB = client["guild_" + self.guild_name]
@@ -49,17 +38,14 @@ class Database:
 
         player_id = np.array([623257053879861248])[0]
         num_matches=3
+        self.get_matches()
 
-        match = self.get_matches(user_id=player_id, number=1, from_first=False)
+        # match = self.get_matches(user_id=player_id, number=2, from_first=False)
+        # match.loc[17, "p2_id"] = 88888
+        # print(match)
+        # self.upsert_matches(match)
+        # print(self.get_matches(user_id=player_id, number=2, from_first=False))
 
-        print(match)
-
-        # elo_roles = self.get_config()
-        # print("before\n", elo_roles)
-        # elo_roles["role"] = 32432
-        # self.upsert_config(elo_roles)
-        # elo_roles = self.get_config()
-        # print("after", elo_roles)
         pass
 
     def init_database(self):
@@ -118,7 +104,7 @@ class Database:
         cur_filter = {}
         if user_id:
             user_id = int(user_id)
-            cur_filter["$or"] = [{"player_1":user_id}, {"player_2":user_id}]
+            cur_filter["$or"] = [{"p1_id":user_id}, {"p2_id":user_id}]
 
         if match_id:
             match_id = int(match_id)
@@ -129,7 +115,9 @@ class Database:
         if number:
             cur.limit(number)
 
-        matches_df = pd.DataFrame(list(cur)).set_index("match_id")
+        matches_df = pd.DataFrame(list(cur))
+        if not matches_df.empty:
+            matches_df.set_index("match_id", inplace=True)
         full_matches_df = pd.concat([self.EMPTY_MATCH, matches_df])[self.EMPTY_MATCH.columns].replace(np.nan, None)
         return full_matches_df
 
@@ -145,21 +133,32 @@ class Database:
         new_match = pd.concat([self.EMPTY_MATCH, match_df]).iloc[0]
         return new_match
 
+    # def create_new_match(self):
+    #     prev_match = self.get_matches(number=1)
+    #     if prev_match.empty:
+    #         new_id = 0
+    #     else:
+    #         new_id = prev_match.iloc[0]["match_id"] + 1
+    #
+    #     prev_match.loc[new_id, "match_id"] = new_id
+    #     self.upsert_matches(prev_match)
+
     def upsert_match(self, match:pd.Series):
         match["match_id"] = match.name #match_id is the index of the match
         match = match.replace(np.nan, None) #all DB updates should go throughh this. this takes care of fixing the types
 
         match["match_id"] = int(match["match_id"])
-        if match["player_1"] is not None:
-            match["player_1"] = int(match["player_1"])
-        if match["player_2"] is not None:
-            match["player_2"] = int(match["player_2"])
+        if match["p1_id"] is not None:
+            match["p1_id"] = int(match["p1_id"])
+        if match["p2_id"] is not None:
+            match["p2_id"] = int(match["p2_id"])
 
         matchdict = match.to_dict()
         self.guildDB[self.matches_tbl].update_one({"match_id":matchdict["match_id"]}, {"$set":matchdict}, upsert=True)
 
     def upsert_matches(self, matches:pd.DataFrame):
-        self.guildDB[self.matches_tbl].update_many(matches.reset_index().to_dict(orient="records"), upsert=True)
+        for i in matches.index:
+            self.upsert_match(matches.loc[i])
 
 
     def get_queues(self, channel_id = None) -> pd.DataFrame:
@@ -208,7 +207,7 @@ class Database:
             self.upsert_config(self.DEFAULT_CONFIG)
             return self.DEFAULT_CONFIG
 
-        return pd.Series(cur[0])
+        return pd.Series(cur[0]).replace(np.nan, None)
 
     def upsert_config(self, config:pd.Series): # takes a series returned from get_config
         configdict = config.to_dict()
