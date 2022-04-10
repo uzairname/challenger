@@ -18,16 +18,6 @@ component = tanjun.Component()
 
 embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False))
 
-
-@component.with_slash_command()
-@tanjun.as_slash_command("command", "test")
-@check_errors
-async def test_command(ctx, bot=tanjun.injected(type=tanjun.abc.Client)) -> None:
-
-    print(bot.is_alive)
-
-    await ctx.respond(".")
-
 @embed.with_command
 @tanjun.as_slash_command("interactive-post", f"Build an Embed!")
 async def interactive_post(

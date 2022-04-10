@@ -18,14 +18,17 @@ bot_todo = """
 
 in order of priority: 
 • Be able to change old matchs
-• Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • add permission checks to commands
-• Automatically assign roles based on Elo
-• Command to reset all server data in bot
+• limit bots permissions
+• Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • remove player from queue after 10 mins
+• Automatically assign roles based on Elo
+
+Low priority:
+• Command to reset all data in bot
 • /history show your recent matches
 • Automatically register players on commands
 • see distribution of everyone's elo
@@ -49,6 +52,7 @@ Support for tournaments
 
 Best of 3 and 5
 """
+# Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
 
 @component.with_slash_command
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)

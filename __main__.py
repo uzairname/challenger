@@ -11,6 +11,8 @@ import pandas as pd
 
 from utils.utils import *
 
+from plugins import matches
+
 class Bot (hikari.GatewayBot):
 
     def __init__(self, token):
@@ -71,7 +73,15 @@ if __name__ == "__main__":
 
     if debug:
 
+
         DB = Database(Config.testing_guild_id)
         DB.setup_test()
+
+        player_id = np.array([623257053879861248])[0]
+        num_matches=3
+        all_matches = DB.get_matches()
+        print(all_matches)
+
+        results = matches.get_provisional_game_results(all_matches=all_matches, player_id=player_id, latest_match_id=3)
 
     bot.run()

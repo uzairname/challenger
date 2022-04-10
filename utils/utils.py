@@ -25,7 +25,7 @@ import sympy as sp
 #     return tanjun.injected(callback=callback)
 
 
-class results:
+class Result:
     PLAYER_1 = "player 1"
     PLAYER_2 = "player 2"
     WIN = "win"
@@ -34,13 +34,13 @@ class results:
     CANCEL = "cancelled"
     UNDECIDED = "undecided"
 
-class declares:
+class Declare:
     WIN = "win"
     LOSS = "loss"
     DRAW = "draw"
     CANCEL = "cancel"
 
-class status:
+class Status:
     NONE = 0
     STAFF = 1
 

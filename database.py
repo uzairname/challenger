@@ -8,7 +8,9 @@ import numpy as np
 class Database:
 
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "staff"])
-    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "p1_id", "p1_declared", "p2_declared", "p1_elo", "p2_id", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome", "staff_declared"]).set_index("match_id")
+    EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "outcome", "staff_declared",
+                                            "p1_id", "p1_elo", "p1_declared", "p1_is_ranked",
+                                            "p2_id", "p2_elo", "p2_declared", "p2_is_ranked"]).set_index("match_id")
     EMPTY_LOBBY = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
     EMPTY_ELO_ROLES = pd.DataFrame([], columns=["role", "elo_min", "elo_max", "priority"])
     DEFAULT_CONFIG = pd.Series(index=["results_channel", "staff_role"], dtype="float64").replace(np.nan, None)
@@ -38,13 +40,7 @@ class Database:
 
         player_id = np.array([623257053879861248])[0]
         num_matches=3
-        self.get_matches()
-
-        # match = self.get_matches(user_id=player_id, number=2, from_first=False)
-        # match.loc[17, "p2_id"] = 88888
-        # print(match)
-        # self.upsert_matches(match)
-        # print(self.get_matches(user_id=player_id, number=2, from_first=False))
+        self.get_matches(match_id=3)
 
         pass
 
@@ -99,7 +95,7 @@ class Database:
             self.upsert_player(players.iloc[i])
 
 
-    def get_matches(self, user_id=None, match_id=None, number=1, from_first=False) -> pd.DataFrame:
+    def get_matches(self, user_id=None, match_id=None, from_match=None, up_to_match=None, number=None, from_first=False) -> pd.DataFrame:
 
         cur_filter = {}
         if user_id:
@@ -110,15 +106,24 @@ class Database:
             match_id = int(match_id)
             cur_filter["match_id"] = match_id
 
+        if from_match:
+            from_match = int(from_match)
+            cur_filter["match_id"] = {"$gte":from_match}
+
+        if up_to_match:
+            up_to_match = int(up_to_match)
+            cur_filter["match_id"] = {"$lte":up_to_match}
+
         sort_order = 1 if from_first else -1
         cur = self.guildDB[self.matches_tbl].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order) #sort by match_id, descending
         if number:
             cur.limit(number)
 
-        matches_df = pd.DataFrame(list(cur))
+        matches_df = pd.DataFrame(list(cur), dtype="object")
         if not matches_df.empty:
             matches_df.set_index("match_id", inplace=True)
         full_matches_df = pd.concat([self.EMPTY_MATCH, matches_df])[self.EMPTY_MATCH.columns].replace(np.nan, None)
+
         return full_matches_df
 
     def get_new_match(self) -> pd.Series:

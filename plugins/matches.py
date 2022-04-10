@@ -7,7 +7,7 @@ component = tanjun.Component(name="matches module")
 
 
 @component.with_slash_command
-@tanjun.with_str_slash_option("result", "result", choices={"win":declares.WIN, "loss":declares.LOSS, "draw":declares.DRAW, "cancel":declares.CANCEL})
+@tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True, always_defer=True)
 @check_errors
 @ensure_registered
@@ -29,10 +29,10 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.inje
     #set the player's declared result in the match
     is_p1 = match["p1_id"] == ctx.author.id
     DECLARE_TO_RESULT = {
-        declares.WIN: results.PLAYER_1 if is_p1 else results.PLAYER_2,
-        declares.LOSS: results.PLAYER_2 if is_p1 else results.PLAYER_1,
-        declares.DRAW: results.DRAW,
-        declares.CANCEL: results.CANCEL
+        Declare.WIN: Result.PLAYER_1 if is_p1 else Result.PLAYER_2,
+        Declare.LOSS: Result.PLAYER_2 if is_p1 else Result.PLAYER_1,
+        Declare.DRAW: Result.DRAW,
+        Declare.CANCEL: Result.CANCEL
     }
     new_outcome = DECLARE_TO_RESULT[result]
     if is_p1:
@@ -45,11 +45,41 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.inje
 
     #check whether both declares match
     if match["p1_declared"] == match["p2_declared"]:
-        return await update_match_outcome(ctx, match, new_outcome, client)
+        return await set_match_outcome(ctx, match, new_outcome, client)
+
+@component.with_slash_command
+@tanjun.as_slash_command("match", "Your latest match's status", default_to_ephemeral=True, always_defer=True)
+@ensure_registered
+async def get_match(ctx: tanjun.abc.Context) -> None:
+
+    DB = Database(ctx.guild_id)
+
+    matches = DB.get_matches(user_id=ctx.author.id)
+    if matches.empty:
+        await ctx.respond("you haven't played any matches")
+        return
+    match = matches.iloc[0]
+
+    if match["outcome"]==Result.PLAYER_1:
+        winner_id = match["p1_id"]
+        result = DB.get_players(user_id=winner_id).iloc[0]["username"]
+    elif match["outcome"] == Result.PLAYER_2:
+        winner_id = match["p1_id"]
+        result = DB.get_players(user_id=winner_id).iloc[0]["username"]
+    elif match["outcome"] == Result.CANCEL:
+        result = "cancelled"
+    elif match["outcome"] == Result.DRAW:
+        result = "draw"
+    else:
+        result = "undecided"
+
+    response_embed = Custom_Embed(type=Embed_Type.INFO, title=f"Match {str(match.name)} Outcome", description=f"{result}")
+
+    await ctx.edit_initial_response(embed=response_embed)
 
 
 @component.with_slash_command
-@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":results.PLAYER_1, "2":results.PLAYER_2, "draw":results.DRAW, "cancel":results.CANCEL})
+@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Result.PLAYER_1, "2":Result.PLAYER_2, "draw":Result.DRAW, "cancel":Result.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
 @tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
 @check_errors
@@ -65,41 +95,104 @@ async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanju
         return
     match = matches.iloc[0]
 
-    return await update_match_outcome(ctx, match, outcome, client, staff_declared=outcome)
+    return await set_match_outcome(ctx, match, outcome, client, staff_declared=outcome)
 
 
-@component.with_slash_command
-@tanjun.as_slash_command("match", "Your latest match's status", default_to_ephemeral=True, always_defer=True)
-@ensure_registered
-async def get_match(ctx: tanjun.abc.Context) -> None:
+def update_match(matches, match_id, new_outcome=None, updated_players=None):
+    updated_players = updated_players or []
 
-    DB = Database(ctx.guild_id)
+    match = matches.loc[match_id]
 
-    matches = DB.get_matches(user_id=ctx.author.id)
-    if matches.empty:
-        await ctx.respond("you haven't played any matches")
-        return
-    match = matches.iloc[0]
+    p1_id = match["p1_id"]
+    p2_id = match["p2_id"]
 
-    if match["outcome"]==results.PLAYER_1:
-        winner_id = match["p1_id"]
-        result = DB.get_players(user_id=winner_id).iloc[0]["username"]
-    elif match["outcome"] == results.PLAYER_2:
-        winner_id = match["p1_id"]
-        result = DB.get_players(user_id=winner_id).iloc[0]["username"]
-    elif match["outcome"] == results.CANCEL:
-        result = "cancelled"
-    elif match["outcome"] == results.DRAW:
-        result = "draw"
+    p1_elo = match["p1_elo"]
+    p2_elo = match["p2_elo"]
+
+    for i in updated_players:
+        if i == p1_id:
+            p1_elo = updated_players[i]
+            matches.loc[match_id, "p1_elo"] = p1_elo
+
+        if i == p2_id:
+            p2_elo = updated_players[i]
+            matches.loc[match_id, "p2_elo"] = p2_elo
+
+    outcome = match["outcome"]
+    if new_outcome is not None:
+        outcome = new_outcome
+        matches.loc[match_id, "outcome"] = new_outcome
+
+    #If this match should be affected in any way, calculate the players' new elos. If not, move on to the next match
+    if p1_id in updated_players.keys() or p2_id in updated_players.keys() or new_outcome is not None:
+
+        if not matches.loc[match_id, "p1_is_ranked"]: #only determine whether they're ranked if they're not already ranked
+            matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
+
+        if not matches.loc[match_id, "p2_is_ranked"]:
+            matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
+
+        if matches.loc[match_id, "p1_is_ranked"]:
+            p1_elo_after = p1_elo + calc_elo_change(p1_elo, p2_elo, outcome)[0]
+        else:
+            p1_elo_after = p2_elo + calc_prov_elo(p1_elo, p2_elo, outcome)[1]
+
+        if matches.loc[match_id, "p2_is_ranked"]:
+            p2_elo_after = p1_elo + calc_elo_change(p2_elo, p1_elo, outcome)[0]
+        else:
+            p2_elo_after = p2_elo + calc_prov_elo(p2_elo, p1_elo, outcome)[1]
+
+        updated_players[p1_id] = p1_elo_after
+        updated_players[p2_id] = p2_elo_after
+
+    # do the same to the next match
+    if matches[match_id+1:].empty:
+        return matches, updated_players
     else:
-        result = "undecided"
-
-    response_embed = Custom_Embed(type=Embed_Type.INFO, title=f"Match {str(match.name)} Outcome", description=f"{result}")
-
-    await ctx.edit_initial_response(embed=response_embed)
+        return update_match(matches, match_id + 1, updated_players=updated_players)
 
 
-async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client), staff_declared=None):
+def determine_is_ranked(all_matches, player_id, latest_match_id):
+    """
+        Counts all the matches the player has played in before the current match that weren't cancelled or undecided
+        if they have played enough matches, they are ranked
+    """
+
+    player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]\
+    .loc[all_matches.index <= latest_match_id]\
+    .loc[np.logical_or(all_matches["outcome"] == Result.PLAYER_1, all_matches["outcome"] == Result.PLAYER_2, all_matches["outcome"] == Result.DRAW)]
+
+    return len(player_matches) >= Config.NUM_UNRANKED_MATCHES
+
+
+def get_provisional_game_results(all_matches, player_id, latest_match_id): #TODO: support draws
+
+    player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
+    player_matches = player_matches.loc[player_matches.index <= latest_match_id]
+
+    results = []
+
+    for match_id, match in player_matches.iterrows():
+        if match["outcome"] == Result.CANCEL or match["outcome"] == Result.DRAW or match["outcome"] == Result.UNDECIDED or match["outcome"] is None:
+            continue
+
+        if match["p1_id"] == player_id:
+            winning_outcome = Result.PLAYER_1
+            opponent_elo = match["p2_elo"]
+        else:
+            winning_outcome = Result.PLAYER_2
+            opponent_elo = match["p1_elo"]
+
+        if match["outcome"] == winning_outcome:
+            results.append(("win", opponent_elo))
+        else:
+            results.append(("loss", opponent_elo))
+
+    return results
+
+
+
+async def set_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client), staff_declared=None):
 
     DB = Database(ctx.guild_id)
 
@@ -111,14 +204,11 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, clien
 
     if match["outcome"] == new_outcome:
         return await ctx.edit_initial_response("Outcome is already " + str(new_outcome))
-
-    #make sure this is the most recent match for both players
-    p1_latest_match = DB.get_matches(user_id=p1["user_id"]).iloc[0].name
-    p2_latest_match = DB.get_matches(user_id=p2["user_id"]).iloc[0].name
-
-    if p1_latest_match != match.name or p2_latest_match != match.name:
-        await ctx.edit_initial_response("Unable to change old match results")# Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
         return
+
+    matches = DB.get_matches()
+    update_match(matches, match["match_id"], new_outcome)
+
 
     standard_elo_change = calc_elo_change(match["p1_elo"], match["p2_elo"], new_outcome)
 
@@ -162,7 +252,6 @@ async def update_match_outcome(ctx:tanjun.abc.Context, match, new_outcome, clien
 
     if p2_ranked_after:
         p2["is_ranked"] = p2_ranked_after
-
 
     print("p1 ranked before: ", match["p1_is_ranked"])
     print("p1 ranked after: ", p1["is_ranked"])
