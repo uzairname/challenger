@@ -115,7 +115,7 @@ class Database:
             cur_filter["match_id"] = {"$lte":up_to_match}
 
         sort_order = 1 if from_first else -1
-        cur = self.guildDB[self.matches_tbl].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order) #sort by match_id, descending
+        cur = self.guildDB[self.matches_tbl].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order)
         if number:
             cur.limit(number)
 
@@ -132,9 +132,9 @@ class Database:
         if prev_match.empty:
             new_id = 0
         else:
-            new_id = prev_match.iloc[0]["match_id"] + 1
+            new_id = prev_match.iloc[0].name + 1
 
-        match_df = pd.DataFrame([[new_id]], columns=["match_id"])
+        match_df = pd.DataFrame([[new_id]], columns=["match_id"]).set_index("match_id")
         new_match = pd.concat([self.EMPTY_MATCH, match_df]).iloc[0]
         return new_match
 

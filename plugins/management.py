@@ -91,7 +91,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @check_errors
 @take_input(input_instructions=config_lobby_instructions)
 @ensure_staff
-async def config_lobby(ctx, event, action, name, roles, channel, **kwargs) -> hikari.Embed:
+async def config_lobby(ctx, event, action, name, roles, channel, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
 
     DB = Database(ctx.guild_id)
 
@@ -141,7 +141,7 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
     staff_role = DB.get_config()["staff_role"]
 
     if staff_role is None:
-        staff_list = "No staff role specified. Anyone with the manage server permission is considered staff"
+        staff_list = "No staff role specified. Anyone with the \"manage server\" permission is considered staff"
     else:
         staff_list = "Current staff role: <@&" + str(staff_role) + ">\nStaff:"
         members = client.rest.fetch_members(ctx.guild_id)
@@ -171,6 +171,10 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
 
     return embed
 
+
+def get_client(client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
+    return client
+
 @component.with_slash_command
 @tanjun.with_role_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
@@ -178,7 +182,7 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
 @check_errors
 @take_input(input_instructions=config_staff_instructions)
 @ensure_staff
-async def config_staff(ctx: tanjun.abc.Context, event, action, role, **kwargs) -> hikari.Embed:
+async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
 
     DB = Database(ctx.guild_id)
 
@@ -242,7 +246,7 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @check_errors
 @take_input(input_instructions=config_elo_roles_instructions)
 @ensure_staff
-async def config_elo_roles(ctx, event, min_elo, max_elo, role, **kwargs) -> hikari.Embed:
+async def config_elo_roles(ctx, event, min_elo, max_elo, role, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
 
     def process_response():
         input_params = InputParams(str(role))
@@ -309,7 +313,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 @tanjun.as_slash_command("config-results-channel", "Set a results channel", default_to_ephemeral=False, always_defer=True)
 @check_errors
 @take_input(input_instructions=config_results_channel_instructions)
-async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=Bot), **kwargs):
+async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
 
     def process_repsonse():
         input_params = InputParams(str(channel))

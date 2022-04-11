@@ -8,13 +8,9 @@ from config import *
 
 import typing
 
-import math
 import numpy as np
 import pandas as pd
 import re
-import sympy as sp
-
-
 
 
 # def get_client_callback(client=tanjun.injected(type=hikari.GatewayBot)):
@@ -94,7 +90,6 @@ class InputParams():
         self.users = np.array(re.findall(user_pat, input_string)).astype("int64")
         self.text = name
 
-
     def describe(self):
 
         description = ""
@@ -130,7 +125,6 @@ def check_errors(func):
             await ctx.respond(Custom_Embed(Embed_Type.ERROR, description="```" + str(e) + "\n```"))
             logging.error(f"Error in {func.__name__}", exc_info=True)
     return wrapper_check_errors
-
 
 
 def ensure_registered(func):
@@ -209,7 +203,7 @@ def take_input(input_instructions:typing.Callable):
         input_instructions: function that takes in a tanjun.abc.Context, Database, and/or additional kwargs and returns an embed to show before user confirms their input
     """
 
-    def decorator_take_input(func):
+    def wrapper_take_input(func):
 
         @functools.wraps(func)
         async def wrapper(ctx, bot, **kwargs):
@@ -242,4 +236,4 @@ def take_input(input_instructions:typing.Callable):
             await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])
 
         return wrapper
-    return decorator_take_input
+    return wrapper_take_input

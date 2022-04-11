@@ -39,6 +39,7 @@ async def update_match(matches, match_id, new_result = None, updated_players=Non
 #join the queue
 @component.with_slash_command
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
+@check_errors
 @ensure_registered
 @check_for_queue
 async def join_q(ctx: tanjun.abc.Context, queue) -> None:
@@ -86,7 +87,7 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
         queue["player"] = None
         DB.upsert_queue(queue)
 
-        await start_new_match(ctx, queue, p1_info, p2_info)
+        await start_new_match(ctx, p1_info, p2_info)
 
 
 #leave queue
