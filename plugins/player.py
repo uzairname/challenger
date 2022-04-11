@@ -7,12 +7,12 @@ from utils.ELO import *
 component = tanjun.Component(name="player module")
 
 
-async def ensure_registered(ctx: tanjun.abc.Context, DB:Database):
-    player_info = DB.get_players(user_id=ctx.author.id)
-    if player_info.empty:
-        await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
-        return None
-    return player_info
+# async def ensure_registered(ctx: tanjun.abc.Context, DB:Database):
+#     player_info = DB.get_players(user_id=ctx.author.id)
+#     if player_info.empty:
+#         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
+#         return None
+#     return player_info
 
 
 @component.with_slash_command
@@ -49,34 +49,30 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
 
 @component.with_slash_command
-@tanjun.with_str_slash_option("player", "their mention", default=None)
-@tanjun.as_slash_command("stats", "view your stats", default_to_ephemeral=True)
+@tanjun.with_own_permission_check(hikari.Permissions.MANAGE_GUILD)
+@tanjun.with_member_slash_option("player", "their mention", default=None)
+@tanjun.as_slash_command("stats", "view your or someone else's stats", default_to_ephemeral=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
-    await ctx.respond("plese wait")
+    await ctx.respond("...")
 
     DB = Database(ctx.guild_id)
 
     #get the selected player
     if player:
-        input_users = InputParams(str(player)).users
-        if len(input_users) != 1:
-            await ctx.edit_initial_response("Enter a valid player id")
-            return
-
-        players = DB.get_players(user_id=input_users[0])
-        if players.empty:
-            await ctx.edit_initial_response("Unknown or unregistered player")
-            return
-        player = players.iloc[0]
+        member = player
+        players = DB.get_players(user_id=player.id)
     else:
-        player = await ensure_registered(ctx, DB)
-        if player is None:
-            return
-        player = player.iloc[0]
+        member = ctx.member
+        players = DB.get_players(user_id=ctx.author.id)
 
+    try:
+        player = players.iloc[0]
+    except IndexError:
+        await ctx.edit_initial_response("This player isn't registered")
+        return
 
-    matches = DB.get_matches(user_id=player["user_id"])
+    matches = DB.get_matches(user_id=player.name)
 
     total_draws = 0
     total_wins = 0
@@ -85,8 +81,8 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         if match["outcome"] == Result.DRAW:
             total_draws += 1
 
-        winning_result = Result.PLAYER_1 if match["player_1"] == player["user_id"] else Result.PLAYER_2
-        losing_result = Result.PLAYER_2 if match["player_1"] == player["user_id"] else Result.PLAYER_1
+        winning_result = Result.PLAYER_1 if match["p1_id"] == player.name else Result.PLAYER_2
+        losing_result = Result.PLAYER_2 if match["p1_id"] == player.name else Result.PLAYER_1
 
         if match["outcome"] == winning_result:
             total_wins += 1
@@ -97,7 +93,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     if not player["is_ranked"]:
         displayed_elo += "? (unranked)"
 
-    stats_embed = hikari.Embed(title=f"{player['tag']}", description="Stats", color=Colors.PRIMARY)
+    stats_embed = Custom_Embed(type=Embed_Type.INFO, title=f"{player['tag']}'s Stats", description="*_ _*").set_thumbnail(member.avatar_url)
     stats_embed.add_field(name="Elo", value=displayed_elo)
     stats_embed.add_field(name="Total matches", value=f"{matches.shape[0]}")
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)

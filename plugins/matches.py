@@ -68,8 +68,8 @@ async def match_history_cmd(ctx: tanjun.abc.Context) -> None:
 
     for match_id, match in matches.iterrows():
 
-        p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["username"]
-        p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]
+        p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
+        p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
 
         p1_prior_elo_message = str(round(match["p1_elo"]))
         if not match["p1_is_ranked"]:
