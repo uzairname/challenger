@@ -1,7 +1,6 @@
-import typing
-
 from utils.utils import *
 from config import Config
+import math
 
 
 def calc_elo_change(p1_elo, p2_elo, result:Result) -> typing.List[float]:

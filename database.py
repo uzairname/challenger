@@ -1,3 +1,5 @@
+import typing
+
 import pymongo
 import config
 import os
@@ -7,7 +9,7 @@ import numpy as np
 
 class Database:
 
-    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "staff"])
+    EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "staff"]).set_index("user_id")
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "outcome", "staff_declared",
                                             "p1_id", "p1_elo", "p1_declared", "p1_is_ranked",
                                             "p2_id", "p2_elo", "p2_declared", "p2_is_ranked"]).set_index("match_id")
@@ -53,10 +55,12 @@ class Database:
 
     #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
 
-    def get_players(self, user_id=None, staff=None, top_by_elo=None) -> pd.DataFrame:
+    def get_players(self, user_id=None, user_ids:typing.List=None, staff=None, top_by_elo=None) -> pd.DataFrame:
 
         #dataframe of all players
         cur_filter = {}
+        if user_ids is not None:
+            cur_filter["user_id"] = {"$in": user_ids}
         if user_id:
             cur_filter["user_id"] = int(user_id)
         if staff:
@@ -70,18 +74,21 @@ class Database:
             cur.limit(top_by_elo[1])
 
         players_df = pd.DataFrame(list(cur))
+        if not players_df.empty:
+            players_df.set_index("user_id", inplace=True)
         full_players_df = pd.concat([self.EMPTY_PLAYER, players_df])[self.EMPTY_PLAYER.columns].replace(np.nan, None)
-        return full_players_df.reset_index(drop=True)
+        return full_players_df
 
     def get_new_player(self, user_id) -> pd.Series:
-        new_player = pd.concat([self.EMPTY_PLAYER, pd.DataFrame([[user_id]], columns=["user_id"])]).iloc[0]
+        player_df = pd.DataFrame([[user_id]], columns=["user_id"]).set_index("user_id")
+        new_player = pd.concat([self.EMPTY_PLAYER, player_df]).iloc[0]
         return new_player
 
     def upsert_player(self, player:pd.Series): #takes a series returned from get_players or new_player
 
         player = player.replace(np.nan, None)
 
-        player["user_id"] = int(player["user_id"])
+        player["user_id"] = int(player.name)
         if player["staff"] is not None:
             player["staff"] = int(player["staff"])
         if player["elo"] is not None:
@@ -91,8 +98,8 @@ class Database:
         self.guildDB[self.players_tbl].update_one({"user_id":playerdict["user_id"]}, {"$set":playerdict}, upsert=True)
 
     def upsert_players(self, players:pd.DataFrame):
-        for i in players.index:
-            self.upsert_player(players.iloc[i])
+        for i, row in players.iterrows():
+            self.upsert_player(row)
 
 
     def get_matches(self, user_id=None, match_id=None, from_match=None, up_to_match=None, number=None, from_first=False) -> pd.DataFrame:
@@ -123,7 +130,6 @@ class Database:
         if not matches_df.empty:
             matches_df.set_index("match_id", inplace=True)
         full_matches_df = pd.concat([self.EMPTY_MATCH, matches_df])[self.EMPTY_MATCH.columns].replace(np.nan, None)
-
         return full_matches_df
 
     def get_new_match(self) -> pd.Series:
@@ -138,19 +144,10 @@ class Database:
         new_match = pd.concat([self.EMPTY_MATCH, match_df]).iloc[0]
         return new_match
 
-    # def create_new_match(self):
-    #     prev_match = self.get_matches(number=1)
-    #     if prev_match.empty:
-    #         new_id = 0
-    #     else:
-    #         new_id = prev_match.iloc[0]["match_id"] + 1
-    #
-    #     prev_match.loc[new_id, "match_id"] = new_id
-    #     self.upsert_matches(prev_match)
 
     def upsert_match(self, match:pd.Series):
         match["match_id"] = match.name #match_id is the index of the match
-        match = match.replace(np.nan, None) #all DB updates should go throughh this. this takes care of fixing the types
+        match = match.replace(np.nan, None) #replace nan with none fixes the types. set dtype to object
 
         match["match_id"] = int(match["match_id"])
         if match["p1_id"] is not None:
@@ -215,7 +212,6 @@ class Database:
 
     def upsert_config(self, config:pd.Series): # takes a series returned from get_config
         configdict = config.to_dict()
-        # print("configdict:\n", config, "\n",configdict)
         self.guildDB[self.config_tbl].update_one({}, {"$set":configdict}, upsert=True)
 
     def upsert_elo_roles(self, elo_roles_df:pd.DataFrame):

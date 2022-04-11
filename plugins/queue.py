@@ -14,15 +14,15 @@ component = tanjun.Component(name="queue module")
 async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
     DB = Database(ctx.guild_id)
 
-    p1_ping = "<@" + str(p1_info["user_id"]) + ">"
-    p2_ping = "<@" + str(p2_info["user_id"]) + ">"
+    p1_ping = "<@" + str(p1_info.name) + ">"
+    p2_ping = "<@" + str(p2_info.name) + ">"
 
     p1_is_ranked = p1_info["is_ranked"]
     p2_is_ranked = p2_info["is_ranked"]
 
     new_match = DB.get_new_match()
     new_match[["time_started", "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = \
-        [datetime.now(), p1_info["user_id"], p2_info["user_id"], p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
+        [datetime.now(), p1_info.name, p2_info.name, p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
 
     DB.upsert_match(new_match)
 
