@@ -12,12 +12,12 @@ from hikari.interactions.base_interactions import ResponseType
 component = tanjun.Component(name="hi module")
 
 
+
 bot_todo = """
 
 **In order of priority**
 
 in order of priority: 
-• Be able to change old matchs
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
@@ -45,9 +45,7 @@ Low priority:
 
 bot_features = """
 Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search
-
 Ability to change old match results. When your elo change depends on the elo difference, fixing the result of an old match (for whatever reason, maybe it was declared wrong or someone was caught boosting and their impact needs to be reverted) has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo.
-
 Support for tournaments
 
 Best of 3 and 5
@@ -89,23 +87,22 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
 
 
 
-
 @component.with_slash_command
 @tanjun.as_slash_command("about", "About", default_to_ephemeral=True)
 async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY)
-    about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands")
-    about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
-    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})")
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(ctx.author.avatar_url)
+    about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
+    about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition", inline=True)
+    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})" , inline=True)
     about_embed.set_footer("By Lilapela#1234")
 
-    notes_embed = hikari.Embed(title="Notes", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
-    notes_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
-    notes_embed.add_field(name="Possible Future Features", value=bot_features)
-    notes_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
+    todo_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
+    todo_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
+    todo_embed.add_field(name="Possible Future Features", value=bot_features)
+    todo_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
 
-    pages = {"About": about_embed, "Notes": notes_embed}
+    pages = {"About": about_embed, "Todo": todo_embed}
 
     page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
     for i in pages:

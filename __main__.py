@@ -37,6 +37,8 @@ class Bot (hikari.GatewayBot):
     async def on_started(self, event):
         self.start_time = time.time()
 
+        await self.rest.edit_my_user(username="Challenger")
+
         if os.environ.get('DSP') == "Production":
             logging.info("███ Bot is in the production environment")
             commands = await self.client.declare_global_commands(force=True)
