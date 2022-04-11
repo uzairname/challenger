@@ -144,80 +144,6 @@ async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanju
     return await set_match_outcome(ctx, match.name, outcome, client, staff_declared=True)
 
 
-def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=None):
-    """
-    params:
-        matches: a dataframe of matches. must have columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome"
-        match_id: the match id of the match to be updated
-        new_outcome: the outcome of the match
-    """
-
-    _updated_players = _updated_players or {}
-
-    match = matches.loc[match_id]
-
-    p1_id = match["p1_id"]
-    p2_id = match["p2_id"]
-
-    p1_elo = match["p1_elo"]
-    p2_elo = match["p2_elo"]
-
-    for i in _updated_players:
-        if i == p1_id:
-            p1_elo = _updated_players[i]
-            matches.loc[match_id, "p1_elo"] = p1_elo
-
-        if i == p2_id:
-            p2_elo = _updated_players[i]
-            matches.loc[match_id, "p2_elo"] = p2_elo
-
-    outcome = match["outcome"]
-    if new_outcome is not None:
-        outcome = new_outcome
-        matches.loc[match_id, "outcome"] = new_outcome
-
-    #If this match should be affected in any way, calculate the players' new elos. If not, move on to the next match
-    if p1_id in _updated_players.keys() or p2_id in _updated_players.keys() or new_outcome is not None:
-
-        #ranked: whether their elo before the match was ranked
-        if not matches.loc[match_id, "p1_is_ranked"]:  # only determine whether they're ranked if they're not already ranked
-            matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, before_match=match_id)
-
-        if not matches.loc[match_id, "p2_is_ranked"]:
-            matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, before_match=match_id)
-
-        if matches.loc[match_id, "p1_is_ranked"]:
-            p1_elo_after = p1_elo + calc_elo_change(p1_elo, p2_elo, outcome)[0]
-        else:
-            p1_elo_after = p1_elo + calc_prov_elo(p1_elo, p2_elo, outcome)[0]
-
-        if matches.loc[match_id, "p2_is_ranked"]:
-            p2_elo_after = p2_elo + calc_elo_change(p2_elo, p1_elo, outcome)[1]
-        else:
-            p2_elo_after = p2_elo + calc_prov_elo(p2_elo, p1_elo, outcome)[1]
-
-        _updated_players[p1_id] = p1_elo_after
-        _updated_players[p2_id] = p2_elo_after
-
-    # do the same to the next match
-    if matches[match_id+1:].empty:
-        return matches, _updated_players
-    else:
-        return calculate_new_elos(matches, match_id + 1, _updated_players=_updated_players)
-
-
-def determine_is_ranked(all_matches, player_id, before_match):
-    """
-        Counts all the matches the player has played in before the current match that weren't cancelled or undecided
-        if they have played enough matches, they are ranked
-    """
-
-    player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
-    player_matches = player_matches.loc[player_matches.index < before_match]\
-    .loc[np.logical_or(player_matches["outcome"] == Result.PLAYER_1, player_matches["outcome"] == Result.PLAYER_2, player_matches["outcome"] == Result.DRAW)]
-
-    return len(player_matches) >= Config.NUM_UNRANKED_MATCHES
-
 
 def get_provisional_game_results(all_matches, player_id, latest_match_id): #TODO: support draws
 
@@ -243,6 +169,87 @@ def get_provisional_game_results(all_matches, player_id, latest_match_id): #TODO
             results.append(("loss", opponent_elo))
 
     return results
+
+
+
+def determine_is_ranked(all_matches, player_id, before_match):
+    """
+        Counts all the matches the player has played in before the current match that weren't cancelled or undecided
+        if they have played enough matches, they are ranked
+    """
+
+    player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
+    player_matches = player_matches.loc[player_matches.index < before_match]\
+    .loc[np.logical_or(player_matches["outcome"] == Result.PLAYER_1, player_matches["outcome"] == Result.PLAYER_2, player_matches["outcome"] == Result.DRAW)]
+
+    return len(player_matches) >= Config.NUM_UNRANKED_MATCHES
+
+def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=None):
+    """
+    params:
+        matches: a dataframe of matches. must have columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome"
+        match_id: the match id of the match to be updated
+        new_outcome: the outcome of the match
+
+    returns:
+        a pd.DataFrame of each player's new elo and ranked status
+    """
+
+    if _updated_players is None:
+        _updated_players = pd.DataFrame([], columns=["user_id", "elo", "is_ranked"]).set_index("user_id")
+        print("empty: \n" + str(_updated_players))
+
+    match = matches.loc[match_id]
+
+    p1_id = match["p1_id"]
+    p2_id = match["p2_id"]
+
+    p1_elo = match["p1_elo"]
+    p2_elo = match["p2_elo"]
+
+    for user_id, player in _updated_players.iterrows():
+        if user_id == p1_id:
+            p1_elo = _updated_players.loc[user_id, "elo"]
+            matches.loc[match_id, "p1_elo"] = p1_elo
+
+        if user_id == p2_id:
+            p2_elo = _updated_players.loc[user_id, "elo"]
+            matches.loc[match_id, "p2_elo"] = p2_elo
+
+    outcome = match["outcome"]
+    if new_outcome is not None:
+        outcome = new_outcome
+        matches.loc[match_id, "outcome"] = new_outcome
+
+    #If this match should be affected in any way, calculate the players' new elos. If not, move on to the next match
+    if p1_id in _updated_players.index or p2_id in _updated_players.index or new_outcome is not None:
+
+        #ranked: whether their elo before the match was ranked
+        #determine whether they're ranked based on the updated matches before this one
+        #might be slow
+        matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, before_match=match_id)
+        _updated_players.loc[p1_id, "is_ranked"] = matches.loc[match_id, "p1_is_ranked"]
+        matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, before_match=match_id)
+        _updated_players.loc[p2_id, "is_ranked"] = matches.loc[match_id, "p2_is_ranked"]
+
+        if matches.loc[match_id, "p1_is_ranked"]:
+            p1_elo_after = p1_elo + calc_elo_change(p1_elo, p2_elo, outcome)[0]
+        else:
+            p1_elo_after = p1_elo + calc_prov_elo(p1_elo, p2_elo, outcome)[0]
+
+        if matches.loc[match_id, "p2_is_ranked"]:
+            p2_elo_after = p2_elo + calc_elo_change(p2_elo, p1_elo, outcome)[1]
+        else:
+            p2_elo_after = p2_elo + calc_prov_elo(p2_elo, p1_elo, outcome)[1]
+
+        _updated_players.loc[p1_id, "elo"] = p1_elo_after
+        _updated_players.loc[p2_id, "elo"] = p2_elo_after
+
+    # do the same to the next match
+    if matches[match_id+1:].empty:
+        return matches, _updated_players
+    else:
+        return calculate_new_elos(matches, match_id + 1, _updated_players=_updated_players)
 
 
 async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client), staff_declared=None):
@@ -277,32 +284,41 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
     if staff_declared:
         matches.loc[match_id, "staff_declared"] = new_outcome
 
-    updated_matches, players_elos_after = calculate_new_elos(matches, match.name, new_outcome)
+    updated_matches, updated_players = calculate_new_elos(matches, match.name, new_outcome)
 
     DB.upsert_matches(updated_matches)
 
-    players_elos_before = {}
+    players = DB.get_players(user_ids=list(updated_players.index))
 
-    players = DB.get_players(user_ids=list(players_elos_after.keys()))
+    players_before = players.loc[updated_players.index, updated_players.columns]
 
-    for i in players_elos_after:
-        players_elos_before[i] = DB.get_players(user_id=i).iloc[0]["elo"]
-        players.loc[i, "elo"] = players_elos_after[i]
+    players[updated_players.columns] = updated_players
+
 
     DB.upsert_players(players)
 
-
-
-    print(players_elos_before, "\n", players_elos_after)
+    print("Players before and updated:\n", players_before, "\nupdated:\n", updated_players)
 
     updated_players_message = ""
 
-    for i in players_elos_after:
-        updated_players_message += "<@" + str(i) + "> " + str(round(players_elos_before[i])) + " -> " + str(round(players_elos_after[i])) + "\n"
+    for index, row in updated_players.iterrows():
+        displayed_prior_elo = str(round(players_before.loc[index, "elo"]))
+        if not players_before.loc[index, "is_ranked"]:
+            displayed_prior_elo += "?"
+
+        displayed_updated_elo = str(round(updated_players.loc[index, "elo"]))
+        if not updated_players.loc[index, "is_ranked"]:
+            displayed_updated_elo += "?"
+
+        updated_players_message += "<@" + str(index) + "> " + displayed_prior_elo + " -> " + displayed_updated_elo + "\n"
 
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Outcome: **" + displayed_outcome + "**", description="*_ _*")
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Decided: **" + displayed_outcome + "**", description="*_ _*")
     embed.add_field(name="Updated Elo", value=updated_players_message)
+
+    if staff_declared:
+        embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
+
 
     config = DB.get_config()
     channel_id = config["results_channel"]
@@ -311,38 +327,6 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
         await ctx.get_channel().send("\nNo match announcements channel specified. Announcing here", embed=embed)
         return
     await client.rest.create_message(channel_id, embed=embed)
-
-
-    # p1_elo_change = str(round(p1_elo_after - match["p1_elo"], 1))
-    # if p1_elo_change[0] != "-":
-    #     p1_elo_change = "+" + p1_elo_change
-    # p2_elo_change = str(round(p2_elo_after - match["p2_elo"] , 1))
-    # if p2_elo_change[0] != "-":
-    #     p2_elo_change = "+" + p2_elo_change
-    #
-    # p1_prior_elo_message = str(round(match["p1_elo"]))
-    # if not match["p1_is_ranked"]:
-    #     p1_prior_elo_message += "?"
-    # p2_prior_elo_message = str(round(match["p2_elo"]))
-    # if not match["p2_is_ranked"]:
-    #     p2_prior_elo_message += "?"
-    #
-    # p1_elo_after_message = str(round(p1_elo_after))
-    # if not p1_ranked_after:
-    #     p1_elo_after_message += "?"
-    # p2_elo_after_message = str(round(p2_elo_after))
-    # if not p2_ranked_after:
-    #     p2_elo_after_message += "?"
-    #
-    # result_embed = hikari.Embed(title="Match " + str(match.name) + " results: " + str(new_outcome), description="", color=Colors.PRIMARY)
-    # result_embed.add_field(name="Player 1", value=p1_ping + ": " + p1_prior_elo_message + " (" + p1_elo_change + ")" + " -> " + p1_elo_after_message, inline=True)
-    # result_embed.add_field(name="Player 2", value=p2_ping + ": " + p2_prior_elo_message + " (" + p2_elo_change + ")" + " -> " + p2_elo_after_message, inline=True)
-    #
-    # if staff_declared:
-    #     result_embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
-
-    # #send the announcement message
-
 
 
 @tanjun.as_loader
