@@ -27,10 +27,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
     tag = ctx.author.username + "#" + ctx.author.discriminator
 
-    if ctx.member.nickname is not None:
-        name = ctx.member.nickname
-    else:
-        name = ctx.author.username
+    name = ctx.member.nickname or ctx.member.username
 
     if players.empty:
         player = DB.get_new_player(ctx.author.id)
@@ -38,8 +35,8 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["tag"] = tag
         player["time_registered"] = datetime.now()
         player["is_ranked"] = False
-        player["elo"] = DEFAULT_ELO
-        player["staff"] = status.NONE
+        player["elo"] = Config.DEFAULT_ELO
+        player["staff"] = Status.NONE
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return
@@ -85,21 +82,20 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     total_wins = 0
     total_losses = 0
     for index, match in matches.iterrows():
-        if match["outcome"] == results.DRAW:
+        if match["outcome"] == Result.DRAW:
             total_draws += 1
 
-        winning_result = results.PLAYER_1 if match["player_1"] == player["user_id"] else results.PLAYER_2
-        losing_result = results.PLAYER_2 if match["player_1"] == player["user_id"] else results.PLAYER_1
+        winning_result = Result.PLAYER_1 if match["player_1"] == player["user_id"] else Result.PLAYER_2
+        losing_result = Result.PLAYER_2 if match["player_1"] == player["user_id"] else Result.PLAYER_1
 
         if match["outcome"] == winning_result:
             total_wins += 1
         elif match["outcome"] == losing_result:
             total_losses += 1
 
-
     displayed_elo = str(round((player["elo"]),2))
     if not player["is_ranked"]:
-        displayed_elo += " (unranked)"
+        displayed_elo += "? (unranked)"
 
     stats_embed = hikari.Embed(title=f"{player['tag']}", description="Stats", color=Colors.PRIMARY)
     stats_embed.add_field(name="Elo", value=displayed_elo)

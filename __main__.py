@@ -1,11 +1,14 @@
 import os
+
 from __init__ import *
+from config import Config
 import logging
 import hikari
 import tanjun
 import time
 from database import Database
 import pandas as pd
+
 
 class Bot (hikari.GatewayBot):
 
@@ -19,19 +22,19 @@ class Bot (hikari.GatewayBot):
         self.subscribe(hikari.StartedEvent, self.on_started)
         self.subscribe(hikari.GuildAvailableEvent, self.on_guild_available)
 
-        activity=hikari.presences.Activity(name= "bloons lets go!!", type=hikari.presences.ActivityType(value=5))
+        activity=hikari.presences.Activity(name= "bloons!", type=hikari.presences.ActivityType(value=5))
 
         super().run(activity=activity)
 
     def create_client(self):
         self.client = (tanjun.Client.from_gateway_bot(self))
-        self.client.load_modules("plugins.bot_related", "plugins.queue", "plugins.player", "plugins.management")
+        self.client.load_modules("plugins.about", "plugins.queue", "plugins.player", "plugins.management", "plugins.matches", "plugins.misc")
         self.client.set_auto_defer_after(1)
 
-    async def on_starting(self, evetn:hikari.StartingEvent):
+    async def on_starting(self, event):
         logging.info("█ starting")
 
-    async def on_started(self, event:hikari.StartedEvent):
+    async def on_started(self, event):
         self.start_time = time.time()
 
         if os.environ.get('DSP') == "Production":
@@ -66,7 +69,16 @@ if __name__ == "__main__":
     # bot = PelaBot(os.environ.get("DISCORD_TOKEN"))
 
     if debug:
-        DB = Database(TESTING_GUILD_ID)
+
+
+        DB = Database(Config.testing_guild_id)
         DB.setup_test()
+
+        # player_id = np.array([623257053879861248])[0]
+        # num_matches=3
+        # all_matches = DB.get_matches()
+        # print(all_matches)
+        #
+        # results = matches.get_provisional_game_results(all_matches=all_matches, player_id=player_id, latest_match_id=3)
 
     bot.run()

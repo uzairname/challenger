@@ -2,6 +2,7 @@ import hikari
 
 from utils.utils import *
 from __init__ import *
+import config
 from __main__ import Bot
 # from __main__ import bot
 import time
@@ -16,13 +17,18 @@ bot_todo = """
 **In order of priority**
 
 in order of priority: 
-• Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
+• Be able to change old matchs
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• Automatically assign roles based on Elo
-• Command to reset all server data in bot
+• add permission checks to commands
+• limit bots permissions
+• Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • remove player from queue after 10 mins
+• Automatically assign roles based on Elo
+
+Low priority:
+• Command to reset all data in bot
 • /history show your recent matches
 • Automatically register players on commands
 • see distribution of everyone's elo
@@ -46,6 +52,7 @@ Support for tournaments
 
 Best of 3 and 5
 """
+# Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
 
 @component.with_slash_command
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
@@ -59,7 +66,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
     util_embed.add_field(name="Bot related", value="`/about` - Get information about the bot\n`/help` - Get help on how to use the bot\n`/uptime` - See how long since the bot's last reset\n`/ping` - Check the bot's response time\n")
 
     staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=Colors.PRIMARY)
-    staff_embed.add_field(name="Configurating settings", value="`/config-help` - Detailed help on staff config commands, which include:\n`/config-lobby`, `/config-staff`, `/config-eloroles`")
+    staff_embed.add_field(name="Staff settings", value="`/config-help` - Detailed help on staff config commands, which include:\n`/config-lobby`, `/config-staff`, `/config-eloroles`")
     staff_embed.add_field(name="Matches", value="/`setmatch` - force a match's result, in the event of a dispute or mistake\n`/reset` Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season")
 
     pages = {"Basics": basics_embed, "Staff Commands":staff_embed, "Utility":util_embed}
@@ -88,9 +95,9 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
 async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY)
-    about_embed.add_field(name=f"How to use", value=f"Use `/help` to learn how to use the bot")
+    about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands")
     about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
-    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({INVITE_LINK})")
+    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})")
     about_embed.set_footer("By Lilapela#1234")
 
     notes_embed = hikari.Embed(title="Notes", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
