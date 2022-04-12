@@ -55,7 +55,7 @@ class Bot (hikari.GatewayBot, ABC):
         else:
             logging.info("Bot is in a testing environment")
             self.client.load_modules("plugins.demo")
-            await self.client.declare_global_commands(guild=TESTING_GUILD_ID, force=True)
+            await self.client.declare_global_commands(guild=Config.testing_guild_id, force=True)
 
 
 bot = Bot(os.environ.get('DISCORD_TOKEN'))

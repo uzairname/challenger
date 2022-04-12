@@ -9,7 +9,7 @@ component = tanjun.Component(name="matches module")
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
-@tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=True, always_defer=True)
+@tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False, always_defer=True)
 @check_errors
 @ensure_registered
 async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.injected(type=tanjun.abc.Client)) -> None:
@@ -69,61 +69,76 @@ async def match_history_cmd(ctx: tanjun.abc.Context) -> None:
     embeds = []
 
     for match_id, match in matches.iterrows():
-
-        p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
-        p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
-
-        p1_prior_elo_message = str(round(match["p1_elo"]))
-        if not match["p1_is_ranked"]:
-            p1_prior_elo_message += "?"
-        p2_prior_elo_message = str(round(match["p2_elo"]))
-        if not match["p2_is_ranked"]:
-            p2_prior_elo_message += "?"
-
-        if match["outcome"] == Result.PLAYER_1:
-            winner_id = match["p1_id"]
-            result = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
-        elif match["outcome"] == Result.PLAYER_2:
-            winner_id = match["p2_id"]
-            result = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
-        elif match["outcome"] == Result.CANCEL:
-            result = "Cancelled"
-        elif match["outcome"] == Result.DRAW:
-            result = "Draw"
-        else:
-            result = "Undecided"
-
-        embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match.name))
-
-        result_declared = "Undecided"
-        if match["p1_declared"] == Result.PLAYER_1:
-            p1_declared = "Declared win"
-        elif match["p1_declared"] == Result.PLAYER_2:
-            p1_declared = "Declared loss"
-        elif match["p1_declared"] is None:
-            p1_declared = "Didn't declare"
-        else:
-            p1_declared = match["p1_declared"]
-        if match["p2_declared"] == Result.PLAYER_2:
-            p2_declared = "Declared win"
-        elif match["p2_declared"] == Result.PLAYER_1:
-            p2_declared = "Declared loss"
-        elif match["p2_declared"] is None:
-            p2_declared = "Didn't declare"
-        else:
-            p2_declared = match["p2_declared"]
-
-        embed.add_field(name=result, value="*_ _*")
-
-        embed.add_field(name=str(p1_name), value="Elo: " + p1_prior_elo_message + "\n " + p1_declared, inline=True)
-        embed.add_field(name="vs", value="*_ _*", inline=True)
-        embed.add_field(name=str(p2_name), value="Elo: " + p2_prior_elo_message + "\n " + p2_declared, inline=True)
-
-        embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")
-
+        embed = match_description_embed(match, DB)
         embeds.append(embed)
 
     await ctx.edit_initial_response(embeds=embeds)
+
+
+def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
+
+    p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
+    p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
+
+    p1_prior_elo_message = str(round(match["p1_elo"]))
+    if not match["p1_is_ranked"]:
+        p1_prior_elo_message += "?"
+    p2_prior_elo_message = str(round(match["p2_elo"]))
+    if not match["p2_is_ranked"]:
+        p2_prior_elo_message += "?"
+
+    p1_after_elo_displayed = str(round(match["p1_elo_after"]))
+    if not match["p1_is_ranked_after"]:
+        p1_after_elo_displayed += "?"
+    p2_after_elo_displayed = str(round(match["p2_elo_after"]))
+    if not match["p2_is_ranked_after"]:
+        p2_after_elo_displayed += "?"
+
+    if match["outcome"] == Result.PLAYER_1:
+        winner_id = match["p1_id"]
+        result = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
+    elif match["outcome"] == Result.PLAYER_2:
+        winner_id = match["p2_id"]
+        result = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
+    elif match["outcome"] == Result.CANCEL:
+        result = "Cancelled"
+    elif match["outcome"] == Result.DRAW:
+        result = "Draw"
+    else:
+        result = "Undecided"
+
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match.name))
+
+    result_declared = "Undecided"
+    if match["p1_declared"] == Result.PLAYER_1:
+        p1_declared = "Declared win"
+    elif match["p1_declared"] == Result.PLAYER_2:
+        p1_declared = "Declared loss"
+    elif match["p1_declared"] is None:
+        p1_declared = "Didn't declare"
+    else:
+        p1_declared = match["p1_declared"]
+    if match["p2_declared"] == Result.PLAYER_2:
+        p2_declared = "Declared win"
+    elif match["p2_declared"] == Result.PLAYER_1:
+        p2_declared = "Declared loss"
+    elif match["p2_declared"] is None:
+        p2_declared = "Didn't declare"
+    else:
+        p2_declared = match["p2_declared"]
+
+    embed.add_field(name=result, value="*_ _*")
+
+    embed.add_field(name=str(p1_name), value="Elo: " + p1_prior_elo_message + "\n " + p1_declared, inline=True)
+    embed.add_field(name="vs", value="*_ _*", inline=True)
+    embed.add_field(name=str(p2_name), value="Elo: " + p2_prior_elo_message + "\n " + p2_declared, inline=True)
+
+    embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")
+
+    return embed
+
+
+
 
 
 @component.with_slash_command
@@ -209,9 +224,9 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
     #If this match should be affected in any way, calculate the players' new elos. If not, move on to the next match
     if p1_id in _updated_players.index or p2_id in _updated_players.index or new_outcome is not None:
 
+        #By default their prior elo is what it is in the database. If it changed, update it
         p1_elo = match["p1_elo"]
         p2_elo = match["p2_elo"]
-
         for user_id, player in _updated_players.iterrows():
             if user_id == p1_id:
                 p1_elo = _updated_players.loc[user_id, "elo"]
@@ -226,13 +241,6 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
             outcome = new_outcome
             matches.loc[match_id, "outcome"] = new_outcome
 
-        #determine whether they're ranked based on the updated matches before this one
-        matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id-1)
-        matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id-1)
-        matches.loc[match_id, "p1_is_ranked_after"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
-        matches.loc[match_id, "p2_is_ranked_after"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
-
-
         if matches.loc[match_id, "p1_is_ranked"]:
             p1_elo_after = p1_elo + calc_elo_change(p1_elo, p2_elo, outcome)[0]
         else:
@@ -243,10 +251,20 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
         else:
             p2_elo_after = p2_elo + calc_prov_elo(p2_elo, p1_elo, outcome)[1]
 
+        matches.loc[match_id, "p1_elo_after"] = p1_elo_after
+        matches.loc[match_id, "p2_elo_after"] = p2_elo_after
+
+        #determine whether they're ranked based on the updated matches before this one
+        matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id-1)
+        matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id-1)
+        matches.loc[match_id, "p1_is_ranked_after"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
+        matches.loc[match_id, "p2_is_ranked_after"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
+
         _updated_players.loc[p1_id, "elo"] = p1_elo_after
         _updated_players.loc[p2_id, "elo"] = p2_elo_after
         _updated_players.loc[p1_id, "is_ranked"] = matches.loc[match_id, "p1_is_ranked_after"]
         _updated_players.loc[p2_id, "is_ranked"] = matches.loc[match_id, "p2_is_ranked_after"]
+
 
     # do the same to the next match
     if matches[match_id+1:].empty:
@@ -272,8 +290,7 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
     elif new_outcome == Result.DRAW:
         displayed_outcome = "Draw"
     else:
-        displayed_outcome = "Undecided"
-
+        displayed_outcome = "Ongoing" #undecided, or ongoing
 
     try:
         p1 = DB.get_players(user_id=match["p1_id"]).iloc[0]
@@ -315,7 +332,7 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
         updated_players_message += "<@" + str(index) + "> " + displayed_prior_elo + " -> " + displayed_updated_elo + "\n"
 
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Decided: **" + displayed_outcome + "**", description="*_ _*")
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Updated: **" + displayed_outcome + "**", description="*_ _*")
     embed.add_field(name="Updated Elo", value=updated_players_message)
 
     if staff_declared:

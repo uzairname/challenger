@@ -1,7 +1,8 @@
+import math
+
 import hikari
 
 from utils.utils import *
-from __init__ import *
 import config
 from __main__ import Bot
 # from __main__ import bot
@@ -89,7 +90,11 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
 @tanjun.as_slash_command("about", "About", default_to_ephemeral=False)
 async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail((await bot.rest.fetch_my_user()).avatar_url)
+    avatar = (await bot.rest.fetch_my_user()).avatar_url
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(avatar)
+
+    print(avatar)
+
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
     about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition", inline=True)
     about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})" , inline=True)
@@ -130,7 +135,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
 async def uptime(ctx:tanjun.abc.Context, bot:Bot=tanjun.injected(type=Bot)) -> None:
     time_diff = time.time() - bot.start_time
-    await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
+    await ctx.respond("Pela's current session's uptime is: " + str(math.floor(time_diff/3600)) + " hours, " + str(math.floor((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 
 
 @tanjun.as_loader

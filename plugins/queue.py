@@ -9,8 +9,6 @@ from datetime import datetime, timezone
 component = tanjun.Component(name="queue module")
 
 
-
-
 async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
     DB = Database(ctx.guild_id)
 
