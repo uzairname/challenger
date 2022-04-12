@@ -1,7 +1,7 @@
 import typing
 
 import pymongo
-import config
+from config import Config
 import os
 import pandas as pd
 import numpy as np
@@ -11,11 +11,12 @@ class Database:
 
     EMPTY_PLAYER = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "staff"]).set_index("user_id")
     EMPTY_MATCH = pd.DataFrame([], columns=["match_id", "time_started", "outcome", "staff_declared",
-                                            "p1_id", "p1_elo", "p1_declared", "p1_is_ranked",
-                                            "p2_id", "p2_elo", "p2_declared", "p2_is_ranked"]).set_index("match_id")
+                                            "p1_id", "p1_elo", "p1_elo_after", "p1_declared", "p1_is_ranked", "p1_is_ranked_after",
+                                            "p2_id", "p2_elo", "p2_elo_after", "p2_declared", "p2_is_ranked", "p2_is_ranked_after"]).set_index("match_id")
+    #p1 and p2 elo: elo before the match. p1 and p1 is_ranked: whether the player's elo was ranked before the match was decided
     EMPTY_LOBBY = pd.DataFrame([], columns=["channel_id", "lobby_name", "roles", "player", "time_joined"])
     EMPTY_ELO_ROLES = pd.DataFrame([], columns=["role", "elo_min", "elo_max", "priority"])
-    DEFAULT_CONFIG = pd.Series(index=["results_channel", "staff_role"], dtype="float64").replace(np.nan, None)
+    DEFAULT_CONFIG = pd.Series(index=["results_channel", "staff_role", "guild_name"], dtype="float64").replace(np.nan, None)
 
     players_tbl = "players"
     matches_tbl = "matches"
@@ -25,14 +26,15 @@ class Database:
     required_tables = [players_tbl, matches_tbl, queues_tbl, config_tbl, elo_roles_tbl]
 
     def __init__(self, guild_id):
+        self.guild_id = guild_id
         url = os.environ.get("MONGODB_URL")
         client = pymongo.MongoClient(url)
 
         self.guild_name = str(guild_id)
 
-        if guild_id == config.Config.project_x_guild_id:
+        if guild_id == Config.project_x_guild_id:
             self.guild_name = "PX"
-        elif guild_id == config.Config.testing_guild_id:
+        elif guild_id == Config.testing_guild_id:
             self.guild_name = "testing"
 
         self.guildDB = client["guild_" + self.guild_name]
@@ -229,3 +231,9 @@ class Database:
         elo_roles_df = pd.DataFrame.from_dict(cur, orient="tight")
         elo_roles_df = pd.concat([self.EMPTY_ELO_ROLES, elo_roles_df]).replace(np.nan, None)
         return elo_roles_df.reset_index(drop=True)
+
+
+    def update_guild_name(self, guild_name:str):
+        config = self.get_config()
+        config["guild_name"] = guild_name
+        self.upsert_config(config)

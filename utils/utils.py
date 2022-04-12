@@ -158,7 +158,7 @@ def check_for_queue(func) -> typing.Callable:
     return wrapper
 
 
-def ensure_staff(func):
+def check_staff_perms(func):
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
 

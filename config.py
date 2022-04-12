@@ -1,5 +1,8 @@
 import typing
 
+import hikari
+
+
 @typing.final
 class Config:
     """
@@ -18,6 +21,9 @@ class Config:
     NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
 
     DEFAULT_TIMEOUT = 120
+
+    REQUIRED_PERMISSIONS = 0
+    PERMS_ERR_MSG = f"Make sure the bot has the following permissions: ```{REQUIRED_PERMISSIONS}```"
 
 
 class Colors:

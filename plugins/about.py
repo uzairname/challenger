@@ -21,15 +21,13 @@ in order of priority:
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• add permission checks to commands
-• limit bots permissions
 • Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • remove player from queue after 10 mins
 • Automatically assign roles based on Elo
 
 Low priority:
-• Command to reset all data in bot
-• /history show your recent matches
+• presets for elo roles
+• reset data command
 • Automatically register players on commands
 • see distribution of everyone's elo
 • /stats show your percentile
@@ -86,16 +84,21 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
             await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
 
 
-
 @component.with_slash_command
-@tanjun.as_slash_command("about", "About", default_to_ephemeral=True)
+# @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.as_slash_command("about", "About", default_to_ephemeral=False)
 async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
 
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(ctx.author.avatar_url)
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail((await bot.rest.fetch_my_user()).avatar_url)
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
     about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition", inline=True)
     about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})" , inline=True)
-    about_embed.set_footer("By Lilapela#1234")
+    about_embed.set_footer("By Lilapela#5348")
+
+
+    permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
+    permissions_embed.add_field("View Channels", "Required for the bot to view channels")
+
 
     todo_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
     todo_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
@@ -111,7 +114,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type
 
     await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             page = event.interaction.values[0]
@@ -120,11 +123,8 @@ async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type
 
             await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
 
+    await ctx.edit_initial_response(embed=about_embed, components=[])
 
-@component.with_slash_command
-@tanjun.as_slash_command("invite-pela", "invite pela to your own server", default_to_ephemeral=False)
-async def hi_test(ctx: tanjun.abc.Context) -> None:
-    await ctx.respond(f"This is the invite link: " + INVITE_LINK)
 
 @component.with_slash_command
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)

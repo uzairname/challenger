@@ -3,7 +3,7 @@ from utils.utils import *
 from utils.ELO import *
 from database import Database
 from __main__ import bot
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 component = tanjun.Component(name="queue module")
@@ -38,6 +38,7 @@ async def update_match(matches, match_id, new_result = None, updated_players=Non
 
 #join the queue
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
 @check_errors
 @ensure_registered
@@ -92,6 +93,7 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 
 #leave queue
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 @check_for_queue
@@ -121,6 +123,7 @@ def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
 
 
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
 @check_for_queue
 async def queue_status(ctx: tanjun.abc.Context, queue) -> None:
@@ -128,7 +131,6 @@ async def queue_status(ctx: tanjun.abc.Context, queue) -> None:
         await ctx.edit_initial_response("1 player in queue")
     else:
         await ctx.edit_initial_response("queue is empty")
-
 
 
 
