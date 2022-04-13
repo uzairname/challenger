@@ -147,7 +147,7 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
 @tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
 @check_errors
-@check_staff_perms
+@ensure_staff
 @ensure_registered
 async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanjun.injected(type=tanjun.abc.Client)):
 

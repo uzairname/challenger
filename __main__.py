@@ -67,6 +67,12 @@ if __name__ == "__main__":
     pd.options.display.width = 100
     pd.options.mode.chained_assignment = None
 
+    my_perms = hikari.Permissions.MANAGE_CHANNELS | hikari.Permissions.MANAGE_GUILD
+
+    if my_perms ^ hikari.Permissions.MANAGE_CHANNELS:
+        print("Please give me the MANAGE_CHANNELS permission!")
+
+
     if debug:
         testing_DB = Database(Config.testing_guild_id)
         testing_DB.setup_test()

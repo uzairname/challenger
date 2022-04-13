@@ -22,7 +22,7 @@ class Config:
 
     DEFAULT_TIMEOUT = 120
 
-    REQUIRED_PERMISSIONS = 0
+    REQUIRED_PERMISSIONS = hikari.Permissions.NONE.SEND_MESSAGES
     PERMS_ERR_MSG = f"Make sure the bot has the following permissions: ```{REQUIRED_PERMISSIONS}```"
 
 

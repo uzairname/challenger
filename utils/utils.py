@@ -158,7 +158,7 @@ def check_for_queue(func) -> typing.Callable:
     return wrapper
 
 
-def check_staff_perms(func):
+def ensure_staff(func):
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
 
@@ -179,7 +179,7 @@ def check_staff_perms(func):
                     role_mapping[role_id] = guild.get_role(role_id)
 
                 user_perms = tanjun.utilities.calculate_permissions(member=ctx.member, guild=guild, roles=role_mapping)
-                if user_perms & hikari.Permissions.MANAGE_GUILD:
+                if user_perms & hikari.Permissions.MANAGE_GUILD == user_perms:
                     return True
                 return False
 

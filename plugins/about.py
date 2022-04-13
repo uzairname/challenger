@@ -88,22 +88,26 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
 @component.with_slash_command
 # @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("about", "About", default_to_ephemeral=False)
-async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
+async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)) -> None:
 
-    avatar = (await bot.rest.fetch_my_user()).avatar_url
+    user = await bot.rest.fetch_my_user()
+    avatar = user.avatar_url
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(avatar)
-
-    print(avatar)
 
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
     about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition", inline=True)
     about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})" , inline=True)
     about_embed.set_footer("By Lilapela#5348")
 
+    member = await bot.cache.get_member(ctx.guild_id, user.id)
+    bot_perms = await tanjun.utilities.fetch_permissions(client, member)
+    if Config.REQUIRED_PERMISSIONS & bot_perms == bot_perms:
+        about_embed.add_field(name="Permissions", value=f"This bot has all the required permissions", inline=True)
+    else:
+        about_embed.add_field(name="Permissions", value=f"This bot is missing some of the following required permissions: {config.Config.REQUIRED_PERMISSIONS}", inline=True)
 
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
     permissions_embed.add_field("View Channels", "Required for the bot to view channels")
-
 
     todo_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
     todo_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
