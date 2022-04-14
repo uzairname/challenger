@@ -1,6 +1,6 @@
 from Challenger.utils.elo import *
 import tanjun
-from ..database import Database
+from ..database import Session
 from datetime import datetime
 from ..utils.command_tools import *
 
@@ -8,7 +8,7 @@ component = tanjun.Component(name="queue module")
 
 
 async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     p1_ping = "<@" + str(p1_info.name) + ">"
     p2_ping = "<@" + str(p2_info.name) + ">"
@@ -40,7 +40,7 @@ async def update_match(matches, match_id, new_result = None, updated_players=Non
 @get_channel_lobby
 async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     #Ensure player has at the required role
     if queue["required_role"]:
@@ -91,7 +91,7 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 @get_channel_lobby
 async def leave_q(ctx: tanjun.abc.Context, queue) -> None:
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
     player_id = ctx.author.id
 
     response = "Left the queue"

@@ -3,7 +3,7 @@ pip~=22.0.4
 hikari~=2.0.0.dev108
 hikari-tanjun
 git+https://github.com/FasterSpeeding/Tanjun.git
+pymongo[srv]
 pandas~=1.4.1
 numpy~=1.22.3
-pymongo[srv]
 sympy

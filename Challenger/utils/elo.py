@@ -1,6 +1,8 @@
 from Challenger.utils.utils import *
 from Challenger.config import Config
 import math
+import sympy as sp
+import numpy as np
 
 
 def calc_elo_change(p1_elo, p2_elo, result:Result) -> typing.List[float]:
@@ -22,8 +24,8 @@ def calc_elo_change(p1_elo, p2_elo, result:Result) -> typing.List[float]:
 
 
 def calc_bayeselo(game_results, avg_elo=Config.DEFAULT_ELO, std_elo=150, initial_std=1):
-
-    return None
+    #game_results is a list of tuples of the form (opponent_elo, result(win/lose))
+    raise NotImplementedError
 
 
 def calc_prov_elo(p1_elo, p2_elo, result):

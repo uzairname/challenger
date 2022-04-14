@@ -1,6 +1,6 @@
 import tanjun
 from Challenger.utils.elo import *
-from Challenger.database import Database
+from Challenger.database import Session
 from Challenger.utils.command_tools import *
 import pandas as pd
 
@@ -14,7 +14,7 @@ component = tanjun.Component(name="matches module")
 @ensure_registered
 async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.injected(type=tanjun.abc.Client)) -> None:
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     matches = DB.get_matches(user_id=ctx.author.id)
     if matches.empty:
@@ -58,7 +58,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.inje
 @ensure_registered
 async def match_history_cmd(ctx: tanjun.abc.Context) -> None:
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     matches = DB.get_matches(user_id=ctx.author.id, number=5).sort_index(ascending=True) #5 matches per page
 
@@ -151,7 +151,7 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
 @ensure_registered
 async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanjun.injected(type=tanjun.abc.Client)):
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     matches = DB.get_matches(match_id=match_number)
     if matches.empty:
@@ -275,7 +275,7 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
 
 async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client), staff_declared=None):
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
     matches = DB.get_matches()
     match = matches.loc[match_id]
 

@@ -1,7 +1,7 @@
 from Challenger.utils.utils import *
 import tanjun
 import hikari
-from Challenger.database import Database
+from Challenger.database import Session
 from datetime import datetime
 from Challenger.config import Config
 
@@ -16,7 +16,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("please wait")
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
     player_id = ctx.author.id
     players = DB.get_players(user_id=player_id)
 
@@ -51,7 +51,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
     await ctx.respond("...")
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     #get the selected player
     if player:
@@ -105,7 +105,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("please wait")
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     players = DB.get_players(top_by_elo=[0,20])
     if players.empty:

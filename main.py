@@ -5,7 +5,7 @@ import logging
 import time
 import pandas as pd
 from Challenger.config import Config
-from Challenger.database import Database
+import Challenger.database as db
 
 
 # noinspection PyMethodMayBeStatic
@@ -26,7 +26,7 @@ class Bot (hikari.GatewayBot):
 
     def create_client(self):
         self.client = (tanjun.Client.from_gateway_bot(self))
-        self.client.load_modules("Challenger.plugins.about", "Challenger.plugins.queue", "Challenger.plugins.player", "Challenger.plugins.management", "Challenger.plugins.matches", "Challenger.plugins.misc")
+        self.client.load_modules("Challenger.plugins.demo", "Challenger.plugins.queue", "Challenger.plugins.player", "Challenger.plugins.management", "Challenger.plugins.matches", "Challenger.plugins.misc")
         self.client.set_auto_defer_after(1) #TODO: remove
 
     async def on_started(self, event):
@@ -43,7 +43,7 @@ class Bot (hikari.GatewayBot):
             await self.client.declare_global_commands(guild=Config.TESTING_GUILD_ID, force=True)
 
     async def on_guild_available(self, event: hikari.GuildAvailableEvent):
-        DB = Database(event.guild_id)
+        DB = db.Session(event.guild_id)
         DB.init_database()
         DB.update_guild_name(event.guild.name)
 
@@ -54,6 +54,9 @@ class Bot (hikari.GatewayBot):
 bot = Bot(os.environ.get('DISCORD_TOKEN'))
 debug = (os.environ.get("DSP") == "Development")
 
+
+from Challenger.bot import build_bot
+
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     pd.set_option("max_colwidth", 190)
@@ -61,7 +64,7 @@ if __name__ == "__main__":
     pd.options.mode.chained_assignment = None
 
     if debug:
-        testing_DB = Database(Config.TESTING_GUILD_ID)
+        testing_DB = db.Session(Config.TESTING_GUILD_ID)
         testing_DB.setup_test()
 
     bot.run()

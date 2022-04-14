@@ -44,7 +44,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         DB: Database object
         embed: hikari.Embed to add to
     """
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     embed = Custom_Embed(type=Embed_Type.INFO,
         title="Setup 1v1 lobbies",
@@ -85,7 +85,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @ensure_staff
 async def config_lobby(ctx, event, action, name, role_required, channel, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     user_input = InputParams(str(name))
 
@@ -130,7 +130,7 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
 
 async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.injected(type=tanjun.abc.Client), **kwargs):
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     staff_role = DB.get_config()["staff_role"]
 
@@ -179,7 +179,7 @@ def get_client(client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client))
 @ensure_staff
 async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     def process_response():
         input_params = InputParams(str(role))
@@ -209,7 +209,7 @@ async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.
 #config elo roles
 async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, min_elo, max_elo, **kwargs):
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     selection = ""
 
@@ -255,7 +255,7 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=t
         if elo_min > elo_max:
             return "Min elo cannot be greater than max elo", Embed_Type.ERROR
 
-        DB = Database(ctx.guild_id)
+        DB = Session(ctx.guild_id)
         df = DB.get_elo_roles()
 
         df = df.loc[df["role"] != role].sort_values("priority")
@@ -274,7 +274,7 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=t
 
 async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, channel, **kwargs):
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     results_channel = DB.get_config()["results_channel"]
 
@@ -313,7 +313,7 @@ async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel,
     def process_repsonse():
         input_params = InputParams(str(channel))
 
-        DB = Database(ctx.guild_id)
+        DB = Session(ctx.guild_id)
         config = DB.get_config()
 
         if action == "remove":

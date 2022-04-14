@@ -4,7 +4,7 @@ import logging
 import typing
 from Challenger.utils.utils import *
 
-from Challenger.database import Database
+from Challenger.database import Session
 
 def check_errors(func):
     # for slash commands, respond with an error if it doesn't work
@@ -21,7 +21,7 @@ def check_errors(func):
 def ensure_registered(func):
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
-        DB = Database(ctx.guild_id)
+        DB = Session(ctx.guild_id)
 
         player = DB.get_players(user_id=ctx.author.id)
         if player.empty:
@@ -39,7 +39,7 @@ def get_channel_lobby(func) -> typing.Callable:
 
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
-        DB = Database(ctx.guild_id)
+        DB = Session(ctx.guild_id)
 
         queues = DB.get_queues(ctx.channel_id)
         if queues.empty:
@@ -59,7 +59,7 @@ def ensure_staff(func):
             if ctx.author.id == Config.OWNER_ID:
                 return True
 
-            DB = Database(ctx.guild_id)
+            DB = Session(ctx.guild_id)
 
             staff_role = DB.get_config()["staff_role"]
 
@@ -99,7 +99,7 @@ def take_input(input_instructions:typing.Callable):
     def wrapper_take_input(func):
 
         @functools.wraps(func)
-        async def wrapper(ctx, bot, **kwargs):
+        async def wrapper(ctx, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs):
 
             confirm_cancel_row = ctx.rest.build_action_row()
             confirm_cancel_row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()

@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 
-class Database:
+class Session:
 
     empty_player = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked", "staff"]).set_index("user_id")
     empty_match = pd.DataFrame([], columns=["match_id", "time_started", "outcome", "staff_declared",

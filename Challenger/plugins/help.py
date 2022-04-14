@@ -1,6 +1,5 @@
-import hikari
 import tanjun
-
+import hikari
 import math
 from ..config import *
 from __main__ import Bot
