@@ -1,10 +1,8 @@
-import hikari
-from utils.utils import *
-from utils.ELO import *
-from database import Database
-from __main__ import bot
-from datetime import datetime, timezone
-
+from Challenger.utils.elo import *
+import tanjun
+from ..database import Database
+from datetime import datetime
+from ..utils.command_tools import *
 
 component = tanjun.Component(name="queue module")
 
@@ -38,21 +36,17 @@ async def update_match(matches, match_id, new_result = None, updated_players=Non
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
-@check_errors
 @ensure_registered
-@check_for_queue
+@get_channel_lobby
 async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 
     DB = Database(ctx.guild_id)
 
-    #Ensure player has at least 1 role in the queue roles
-    is_allowed = False
-    for role in queue["roles"]:
-        if role in ctx.member.role_ids:
-            is_allowed = True
-    if not is_allowed:
-        await ctx.respond(f"{ctx.author.mention} You're missing the required roles to join this lobby")
-        return
+    #Ensure player has at the required role
+    if queue["required_role"]:
+        if not queue["required_role"] in ctx.member.role_ids:
+            await ctx.respond(f"{ctx.author.mention} You're missing the required role to join this lobby")
+            return
 
     player_id=ctx.author.id
 
@@ -94,7 +88,7 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
-@check_for_queue
+@get_channel_lobby
 async def leave_q(ctx: tanjun.abc.Context, queue) -> None:
 
     DB = Database(ctx.guild_id)
@@ -123,7 +117,7 @@ def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
-@check_for_queue
+@get_channel_lobby
 async def queue_status(ctx: tanjun.abc.Context, queue) -> None:
     if queue["player"]:
         await ctx.edit_initial_response("1 player in queue")

@@ -1,9 +1,7 @@
 from hikari import Embed
 
 import asyncio
-import functools
 
-import hikari
 import tanjun
 
 from hikari import InteractionCreateEvent
@@ -12,7 +10,7 @@ from hikari.messages import ButtonStyle
 
 from tanjun.abc import SlashContext
 from __main__ import Bot
-from utils.utils import *
+from Challenger.utils.utils import *
 
 component = tanjun.Component()
 
@@ -21,7 +19,6 @@ embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work w
 
 @component.with_slash_command
 @tanjun.as_slash_command("test", "test")
-@check_errors
 async def test(ctx:tanjun.abc.Context):
     try:
         [][0]

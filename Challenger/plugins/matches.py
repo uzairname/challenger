@@ -1,7 +1,8 @@
-import hikari
 import tanjun
-from utils.ELO import *
-from database import Database
+from Challenger.utils.elo import *
+from Challenger.database import Database
+from Challenger.utils.command_tools import *
+import pandas as pd
 
 component = tanjun.Component(name="matches module")
 
@@ -10,7 +11,6 @@ component = tanjun.Component(name="matches module")
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False, always_defer=True)
-@check_errors
 @ensure_registered
 async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.injected(type=tanjun.abc.Client)) -> None:
 

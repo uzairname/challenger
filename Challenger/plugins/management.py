@@ -1,9 +1,4 @@
-import typing
-
-from utils.utils import *
-from database import Database
-import tanjun
-import hikari
+from ..utils.command_tools import *
 from __main__ import Bot
 
 component = tanjun.Component(name="management module")
@@ -23,7 +18,6 @@ async def config_help_instructions(**kwargs):
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=False, always_defer=True)
-@check_errors
 @take_input(input_instructions=config_help_instructions)
 @ensure_staff
 async def config_help(event, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
@@ -43,7 +37,7 @@ async def config_help(event, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.
 
 
 
-async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel, roles, **kwargs):
+async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel, role_required, **kwargs):
     """
     Displays all configured lobbies in the guild as a field added onto the embed
     params:
@@ -62,9 +56,9 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         lobbies_list = "No lobbies"
     for index, lobby in all_lobbies.iterrows():
         lobbies_list += "\nLobby \"**" + str(lobby["lobby_name"]) + "**\" in channel <#" + str(
-            lobby["channel_id"]) + "> Roles allowed: "
-        for role in lobby["roles"]:
-            lobbies_list += "<@&" + str(role) + ">"
+            lobby["channel_id"]) + ">"
+        if lobby["role_required"]:
+            lobbies_list += "\nWith required role " + lobby[role_required].mention
 
     selection = ""
     if action == "delete":
@@ -73,7 +67,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         selection += "**Updating or adding lobby:**\n"
     else:
         selection += "**No action**\n"
-    input_params = InputParams(str(name) + str(channel) + str(roles))
+    input_params = InputParams(str(name) + str(channel) + str(role_required))
     selection += input_params.describe()
 
     embed.add_field(name="Current lobbies", value=lobbies_list)
@@ -82,47 +76,48 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_role_slash_option("roles", "roles allowed", default="")
-@tanjun.with_str_slash_option("name", "lobby name", default="")
-@tanjun.with_str_slash_option("channel", "the channel to update or delete", default="")
-@tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="")
+@tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
+@tanjun.with_str_slash_option("name", "lobby name", default=None)
+@tanjun.with_role_slash_option("role_required", "role required", default=None)
+@tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
 @tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
-@check_errors
 @take_input(input_instructions=config_lobby_instructions)
 @ensure_staff
-async def config_lobby(ctx, event, action, name, roles, channel, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
+async def config_lobby(ctx, event, action, name, role_required, channel, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
 
     DB = Database(ctx.guild_id)
 
-    user_input = InputParams(str(name) + str(channel) + str(roles))
+    user_input = InputParams(str(name))
 
     def process_response():
 
-        if user_input.channels.size != 1:
-            return "Please enter one channel", Embed_Type.ERROR
+        if channel is None:
+            return "Please enter a channel", Embed_Type.ERROR
 
-        existing_queues = DB.get_queues(channel_id=user_input.channels[0])
+        existing_queues = DB.get_queues(channel_id=channel.id)
 
         if action == "delete":
             if existing_queues.empty:
-                return "No lobby in <#" + str(user_input.channels[0]) + ">", Embed_Type.ERROR
+                return "No lobby in " + channel.mention, Embed_Type.ERROR
 
-            queue = existing_queues.iloc[0]
-            DB.remove_queue(queue)
-            return "Deleted lobby in <#" + str(user_input.channels[0]) + ">", Embed_Type.CONFIRM
+            DB.remove_queue(channel.id)
+            return "Deleted lobby from " + channel.mention, Embed_Type.CONFIRM
 
         if existing_queues.empty:
-            new_queue = DB.get_new_queue(user_input.channels[0])
-            new_queue["lobby_name"] = user_input.text
-            new_queue["roles"] = user_input.roles
+            new_queue = DB.get_new_queue(channel.id)
+            if name is None:
+                return "Please enter a name", Embed_Type.ERROR
+            new_queue["lobby_name"] = name
+            new_queue["role_required"] = role_required
             DB.upsert_queue(new_queue)
             return "Added new lobby", Embed_Type.CONFIRM
 
         existing_queue = existing_queues.loc[0]
-        if user_input.text:
-            existing_queue["lobby_name"] = user_input.text
 
-        existing_queue["roles"] = user_input.roles
+        if name:
+            existing_queue["lobby_name"] = name
+
+        existing_queue["role_required"] = role_required
         DB.upsert_queue(existing_queue)
         return "Updated existing lobby", Embed_Type.CONFIRM
 

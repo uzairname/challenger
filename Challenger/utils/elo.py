@@ -1,5 +1,5 @@
-from utils.utils import *
-from config import Config
+from Challenger.utils.utils import *
+from Challenger.config import Config
 import math
 
 

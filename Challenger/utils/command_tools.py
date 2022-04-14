@@ -1,119 +1,10 @@
+import tanjun
 import functools
 import logging
-import hikari
-import tanjun
-
-from database import Database
-from config import *
-
 import typing
+from Challenger.utils.utils import *
 
-import numpy as np
-import pandas as pd
-import re
-
-
-# def get_client_callback(client=tanjun.injected(type=hikari.GatewayBot)):
-#     print(client.is_alive)
-#
-#
-# def get_client(callback=get_client_callback):
-#     return tanjun.injected(callback=callback)
-
-
-class Result:
-    PLAYER_1 = "player 1"
-    PLAYER_2 = "player 2"
-    WIN = "win"
-    LOSS = "loss"
-    DRAW = "draw"
-    CANCEL = "cancelled"
-    UNDECIDED = "undecided"
-
-class Declare:
-    WIN = "win"
-    LOSS = "loss"
-    DRAW = "draw"
-    CANCEL = "cancel"
-
-class Status:
-    NONE = 0
-    STAFF = 1
-
-class Embed_Type:
-    ERROR = 1
-    CONFIRM = 2
-    CANCEL = 3
-    INFO = 4
-
-class Custom_Embed(hikari.Embed):
-
-    def __init__(self, type, title=None, description=None, url=None, color=None, colour=None, timestamp=None):
-        if type == Embed_Type.ERROR:
-            super().__init__(color=color or Colors.ERROR, title=title or "Error", description=description or "Error.", url=url, timestamp=timestamp)
-        elif type == Embed_Type.CONFIRM:
-            super().__init__(color=color or Colors.SUCCESS, title=title or "Confirmed", description=description or "Confirmed.", url=url, timestamp=timestamp)
-        elif type == Embed_Type.CANCEL:
-            super().__init__(color=color or Colors.NEUTRAL, title=title or "Cancelled", description=description or "Cancelled.", url=url, timestamp=timestamp)
-        elif type == Embed_Type.INFO:
-            super().__init__(color=color or Colors.PRIMARY, title=title or "Info", description=description, url=url, timestamp=timestamp)
-
-
-def construct_df(rows, columns, index_column: str = None):
-    df = pd.DataFrame(rows, columns=columns)
-    if index_column:
-        df.set_index(df[index_column], inplace=True)
-    return df
-
-def replace_row_if_col_matches(df:pd.DataFrame, row:pd.Series, column:str):
-
-    drop_index = df.loc[df[column] == row[column]].index
-    new_df = pd.concat([df.drop(drop_index), pd.DataFrame(row).T])
-
-    return new_df
-
-
-class InputParams():
-    def __init__(self, input_string):
-        text_pat = r"[a-zA-Z\d\s]+"
-
-        channel_pat = r"<#(\d{17,19})>"
-        role_pat = r"<@&(\d{17,19})>"
-        user_pat = r"<@!?(\d{17,19})>"
-
-        name = re.match(text_pat, input_string)
-        if name:
-            name = name[0].strip()
-
-        self.channels = np.array(re.findall(channel_pat, input_string)).astype("int64")
-        self.roles = np.array(re.findall(role_pat, input_string)).astype("int64")
-        self.users = np.array(re.findall(user_pat, input_string)).astype("int64")
-        self.text = name
-
-    def describe(self):
-
-        description = ""
-        if self.text:
-            description += "\nName:\n> " + str(self.text)
-
-        if self.channels.size > 0:
-            description += "\nSelected channels:"
-            for i in self.channels:
-                description += "\n> <#" + str(i) + ">"
-
-        if self.roles.size > 0:
-            description += "\nSelected roles:"
-            for i in self.roles:
-                description += "\n> <@&" + str(i) + ">"
-
-        if self.users.size > 0:
-            description += "\nSelected users:"
-            for i in self.users:
-                description += "\n> <@" + str(i) + ">"
-
-        description += "\n"
-        return description
-
+from Challenger.database import Database
 
 def check_errors(func):
     # for slash commands, respond with an error if it doesn't work
@@ -142,7 +33,9 @@ def ensure_registered(func):
     return wrapper
 
 
-def check_for_queue(func) -> typing.Callable:
+def get_channel_lobby(func) -> typing.Callable:
+
+    #checks if there's a lobby in the channel and if so, passes it to the function
 
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
@@ -163,7 +56,7 @@ def ensure_staff(func):
     async def wrapper(ctx, *args, **kwargs):
 
         async def is_staff():
-            if ctx.author.id == Config.owner_id:
+            if ctx.author.id == Config.OWNER_ID:
                 return True
 
             DB = Database(ctx.guild_id)

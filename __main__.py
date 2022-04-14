@@ -1,47 +1,32 @@
 import hikari
 import tanjun
 import os
-from abc import ABC
 import logging
 import time
 import pandas as pd
-#####
-from __init__ import *
-from config import Config
-from database import Database
+from Challenger.config import Config
+from Challenger.database import Database
 
 
-
-async def on_guild_available(event: hikari.GuildAvailableEvent):
-    DB = Database(event.guild_id)
-    DB.init_database()
-    DB.update_guild_name(event.guild.name)
-
-
-async def on_starting(event):
-    logging.info("starting")
-
-
-class Bot (hikari.GatewayBot, ABC):
+# noinspection PyMethodMayBeStatic
+class Bot (hikari.GatewayBot):
 
     def __init__(self, token):
         super().__init__(token)
-        self.client = None
-        self.start_time = None
 
     def run(self, *args, **kwargs):
         self.create_client()
 
-        self.subscribe(hikari.StartingEvent, on_starting)
+        self.subscribe(hikari.StartingEvent, self.on_starting)
         self.subscribe(hikari.StartedEvent, self.on_started)
-        self.subscribe(hikari.GuildAvailableEvent, on_guild_available)
+        self.subscribe(hikari.GuildAvailableEvent, self.on_guild_available)
 
         activity=hikari.presences.Activity(name= "everything", type=hikari.presences.ActivityType.COMPETING)
         super().run(activity=activity)
 
     def create_client(self):
         self.client = (tanjun.Client.from_gateway_bot(self))
-        self.client.load_modules("plugins.about", "plugins.queue", "plugins.player", "plugins.management", "plugins.matches", "plugins.misc")
+        self.client.load_modules("Challenger.plugins.about", "Challenger.plugins.queue", "Challenger.plugins.player", "Challenger.plugins.management", "Challenger.plugins.matches", "Challenger.plugins.misc")
         self.client.set_auto_defer_after(1) #TODO: remove
 
     async def on_started(self, event):
@@ -54,27 +39,29 @@ class Bot (hikari.GatewayBot, ABC):
             await self.client.declare_global_commands(force=True)
         else:
             logging.info("Bot is in a testing environment")
-            self.client.load_modules("plugins.demo")
-            await self.client.declare_global_commands(guild=Config.testing_guild_id, force=True)
+            self.client.load_modules("Challenger.plugins.demo")
+            await self.client.declare_global_commands(guild=Config.TESTING_GUILD_ID, force=True)
+
+    async def on_guild_available(self, event: hikari.GuildAvailableEvent):
+        DB = Database(event.guild_id)
+        DB.init_database()
+        DB.update_guild_name(event.guild.name)
+
+    async def on_starting(self, event):
+        logging.info("starting")
 
 
 bot = Bot(os.environ.get('DISCORD_TOKEN'))
+debug = (os.environ.get("DSP") == "Development")
 
-debug = (os.environ.get("DSP") == "testing")
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     pd.set_option("max_colwidth", 190)
     pd.options.display.width = 100
     pd.options.mode.chained_assignment = None
 
-    my_perms = hikari.Permissions.MANAGE_CHANNELS | hikari.Permissions.MANAGE_GUILD
-
-    if my_perms ^ hikari.Permissions.MANAGE_CHANNELS:
-        print("Please give me the MANAGE_CHANNELS permission!")
-
-
     if debug:
-        testing_DB = Database(Config.testing_guild_id)
+        testing_DB = Database(Config.TESTING_GUILD_ID)
         testing_DB.setup_test()
 
     bot.run()

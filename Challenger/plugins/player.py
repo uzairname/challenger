@@ -1,9 +1,9 @@
-from utils.utils import *
+from Challenger.utils.utils import *
+import tanjun
 import hikari
-from database import Database
+from Challenger.database import Database
 from datetime import datetime
-from utils.ELO import *
-from config import Config
+from Challenger.config import Config
 
 component = tanjun.Component(name="player module")
 
@@ -12,7 +12,6 @@ component = tanjun.Component(name="player module")
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
-@check_errors
 async def register(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("please wait")
@@ -48,7 +47,6 @@ async def register(ctx: tanjun.abc.Context) -> None:
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_member_slash_option("player", "their mention", default=None)
 @tanjun.as_slash_command("stats", "view your or someone else's stats", default_to_ephemeral=True)
-@check_errors
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
     await ctx.respond("...")
@@ -103,7 +101,6 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
-@check_errors
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("please wait")
