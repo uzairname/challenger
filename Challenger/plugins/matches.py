@@ -11,7 +11,7 @@ from Challenger.config import Config
 component = tanjun.Component(name="matches module")
 
 
-@component.with_slash_command
+# @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False, always_defer=True)
@@ -55,7 +55,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.inje
     if match["p1_declared"] == match["p2_declared"]:
         return await set_match_outcome(ctx, match.name, new_outcome, client)
 
-@component.with_slash_command
+# @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("match-history", "Your latest matches' results", default_to_ephemeral=True, always_defer=True)
 @check_errors
@@ -84,12 +84,12 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
     p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
     p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
 
-    p1_prior_elo_message = str(round(match["p1_elo"]))
+    p1_prior_elo_displayed = str(round(match["p1_elo"]))
     if not match["p1_is_ranked"]:
-        p1_prior_elo_message += "?"
-    p2_prior_elo_message = str(round(match["p2_elo"]))
+        p1_prior_elo_displayed += "?"
+    p2_prior_elo_displayed = str(round(match["p2_elo"]))
     if not match["p2_is_ranked"]:
-        p2_prior_elo_message += "?"
+        p2_prior_elo_displayed += "?"
 
     p1_after_elo_displayed = str(round(match["p1_elo_after"]))
     if not match["p1_is_ranked_after"]:
@@ -133,9 +133,9 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
 
     embed.add_field(name=result, value="*_ _*")
 
-    embed.add_field(name=str(p1_name), value="Elo: " + p1_prior_elo_message + "\n " + p1_declared, inline=True)
+    embed.add_field(name=str(p1_name), value=str(p1_prior_elo_displayed) + " -> " + str(p1_after_elo_displayed) + "\n " + p1_declared, inline=True)
     embed.add_field(name="vs", value="*_ _*", inline=True)
-    embed.add_field(name=str(p2_name), value="Elo: " + p2_prior_elo_message + "\n " + p2_declared, inline=True)
+    embed.add_field(name=str(p2_name), value=str(p2_prior_elo_displayed) + " -> " + str(p2_after_elo_displayed) + "\n " + p2_declared, inline=True)
 
     embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")
 
@@ -145,7 +145,7 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
 
 
 
-@component.with_slash_command
+# @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
@@ -198,10 +198,12 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
         if they have played enough matches, they are ranked
     """
     player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
-    player_matches = player_matches.loc[player_matches.index < latest_match_id]\
+    player_matches = player_matches.loc[player_matches.index <= latest_match_id]\
     .loc[np.logical_or(player_matches["outcome"] == Outcome.PLAYER_1, player_matches["outcome"] == Outcome.PLAYER_2, player_matches["outcome"] == Outcome.DRAW)]
 
-    return len(player_matches) >= Config.NUM_UNRANKED_MATCHES
+    print(player_matches)
+
+    return len(player_matches) >= scoring.NUM_UNRANKED_MATCHES
 
 
 def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=None):
@@ -259,9 +261,13 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
         matches.loc[match_id, "p2_elo_after"] = p2_elo_after
 
         #determine whether they're ranked based on the updated matches before this one
+        print("███determining before " + str(match_id))
         matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id-1)
+        print("███determining before " + str(match_id-1))
         matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id-1)
+        print("███determining before " + str(match_id))
         matches.loc[match_id, "p1_is_ranked_after"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
+        print("███determining before " + str(match_id-1))
         matches.loc[match_id, "p2_is_ranked_after"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
 
         _updated_players.loc[p1_id, "elo"] = p1_elo_after

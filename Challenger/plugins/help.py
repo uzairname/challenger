@@ -3,8 +3,8 @@ import hikari
 import math
 from datetime import datetime
 from hikari.interactions.base_interactions import ResponseType
-# from Challenger.utils import *
-#
+
+from Challenger.utils import *
 from Challenger.config import Config
 
 component = tanjun.Component(name="hi module")
@@ -102,6 +102,10 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
         about_embed.add_field(name="Permissions", value=f":white_check_mark: This bot has all the required permissions", inline=True)
     else:
         about_embed.add_field(name="Permissions", value=f":x: This bot is missing the following required permissions: {Config.REQUIRED_PERMISSIONS}", inline=True)
+
+    # unnecessary_perms = bot_perms ^ Config.REQUIRED_PERMISSIONS & bot_perms
+    # if unnecessary_perms:
+    #     about_embed.add_field(name="Unnecessary perms", value="This bot has permissions it doesn't need: {}".format(str(unnecessary_perms).split("|")), inline=True)
 
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
     permissions_embed.add_field("View Channels", "Required for the bot to view channels")

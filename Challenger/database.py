@@ -70,9 +70,7 @@ class Session:
 
         #make sure all required collections exist in this guild's database
         existing_tables = self.guildDB.list_collection_names()
-        print(existing_tables)
         for i in self.tbl_names:
-            print(i)
 
             if not i.value in existing_tables:
                 self.guildDB.create_collection(i.value)
@@ -115,8 +113,6 @@ class Session:
         player = player.replace(np.nan, None)
 
         player["user_id"] = int(player.name)
-        if player["staff"] is not None:
-            player["staff"] = int(player["staff"])
         if player["elo"] is not None:
             player["elo"] = float(player["elo"])
 

@@ -2,9 +2,7 @@ import re
 import numpy as np
 
 
-
-class InputParams():
-
+class InputParser():
 
     def __init__(self, input_string):
 
@@ -47,4 +45,4 @@ class InputParams():
         description += "\n"
         return description
 
-__all__ = ["InputParams"]
+__all__ = ["InputParser"]

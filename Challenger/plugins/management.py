@@ -76,7 +76,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         selection += "**Updating or adding lobby:**\n"
     else:
         selection += "**No action**\n"
-    input_params = InputParams(str(name) + str(channel) + str(role_required))
+    input_params = InputParser(str(name) + str(channel) + str(role_required))
     selection += input_params.describe()
 
     embed.add_field(name="Current lobbies", value=lobbies_list)
@@ -96,7 +96,7 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
 
     DB = Session(ctx.guild_id)
 
-    user_input = InputParams(str(name))
+    user_input = InputParser(str(name))
 
     def process_response():
 
@@ -162,7 +162,7 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
         selection += "**Unlinking**\n"
     else:
         selection += "**No action specified**\n"
-    input_params = InputParams(str(role))
+    input_params = InputParser(str(role))
     selection += input_params.describe()
 
     embed = hikari.Embed(title="Add or remove staff members",
@@ -191,7 +191,7 @@ async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.
     DB = Session(ctx.guild_id)
 
     def process_response():
-        input_params = InputParams(str(role))
+        input_params = InputParser(str(role))
 
         if len(input_params.roles) != 1:
             return "Select one role", Embed_Type.ERROR
@@ -299,7 +299,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
         selection += "**Removing channel**\n"
     else:
         selection += "**No action specified**\n"
-    input_params = InputParams(str(channel))
+    input_params = InputParser(str(channel))
     selection += input_params.describe()
 
     embed = hikari.Embed(title="Add or remove results channel",
@@ -320,7 +320,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     def process_repsonse():
-        input_params = InputParams(str(channel))
+        input_params = InputParser(str(channel))
 
         DB = Session(ctx.guild_id)
         config = DB.get_config()

@@ -14,8 +14,8 @@ component = tanjun.Component()
 embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False))
 
 
-@component.with_slash_command
-@tanjun.as_slash_command("test", "test")
+# @component.with_slash_command
+@tanjun.as_slash_command("tes", "tes")
 async def test(ctx:tanjun.abc.Context):
     try:
         [][0]
@@ -23,7 +23,7 @@ async def test(ctx:tanjun.abc.Context):
         pass
 
 
-
+@component.with_slash_command
 @embed.with_command
 @tanjun.as_slash_command("interactive-post", f"Build an Embed!")
 async def interactive_post(
