@@ -3,6 +3,4 @@ import tanjun
 
 component = tanjun.Component(name="misc module")
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+misc = tanjun.Component(name="misc", strict=True).load_from_scope().make_loader()

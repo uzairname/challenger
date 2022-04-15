@@ -126,6 +126,4 @@ async def queue_status(ctx: tanjun.abc.Context, queue) -> None:
 
 
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+queue = tanjun.Component(name="queue", strict=True).load_from_scope().make_loader()

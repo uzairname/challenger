@@ -41,7 +41,7 @@ def get_channel_lobby(func) -> typing.Callable:
     async def wrapper(ctx, *args, **kwargs):
         DB = Session(ctx.guild_id)
 
-        queues = DB.get_queues(ctx.channel_id)
+        queues = DB.get_lobbies(ctx.channel_id)
         if queues.empty:
             await ctx.edit_initial_response("This channel doesn't have a lobby")
             return

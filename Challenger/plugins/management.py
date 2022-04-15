@@ -51,7 +51,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name (optional) and allowed roles. To remove required roles from a lobby, enter no roles. A registered player with at least one of these roles can join the lobby")
 
     lobbies_list = ""
-    all_lobbies = DB.get_queues()
+    all_lobbies = DB.get_lobbies()
     if all_lobbies.empty:
         lobbies_list = "No lobbies"
     for index, lobby in all_lobbies.iterrows():
@@ -94,7 +94,7 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
         if channel is None:
             return "Please enter a channel", Embed_Type.ERROR
 
-        existing_queues = DB.get_queues(channel_id=channel.id)
+        existing_queues = DB.get_lobbies(channel_id=channel.id)
 
         if action == "delete":
             if existing_queues.empty:
@@ -352,6 +352,4 @@ async def reset_data(ctx: tanjun.abc.SlashContext, event, reset_config, bot=tanj
     raise NotImplementedError("Not implemented")
 
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+management = tanjun.Component(name="management", strict=True).load_from_scope().make_loader()

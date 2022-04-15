@@ -133,7 +133,3 @@ async def approve_command(ctx: tanjun.abc.Context, message_id: str) -> None:
 
 
 demo = tanjun.Component(name="demo", strict=True).load_from_scope().make_loader()
-
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())

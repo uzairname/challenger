@@ -348,6 +348,4 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
     await client.rest.create_message(channel_id, embed=embed)
 
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+matches = tanjun.Component(name="matches", strict=True).load_from_scope().make_loader()

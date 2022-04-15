@@ -139,6 +139,4 @@ async def uptime(ctx:tanjun.abc.Context, bot:Bot=tanjun.injected(type=Bot)) -> N
     await ctx.respond("Pela's current session's uptime is: " + str(math.floor(time_diff/3600)) + " hours, " + str(math.floor((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
 
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+help = tanjun.Component(name="help", strict=True).load_from_scope().make_loader()

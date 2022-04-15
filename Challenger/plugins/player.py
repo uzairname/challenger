@@ -147,6 +147,4 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
 
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+player = tanjun.Component(name="player", strict=True).load_from_scope().make_loader()
