@@ -1,8 +1,10 @@
-from Challenger.utils.utils import *
-from Challenger.config import Config
+from typing import List
+
+from Challenger.utils import *
+
 import math
-import sympy as sp
 import numpy as np
+import sympy as sp
 
 
 class Outcome:
@@ -29,7 +31,7 @@ NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
 
 
 
-def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> typing.List[float]:
+def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> List[float]:
     if result == Outcome.CANCEL or result is None:
         return [0,0]
     allocated = {Outcome.PLAYER_1:1, Outcome.PLAYER_2:0, Outcome.DRAW:0.5}[result] #what percent of the elo gets allocated to player 1
@@ -58,4 +60,4 @@ def calc_prov_elo(p1_elo, p2_elo, result):
 
 
 
-
+__all__ = ["calc_elo_change", "calc_bayeselo", "calc_prov_elo", "Outcome", "Declare"]

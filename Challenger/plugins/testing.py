@@ -1,3 +1,4 @@
+import hikari
 from hikari import Embed
 from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
@@ -7,7 +8,6 @@ import asyncio
 import tanjun
 from tanjun.abc import SlashContext
 
-from Challenger.utils.utils import *
 
 component = tanjun.Component()
 
@@ -64,7 +64,7 @@ async def interactive_post(
         await ctx.edit_initial_response("Waited for 60 seconds... Timeout.", embed=None, components=[])
 
 
-async def title(ctx: SlashContext, bot: Bot, client: tanjun.Client):
+async def title(ctx: SlashContext, bot: hikari.GatewayBot, client: tanjun.Client):
     embed_dict, *_ = bot.entity_factory.serialize_embed(client.metadata['embed'])
     await ctx.edit_initial_response(content="Set Title for embed:", components=[])
     try:

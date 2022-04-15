@@ -15,16 +15,4 @@ class Config:
     DEFAULT_TIMEOUT = 120
 
     REQUIRED_PERMISSIONS = hikari.Permissions.NONE.SEND_MESSAGES
-    PERMS_ERR_MSG = f"Make sure the bot has the following permissions: ```{REQUIRED_PERMISSIONS}```"
-
-
-    all_plugins = ["help", "management", "matches", "misc", "player", "queue"]
-
-
-@typing.final
-class Colors: #TODO move to utils
-    PRIMARY = "#ffc07d"
-    SECONDARY = "#03212e"
-    NEUTRAL = "#a5a5a5"
-    SUCCESS = "#5dde07"
-    ERROR = "#db4737"
+    PERMS_ERR_MSG = f"The bot is missing some required permissions. Type /about to see them"

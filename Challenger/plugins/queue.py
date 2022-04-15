@@ -1,8 +1,11 @@
-from Challenger.utils.elo import *
 import tanjun
-from ..database import Session
 from datetime import datetime
-from ..utils.command_tools import *
+
+
+from Challenger.utils import *
+from Challenger.database import Session
+from Challenger.config import *
+
 
 component = tanjun.Component(name="queue module")
 

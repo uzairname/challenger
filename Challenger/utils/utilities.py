@@ -3,7 +3,7 @@ import numpy as np
 
 
 
-class InputParser():
+class InputParams():
 
 
     def __init__(self, input_string):
@@ -46,3 +46,5 @@ class InputParser():
 
         description += "\n"
         return description
+
+__all__ = ["InputParams"]

@@ -1,11 +1,13 @@
-import typing
-
-import pymongo
-from Challenger.config import Config
 import os
-import pandas as pd
-import numpy as np
+from typing import List
 from enum import Enum
+
+import numpy as np
+import pandas as pd
+import pymongo
+
+from Challenger.config import Config
+
 
 class Session:
 
@@ -79,7 +81,7 @@ class Session:
     #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
 
 
-    def get_players(self, user_id=None, user_ids:typing.List=None, staff=None, top_by_elo=None) -> pd.DataFrame:
+    def get_players(self, user_id=None, user_ids: List =None, staff=None, top_by_elo=None) -> pd.DataFrame:
 
         #dataframe of all players
         cur_filter = {}

@@ -1,7 +1,16 @@
-from ..utils.command_tools import *
-from __main__ import Bot
+import hikari
+import tanjun
+import pandas as pd
+
+from Challenger.utils import *
+from Challenger.config import Config
+from Challenger.database import Session
+
+
+
 
 component = tanjun.Component(name="management module")
+
 
 class settings:
     LOBBY = "lobbies"
@@ -20,7 +29,7 @@ async def config_help_instructions(**kwargs):
 @tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_help_instructions)
 @ensure_staff
-async def config_help(event, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
+async def config_help(event, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     button_id = event.interaction.custom_id
 
@@ -83,7 +92,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_lobby_instructions)
 @ensure_staff
-async def config_lobby(ctx, event, action, name, role_required, channel, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
+async def config_lobby(ctx, event, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     DB = Session(ctx.guild_id)
 
@@ -177,7 +186,7 @@ def get_client(client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client))
 @check_errors
 @take_input(input_instructions=config_staff_instructions)
 @ensure_staff
-async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
+async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     DB = Session(ctx.guild_id)
 
@@ -241,7 +250,7 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @check_errors
 @take_input(input_instructions=config_elo_roles_instructions)
 @ensure_staff
-async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
+async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     def process_response():
 
@@ -308,7 +317,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 @tanjun.as_slash_command("config-results-channel", "Set a results channel", default_to_ephemeral=False, always_defer=True)
 @check_errors
 @take_input(input_instructions=config_results_channel_instructions)
-async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
+async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     def process_repsonse():
         input_params = InputParams(str(channel))
@@ -348,7 +357,7 @@ async def reset_instructions(ctx:tanjun.abc.Context, reset_config, **kwargs):
 @tanjun.as_slash_command("reset", "reset the data for this server", default_to_ephemeral=False)
 @check_errors
 @take_input(input_instructions=reset_instructions)
-async def reset_data(ctx: tanjun.abc.SlashContext, event, reset_config, bot=tanjun.injected(type=Bot), **kwargs) -> hikari.Embed:
+async def reset_data(ctx: tanjun.abc.SlashContext, event, reset_config, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
     raise NotImplementedError("Not implemented")
 
 

@@ -1,8 +1,12 @@
+import hikari
 import tanjun
-from Challenger.utils.elo import *
-from Challenger.database import Session
-from Challenger.utils.command_tools import *
 import pandas as pd
+import numpy as np
+
+from Challenger.utils import *
+from Challenger.database import Session
+from Challenger.config import Config
+
 
 component = tanjun.Component(name="matches module")
 

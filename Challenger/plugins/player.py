@@ -1,8 +1,9 @@
-from Challenger.utils.utils import *
 import tanjun
 import hikari
-from Challenger.database import Session
 from datetime import datetime
+
+from Challenger.utils import *
+from Challenger.database import Session
 from Challenger.config import Config
 
 component = tanjun.Component(name="player module")
