@@ -21,7 +21,6 @@ async def register(ctx: tanjun.abc.Context) -> None:
     players = DB.get_players(user_id=player_id)
 
     tag = ctx.author.username + "#" + ctx.author.discriminator
-
     name = ctx.member.nickname or ctx.member.username
 
     if players.empty:
@@ -31,7 +30,6 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["time_registered"] = datetime.now()
         player["is_ranked"] = False
         player["elo"] = Config.DEFAULT_ELO
-        player["staff"] = Status.NONE
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return
@@ -73,11 +71,11 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     total_wins = 0
     total_losses = 0
     for index, match in matches.iterrows():
-        if match["outcome"] == Result.DRAW:
+        if match["outcome"] == Outcome.DRAW:
             total_draws += 1
 
-        winning_result = Result.PLAYER_1 if match["p1_id"] == player.name else Result.PLAYER_2
-        losing_result = Result.PLAYER_2 if match["p1_id"] == player.name else Result.PLAYER_1
+        winning_result = Outcome.PLAYER_1 if match["p1_id"] == player.name else Outcome.PLAYER_2
+        losing_result = Outcome.PLAYER_2 if match["p1_id"] == player.name else Outcome.PLAYER_1
 
         if match["outcome"] == winning_result:
             total_wins += 1

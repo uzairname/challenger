@@ -67,7 +67,7 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
     #add player to queue
     if not queue["player"]:
         queue["player"] = player_id
-        DB.upsert_queue(queue)
+        DB.upsert_lobby(queue)
 
         await ctx.edit_initial_response(f"You silently joined the queue")
         await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
@@ -78,7 +78,7 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
         p2_info = DB.get_players(user_id=player_id).iloc[0]
 
         queue["player"] = None
-        DB.upsert_queue(queue)
+        DB.upsert_lobby(queue)
 
         await start_new_match(ctx, p1_info, p2_info)
 
@@ -101,7 +101,7 @@ async def leave_q(ctx: tanjun.abc.Context, queue) -> None:
     else:
         response = "You're not in the queue"
 
-    DB.upsert_queue(queue)
+    DB.upsert_lobby(queue)
     await ctx.edit_initial_response(response)
 
 

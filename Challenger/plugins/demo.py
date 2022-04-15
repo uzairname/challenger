@@ -1,15 +1,12 @@
 from hikari import Embed
-
-import asyncio
-
-import tanjun
-
 from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
 from hikari.messages import ButtonStyle
 
+import asyncio
+import tanjun
 from tanjun.abc import SlashContext
-from __main__ import Bot
+
 from Challenger.utils.utils import *
 
 component = tanjun.Component()

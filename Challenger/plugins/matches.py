@@ -30,10 +30,10 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.inje
     #set the player's declared result in the match
     is_p1 = match["p1_id"] == ctx.author.id
     DECLARE_TO_RESULT = {
-        Declare.WIN: Result.PLAYER_1 if is_p1 else Result.PLAYER_2,
-        Declare.LOSS: Result.PLAYER_2 if is_p1 else Result.PLAYER_1,
-        Declare.DRAW: Result.DRAW,
-        Declare.CANCEL: Result.CANCEL
+        Declare.WIN: Outcome.PLAYER_1 if is_p1 else Outcome.PLAYER_2,
+        Declare.LOSS: Outcome.PLAYER_2 if is_p1 else Outcome.PLAYER_1,
+        Declare.DRAW: Outcome.DRAW,
+        Declare.CANCEL: Outcome.CANCEL
     }
     new_outcome = DECLARE_TO_RESULT[result]
     if is_p1:
@@ -94,15 +94,15 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
     if not match["p2_is_ranked_after"]:
         p2_after_elo_displayed += "?"
 
-    if match["outcome"] == Result.PLAYER_1:
+    if match["outcome"] == Outcome.PLAYER_1:
         winner_id = match["p1_id"]
         result = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
-    elif match["outcome"] == Result.PLAYER_2:
+    elif match["outcome"] == Outcome.PLAYER_2:
         winner_id = match["p2_id"]
         result = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
-    elif match["outcome"] == Result.CANCEL:
+    elif match["outcome"] == Outcome.CANCEL:
         result = "Cancelled"
-    elif match["outcome"] == Result.DRAW:
+    elif match["outcome"] == Outcome.DRAW:
         result = "Draw"
     else:
         result = "Undecided"
@@ -110,17 +110,17 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
     embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match.name))
 
     result_declared = "Undecided"
-    if match["p1_declared"] == Result.PLAYER_1:
+    if match["p1_declared"] == Outcome.PLAYER_1:
         p1_declared = "Declared win"
-    elif match["p1_declared"] == Result.PLAYER_2:
+    elif match["p1_declared"] == Outcome.PLAYER_2:
         p1_declared = "Declared loss"
     elif match["p1_declared"] is None:
         p1_declared = "Didn't declare"
     else:
         p1_declared = match["p1_declared"]
-    if match["p2_declared"] == Result.PLAYER_2:
+    if match["p2_declared"] == Outcome.PLAYER_2:
         p2_declared = "Declared win"
-    elif match["p2_declared"] == Result.PLAYER_1:
+    elif match["p2_declared"] == Outcome.PLAYER_1:
         p2_declared = "Declared loss"
     elif match["p2_declared"] is None:
         p2_declared = "Didn't declare"
@@ -143,7 +143,7 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Result.PLAYER_1, "2":Result.PLAYER_2, "draw":Result.DRAW, "cancel":Result.CANCEL})
+@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
 @tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
 @check_errors
@@ -170,14 +170,14 @@ def get_provisional_game_results(all_matches, player_id, latest_match_id): #TODO
     results = []
 
     for match_id, match in player_matches.iterrows():
-        if match["outcome"] == Result.CANCEL or match["outcome"] == Result.DRAW or match["outcome"] == Result.UNDECIDED or match["outcome"] is None:
+        if match["outcome"] == Outcome.CANCEL or match["outcome"] == Outcome.DRAW or match["outcome"] == Outcome.UNDECIDED or match["outcome"] is None:
             continue
 
         if match["p1_id"] == player_id:
-            winning_outcome = Result.PLAYER_1
+            winning_outcome = Outcome.PLAYER_1
             opponent_elo = match["p2_elo"]
         else:
-            winning_outcome = Result.PLAYER_2
+            winning_outcome = Outcome.PLAYER_2
             opponent_elo = match["p1_elo"]
 
         if match["outcome"] == winning_outcome:
@@ -195,7 +195,7 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
     """
     player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
     player_matches = player_matches.loc[player_matches.index < latest_match_id]\
-    .loc[np.logical_or(player_matches["outcome"] == Result.PLAYER_1, player_matches["outcome"] == Result.PLAYER_2, player_matches["outcome"] == Result.DRAW)]
+    .loc[np.logical_or(player_matches["outcome"] == Outcome.PLAYER_1, player_matches["outcome"] == Outcome.PLAYER_2, player_matches["outcome"] == Outcome.DRAW)]
 
     return len(player_matches) >= Config.NUM_UNRANKED_MATCHES
 
@@ -279,15 +279,15 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
     matches = DB.get_matches()
     match = matches.loc[match_id]
 
-    if new_outcome == Result.PLAYER_1: #refactor this
+    if new_outcome == Outcome.PLAYER_1: #refactor this
         winner_id = match["p1_id"]
         displayed_outcome = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
-    elif new_outcome == Result.PLAYER_2:
+    elif new_outcome == Outcome.PLAYER_2:
         winner_id = match["p2_id"]
         displayed_outcome = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
-    elif new_outcome == Result.CANCEL:
+    elif new_outcome == Outcome.CANCEL:
         displayed_outcome = "Cancelled"
-    elif new_outcome == Result.DRAW:
+    elif new_outcome == Outcome.DRAW:
         displayed_outcome = "Draw"
     else:
         displayed_outcome = "Ongoing" #undecided, or ongoing

@@ -100,16 +100,16 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
             if existing_queues.empty:
                 return "No lobby in " + channel.mention, Embed_Type.ERROR
 
-            DB.remove_queue(channel.id)
+            DB.remove_lobby(channel.id)
             return "Deleted lobby from " + channel.mention, Embed_Type.CONFIRM
 
         if existing_queues.empty:
-            new_queue = DB.get_new_queue(channel.id)
+            new_queue = DB.get_new_lobby(channel.id)
             if name is None:
                 return "Please enter a name", Embed_Type.ERROR
             new_queue["lobby_name"] = name
             new_queue["role_required"] = role_required
-            DB.upsert_queue(new_queue)
+            DB.upsert_lobby(new_queue)
             return "Added new lobby", Embed_Type.CONFIRM
 
         existing_queue = existing_queues.loc[0]
@@ -118,7 +118,7 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
             existing_queue["lobby_name"] = name
 
         existing_queue["role_required"] = role_required
-        DB.upsert_queue(existing_queue)
+        DB.upsert_lobby(existing_queue)
         return "Updated existing lobby", Embed_Type.CONFIRM
 
     confirm_message, embed_type = process_response()

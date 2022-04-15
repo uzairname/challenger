@@ -11,11 +11,6 @@ class Config:
     TESTING_INVITE_LINK = "https://discord.com/api/oauth2/authorize?client_id=951132825803964447&permissions=544857254992&scope=bot%20applications.commands"
     INVITE_LINK = "https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=544857254992&scope=bot%20applications.commands"
 
-    ELO_STDEV = 150  # estimate of standard deviation of everyone's elo
-    DEFAULT_ELO = 1000  # everyone's starting score
-    DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. 2.7 is an arbitrary scaling factor
-    DEFAULT_K = 30  # maximum change in one game
-    NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
 
     DEFAULT_TIMEOUT = 120
 
@@ -27,7 +22,7 @@ class Config:
 
 
 @typing.final
-class Colors: #move to utils
+class Colors: #TODO move to utils
     PRIMARY = "#ffc07d"
     SECONDARY = "#03212e"
     NEUTRAL = "#a5a5a5"

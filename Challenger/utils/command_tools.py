@@ -3,8 +3,8 @@ import functools
 import logging
 import typing
 from Challenger.utils.utils import *
-
 from Challenger.database import Session
+
 
 def check_errors(func):
     # for slash commands, respond with an error if it doesn't work
