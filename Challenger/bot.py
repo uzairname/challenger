@@ -6,6 +6,7 @@ from datetime import datetime
 
 from Challenger.database import Session
 from Challenger.config import Config
+from Challenger.utils.command_tools import on_error
 
 
 def build_bot(token):
@@ -25,6 +26,7 @@ def build_client(bot:hikari.GatewayBot):
 
     client.add_client_callback(tanjun.abc.ClientCallbackNames.STARTING, on_starting)
     client.add_client_callback(tanjun.abc.ClientCallbackNames.STARTED, on_started)
+    client.set_hooks(tanjun.Hooks().set_on_error(on_error))
 
     client.metadata["start_time"] = datetime.now()
 

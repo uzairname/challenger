@@ -9,24 +9,16 @@ from Challenger.database import Session
 
 
 
-component = tanjun.Component(name="management module")
-
-
-class settings:
-    LOBBY = "lobbies"
-    RESULTS = "results channel"
-    REMOVE_LOBBY = "remove lobby"
-    ELO_ROLES = "elo to roles"
-    STAFF = "staff"
+config = tanjun.slash_command_group("config", "Change the bot settings", default_to_ephemeral=False)
 
 
 async def config_help_instructions(**kwargs):
     embed = Custom_Embed(type=Embed_Type.INFO, title="Config Help", description="Config settings help")
     return embed
 
-@component.with_slash_command
+@config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("config-help", "settings commands help", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_help_instructions)
 @ensure_staff
 async def config_help(event, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
@@ -83,13 +75,13 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
     embed.add_field(name="Your selection", value=selection)
     return embed
 
-@component.with_slash_command
+@config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
 @tanjun.with_str_slash_option("name", "lobby name", default=None)
 @tanjun.with_role_slash_option("role_required", "role required", default=None)
 @tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
-@tanjun.as_slash_command("config-lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_lobby_instructions)
 @ensure_staff
 async def config_lobby(ctx, event, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
@@ -174,16 +166,11 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
 
     return embed
 
-
-def get_client(client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
-    return client
-
-@component.with_slash_command
+@config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_role_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
-@tanjun.as_slash_command("config-staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
-@check_errors
+@tanjun.as_slash_command("staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_staff_instructions)
 @ensure_staff
 async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
@@ -240,14 +227,13 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 
     return embed
 
-@component.with_slash_command()
+@config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("max_elo", "max elo", default=float("inf"))
 @tanjun.with_str_slash_option("min_elo", "min elo", default=float("-inf"))
 @tanjun.with_role_slash_option("role", "role", default=None)
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="link role")
-@tanjun.as_slash_command("config-elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
-@check_errors
+@tanjun.as_slash_command("elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_elo_roles_instructions)
 @ensure_staff
 async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
@@ -310,12 +296,11 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 
     return embed
 
-@component.with_slash_command()
+@config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"add/update channel", "remove":"reset to default"}, default="update")
 @tanjun.with_str_slash_option("channel", "channel", default="")
-@tanjun.as_slash_command("config-results-channel", "Set a results channel", default_to_ephemeral=False, always_defer=True)
-@check_errors
+@tanjun.as_slash_command("results-channel", "Set a results channel", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_results_channel_instructions)
 async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
@@ -351,14 +336,14 @@ async def reset_instructions(ctx:tanjun.abc.Context, reset_config, **kwargs):
 
     return embed
 
-@component.with_slash_command
+
+@config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("reset_config", "also reset config settings", choices={"yes":"yes", "no":"no"}, default="no")
-@tanjun.as_slash_command("reset", "reset the data for this server", default_to_ephemeral=False)
-@check_errors
+@tanjun.as_slash_command("reset", "reset the bot's data for this server", default_to_ephemeral=False)
 @take_input(input_instructions=reset_instructions)
 async def reset_data(ctx: tanjun.abc.SlashContext, event, reset_config, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
-    raise NotImplementedError("Not implemented")
+    raise NotImplementedError()
 
 
 management = tanjun.Component(name="management", strict=True).load_from_scope().make_loader()

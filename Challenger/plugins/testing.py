@@ -9,12 +9,10 @@ import tanjun
 from tanjun.abc import SlashContext
 
 
-component = tanjun.Component()
-
-embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False))
+embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False)
 
 
-# @component.with_slash_command
+@embed.with_command
 @tanjun.as_slash_command("tes", "tes")
 async def test(ctx:tanjun.abc.Context):
     try:
@@ -23,7 +21,7 @@ async def test(ctx:tanjun.abc.Context):
         pass
 
 
-@component.with_slash_command
+
 @embed.with_command
 @tanjun.as_slash_command("interactive-post", f"Build an Embed!")
 async def interactive_post(
@@ -85,10 +83,6 @@ async def title(ctx: SlashContext, bot: hikari.GatewayBot, client: tanjun.Client
 
 
 
-
-
-
-@component.with_slash_command
 @tanjun.with_own_permission_check(
     hikari.Permissions.SEND_MESSAGES
     | hikari.Permissions.VIEW_CHANNEL
@@ -110,7 +104,6 @@ async def suggest_command(ctx: tanjun.abc.Context, *, suggestion: str) -> None:
 
 
 
-@component.with_slash_command
 @tanjun.with_str_slash_option("message_id", "Message ID of the suggestion")
 @tanjun.as_slash_command("approve", "approve a suggestion!")
 async def approve_command(ctx: tanjun.abc.Context, message_id: str) -> None:

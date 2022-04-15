@@ -8,10 +8,7 @@ from Challenger.database import Session
 from Challenger.config import Config
 
 
-component = tanjun.Component(name="matches module")
 
-
-# @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False, always_defer=True)
@@ -55,10 +52,9 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.inje
     if match["p1_declared"] == match["p2_declared"]:
         return await set_match_outcome(ctx, match.name, new_outcome, client)
 
-# @component.with_slash_command
+
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("match-history", "Your latest matches' results", default_to_ephemeral=True, always_defer=True)
-@check_errors
 @ensure_registered
 async def match_history_cmd(ctx: tanjun.abc.Context) -> None:
 
@@ -129,7 +125,7 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
     elif match["p2_declared"] is None:
         p2_declared = "Didn't declare"
     else:
-        p2_declared = match["p2_declared"]
+        p2_declared = match["p2_declared"] #TODO idk
 
     embed.add_field(name=result, value="*_ _*")
 
@@ -143,14 +139,10 @@ def match_description_embed(match: pd.Series, DB) -> hikari.Embed:
 
 
 
-
-
-# @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
 @tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
-@check_errors
 @ensure_staff
 @ensure_registered
 async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanjun.injected(type=tanjun.abc.Client)):
@@ -201,8 +193,6 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
     player_matches = player_matches.loc[player_matches.index <= latest_match_id]\
     .loc[np.logical_or(player_matches["outcome"] == Outcome.PLAYER_1, player_matches["outcome"] == Outcome.PLAYER_2, player_matches["outcome"] == Outcome.DRAW)]
 
-    print(player_matches)
-
     return len(player_matches) >= scoring.NUM_UNRANKED_MATCHES
 
 
@@ -220,7 +210,6 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
 
     if _updated_players is None:
         _updated_players = pd.DataFrame([], columns=["user_id", "elo", "is_ranked"]).set_index("user_id")
-        print("empty: \n" + str(_updated_players))
 
     match = matches.loc[match_id]
 
@@ -261,13 +250,9 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
         matches.loc[match_id, "p2_elo_after"] = p2_elo_after
 
         #determine whether they're ranked based on the updated matches before this one
-        print("███determining before " + str(match_id))
         matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id-1)
-        print("███determining before " + str(match_id-1))
         matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id-1)
-        print("███determining before " + str(match_id))
         matches.loc[match_id, "p1_is_ranked_after"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
-        print("███determining before " + str(match_id-1))
         matches.loc[match_id, "p2_is_ranked_after"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
 
         _updated_players.loc[p1_id, "elo"] = p1_elo_after
@@ -325,8 +310,6 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
     players[updated_players.columns] = updated_players
 
     DB.upsert_players(players)
-
-    print("Players before and updated:\n", players_before, "\nupdated:\n", updated_players)
 
     updated_players_message = ""
 

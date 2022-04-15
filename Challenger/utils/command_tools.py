@@ -9,16 +9,23 @@ from Challenger.database import Session
 from Challenger.config import Config
 
 
-def check_errors(func):
-    # for slash commands, respond with an error if it doesn't work
-    @functools.wraps(func)
-    async def wrapper_check_errors(ctx: tanjun.abc.Context, *args, **kwargs):
-        try:
-            await func(ctx, *args, **kwargs)
-        except Exception as e:
-            await ctx.respond(Custom_Embed(Embed_Type.ERROR, description="```" + str(e) + "\n```"))
-            logging.error(f"Error in {func.__name__}", exc_info=True)
-    return wrapper_check_errors
+async def on_error(ctx: tanjun.abc.Context, exception: BaseException) -> None:
+    """Handle an unexpected error during command execution.
+    This is the default error handler for all commands.
+    Parameters
+    ----------
+    ctx : tanjun.abc.Context
+        The context of the command.
+    exception : BaseException
+        The exception that was raised.
+    """
+    # TODO: better permission checks
+    embed = hikari.Embed(
+        title=f"Unexpected {type(exception).__name__}",
+        color=Colors.ERROR,
+        description=f"```python\n{str(exception)[:1950]}```",
+    )
+    await ctx.respond(embed=embed)
 
 
 def ensure_registered(func):
@@ -136,5 +143,5 @@ def take_input(input_instructions:typing.Callable):
 
 
 
-__all__ = ["check_errors", "ensure_staff", "get_channel_lobby", "ensure_registered", "take_input"]
+__all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error"]
 
