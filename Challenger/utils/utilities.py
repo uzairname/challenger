@@ -54,8 +54,8 @@ class InputParser():
 
 def describe_match(match: pd.Series, DB):
 
-    p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
-    p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
+    p1_tag = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
+    p2_tag = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
 
     def displayed_elo(elo, is_ranked):
         if elo is None:
@@ -104,9 +104,9 @@ def describe_match(match: pd.Series, DB):
 
     embed.add_field(name=result, value="*_ _*")
 
-    embed.add_field(name=str(p1_name), value=str(p1_prior_elo_displayed) + " -> " + str(p1_after_elo_displayed) + "\n " + p1_declared, inline=True)
+    embed.add_field(name=str(p1_tag), value=str(p1_prior_elo_displayed) + " -> " + str(p1_after_elo_displayed) + "\n " + p1_declared, inline=True)
     embed.add_field(name="vs", value="*_ _*", inline=True)
-    embed.add_field(name=str(p2_name), value=str(p2_prior_elo_displayed) + " -> " + str(p2_after_elo_displayed) + "\n " + p2_declared, inline=True)
+    embed.add_field(name=str(p2_tag), value=str(p2_prior_elo_displayed) + " -> " + str(p2_after_elo_displayed) + "\n " + p2_declared, inline=True)
 
     embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")
 

@@ -69,29 +69,28 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
 
     matches_per_page = 2
 
-
     def get_embeds_for_page(page_number, user_id=None):
         matches = DB.get_matches(user_id=user_id, number=matches_per_page, increasing=False, skip=page_number*matches_per_page)
 
         embeds = []
 
         for match_id, match in matches.iterrows():
-            embed = describe_match(match)
-            embeds.append(embed)
-
-        if len(embeds) == 0:
-            embed = Custom_Embed(type=Embed_Type.INFO, title="No matches found")
+            embed = describe_match(match, DB)
             embeds.append(embed)
 
         return embeds
 
     embeds = get_embeds_for_page(0, user_id)
 
+    if len(embeds) == 0:
+        embed = Custom_Embed(type=Embed_Type.INFO, title="No matches found")
+        embeds.append(embed)
+
     await ctx.edit_initial_response(embeds=embeds)
 
     page_navigator = ctx.rest.build_action_row()
-    page_navigator.add_button(hikari.messages.ButtonStyle.PRIMARY, "Older").set_label("Older").set_emoji("⬅️").add_to_container()
-    page_navigator.add_button(hikari.messages.ButtonStyle.PRIMARY, "More recent").set_label("More recent").set_emoji("➡️").add_to_container()
+    page_navigator.add_button(hikari.messages.ButtonStyle.PRIMARY, "Older").set_label("Older").set_emoji("⬅️").set_is_disabled(not len(get_embeds_for_page(1, user_id)) > 0).add_to_container()
+    page_navigator.add_button(hikari.messages.ButtonStyle.PRIMARY, "More recent").set_label("More recent").set_emoji("➡️").set_is_disabled(True).add_to_container()
 
     await ctx.edit_initial_response(embeds=embeds, components=[page_navigator])
 
@@ -102,32 +101,27 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
                 ("interaction.user.id", ctx.author.id),
                 ("interaction.message.id", response.id)) as stream:
+
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
-            if event.interaction.custom_id == "Older":
-                cur_page -= 1
-            elif event.interaction.custom_id == "More recent":
+
+            embeds = get_embeds_for_page(cur_page, user_id)
+            prev_page_exists = cur_page > 0
+            next_page_exists = len(get_embeds_for_page(cur_page+1, user_id)) > 0
+
+            for i in page_navigator.components:
+                if i.label == "Older":
+                    i.set_is_disabled(not next_page_exists)
+                elif i.label == "More recent":
+                    i.set_is_disabled(not prev_page_exists)
+
+            if event.interaction.custom_id == "Older" and next_page_exists:
                 cur_page += 1
-
-            embeds = get_embeds_for_page(cur_page)
-            prev_page_exists = cur_page >= 0
-            next_page_exists = len(get_embeds_for_page(cur_page+1)) > 0
-
-
-
-            for i in page_navigator.components[0]:
-                print(i)
-
-                label = i._options.label
-                component = i.options
-                if label == "Older":
-                    component.set_is_disabled(not prev_page_exists)
-                elif label == "More recent":
-                    component.set_is_disabled(not next_page_exists)
-
-            print(next_page_exists)
+            elif event.interaction.custom_id == "More recent" and prev_page_exists:
+                cur_page -= 1
 
             await ctx.edit_initial_response(embeds=embeds, components=[page_navigator])
+
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
@@ -282,13 +276,13 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
     DB.upsert_matches(updated_matches)
 
     players = DB.get_players(user_ids=list(updated_players.index))
+    players_before = players.loc[updated_players.index, updated_players.columns]
     players[updated_players.columns] = updated_players
     DB.upsert_players(players)
 
 
     # announce the updated match in the match announcements channel
     updated_players_message = ""
-    players_before = players.loc[updated_players.index, updated_players.columns]
 
     for index, row in updated_players.iterrows():
         displayed_prior_elo = str(round(players_before.loc[index, "elo"]))

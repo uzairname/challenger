@@ -35,6 +35,7 @@ class Test_DB(unittest.TestCase):
         """
 
         DB = Session(Database_Config.TEST_GUILD_ID)
+        DB.delete_all_matches()
 
         match = DB.get_new_match()
         match["p1_id"] = 48736582983653827
@@ -52,15 +53,17 @@ class Test_DB(unittest.TestCase):
         DB.delete_all_matches()
         assert DB.get_matches().equals(DB.empty_match_df)
 
-        for i in range(10):
-            DB.upsert_match(DB.get_new_match())
+        for i in range(20):
+            match = DB.get_new_match()
+            match["p1_id"] = i%2
+            DB.upsert_match(match)
 
         #ensure that filters are applied in this order: increasing, then offset, then number
-        matches = DB.get_matches(number=5, increasing=False, skip=1) #the 5 matches before the second to last one
+        matches = DB.get_matches(user_id=0, number=5, increasing=False, skip=1) #the 5 matches before the second to last one
 
-        print(matches)
+        print("matches: \n" + str(matches))
 
-        expected_index = pd.Index([9,8,7,6,5])
+        expected_index = pd.Index([17, 15, 13, 11, 9])
         assert matches.index.equals(expected_index)
 
 
@@ -69,4 +72,8 @@ class Test_DB(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    pd.set_option('display.max_columns', None)
+    pd.set_option("max_colwidth", 90)
+    pd.options.display.width = 100
+    pd.options.mode.chained_assignment = None
     unittest.main()

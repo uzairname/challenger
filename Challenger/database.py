@@ -11,6 +11,8 @@ import alluka
 from Challenger.config import Database_Config
 
 
+from .temp import client
+
 class Client(pymongo.MongoClient):
 
     def __init__(self):
@@ -19,6 +21,9 @@ class Client(pymongo.MongoClient):
         url = os.environ.get("MONGODB_URL")
         super().__init__(url)
         print("Time taken to connect to mongo client", time.perf_counter()- start)
+
+        client.append(self)
+        print(client)
 
 
 
@@ -48,9 +53,13 @@ class Session:
         ELO_ROLES = "elo_roles"
 
 
-    def __init__(self, guild_id, client=None):
+    def __init__(self, guild_id):
 
-        self.client = client or Client()
+        print(client)
+        if len(client) == 0:
+            self.client = Client()
+        else:
+            self.client = client[0]
 
         self.guild_id = guild_id
 
@@ -146,18 +155,19 @@ class Session:
         print("from guild: " + self.guild_identifier)
 
         cur_filter = {}
-        if user_id:
+        if user_id is not None:
             user_id = int(user_id)
             cur_filter["$or"] = [{"p1_id":user_id}, {"p2_id":user_id}]
+            print(cur_filter)
 
-        if match_id:
+        if match_id is not None:
             match_id = int(match_id)
             cur_filter["match_id"] = match_id
 
         sort_order = 1 if increasing else -1
         cur = self.guildDB[self.tbl_names.MATCHES.value].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order).skip(skip)
 
-        if number:
+        if number is not None:
             cur.limit(number) #TODO: always limit to 100 or so, if needed
 
         matches_df = pd.DataFrame(list(cur), dtype="object")
@@ -203,7 +213,7 @@ class Session:
 
     def get_lobbies(self, channel_id = None) -> pd.DataFrame:
         cur_filter = {}
-        if channel_id:
+        if channel_id is not None:
             cur_filter["channel_id"] = int(channel_id)
 
         cur = self.guildDB[self.tbl_names.LOBBIES.value].find(cur_filter, projection={"_id":False})
