@@ -1,27 +1,19 @@
-from hikari import Embed
-
-import asyncio
-import functools
-
 import hikari
-import tanjun
-
+from hikari import Embed
 from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
 from hikari.messages import ButtonStyle
 
+import asyncio
+import tanjun
 from tanjun.abc import SlashContext
-from __main__ import Bot
-from utils.utils import *
-
-component = tanjun.Component()
-
-embed = component.with_slash_command(tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False))
 
 
-@component.with_slash_command
-@tanjun.as_slash_command("test", "test")
-@check_errors
+embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False)
+
+
+@embed.with_command
+@tanjun.as_slash_command("tes", "tes")
 async def test(ctx:tanjun.abc.Context):
     try:
         [][0]
@@ -70,7 +62,7 @@ async def interactive_post(
         await ctx.edit_initial_response("Waited for 60 seconds... Timeout.", embed=None, components=[])
 
 
-async def title(ctx: SlashContext, bot: Bot, client: tanjun.Client):
+async def title(ctx: SlashContext, bot: hikari.GatewayBot, client: tanjun.Client):
     embed_dict, *_ = bot.entity_factory.serialize_embed(client.metadata['embed'])
     await ctx.edit_initial_response(content="Set Title for embed:", components=[])
     try:
@@ -91,10 +83,6 @@ async def title(ctx: SlashContext, bot: Bot, client: tanjun.Client):
 
 
 
-
-
-
-@component.with_slash_command
 @tanjun.with_own_permission_check(
     hikari.Permissions.SEND_MESSAGES
     | hikari.Permissions.VIEW_CHANNEL
@@ -116,7 +104,6 @@ async def suggest_command(ctx: tanjun.abc.Context, *, suggestion: str) -> None:
 
 
 
-@component.with_slash_command
 @tanjun.with_str_slash_option("message_id", "Message ID of the suggestion")
 @tanjun.as_slash_command("approve", "approve a suggestion!")
 async def approve_command(ctx: tanjun.abc.Context, message_id: str) -> None:
@@ -135,8 +122,4 @@ async def approve_command(ctx: tanjun.abc.Context, message_id: str) -> None:
     await response.delete()
 
 
-
-
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+demo = tanjun.Component(name="demo", strict=True).load_from_scope().make_loader()

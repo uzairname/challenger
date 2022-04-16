@@ -1,32 +1,27 @@
-from utils.utils import *
+import tanjun
 import hikari
-from database import Database
 from datetime import datetime
-from utils.ELO import *
+
+from Challenger.utils import *
+from Challenger.database import Session
+from Challenger.config import Config
 
 component = tanjun.Component(name="player module")
 
 
-# async def ensure_registered(ctx: tanjun.abc.Context, DB:Database):
-#     player_info = DB.get_players(user_id=ctx.author.id)
-#     if player_info.empty:
-#         await ctx.respond(f"hello {ctx.author.mention}. Please register with /register to play", user_mentions=True)
-#         return None
-#     return player_info
-
 
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
 async def register(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("please wait")
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
     player_id = ctx.author.id
     players = DB.get_players(user_id=player_id)
 
     tag = ctx.author.username + "#" + ctx.author.discriminator
-
     name = ctx.member.nickname or ctx.member.username
 
     if players.empty:
@@ -35,8 +30,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["tag"] = tag
         player["time_registered"] = datetime.now()
         player["is_ranked"] = False
-        player["elo"] = Config.DEFAULT_ELO
-        player["staff"] = Status.NONE
+        player["elo"] = scoring.DEFAULT_ELO
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return
@@ -49,14 +43,14 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
 
 @component.with_slash_command
-@tanjun.with_own_permission_check(hikari.Permissions.MANAGE_GUILD)
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_member_slash_option("player", "their mention", default=None)
 @tanjun.as_slash_command("stats", "view your or someone else's stats", default_to_ephemeral=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
     await ctx.respond("...")
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     #get the selected player
     if player:
@@ -78,11 +72,11 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     total_wins = 0
     total_losses = 0
     for index, match in matches.iterrows():
-        if match["outcome"] == Result.DRAW:
+        if match["outcome"] == Outcome.DRAW:
             total_draws += 1
 
-        winning_result = Result.PLAYER_1 if match["p1_id"] == player.name else Result.PLAYER_2
-        losing_result = Result.PLAYER_2 if match["p1_id"] == player.name else Result.PLAYER_1
+        winning_result = Outcome.PLAYER_1 if match["p1_id"] == player.name else Outcome.PLAYER_2
+        losing_result = Outcome.PLAYER_2 if match["p1_id"] == player.name else Outcome.PLAYER_1
 
         if match["outcome"] == winning_result:
             total_wins += 1
@@ -93,7 +87,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     if not player["is_ranked"]:
         displayed_elo += "? (unranked)"
 
-    stats_embed = Custom_Embed(type=Embed_Type.INFO, title=f"{player['tag']}'s Stats", description="*_ _*").set_thumbnail(member.avatar_url)
+    stats_embed = Custom_Embed(type=Embed_Type.INFO, title=f"{player['tag']}'s Stats", description="*_ _*", color=member.accent_color).set_thumbnail(member.avatar_url)
     stats_embed.add_field(name="Elo", value=displayed_elo)
     stats_embed.add_field(name="Total matches", value=f"{matches.shape[0]}")
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)
@@ -104,12 +98,13 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
 
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
 async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("please wait")
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
 
     players = DB.get_players(top_by_elo=[0,20])
     if players.empty:
@@ -151,6 +146,4 @@ async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
 
 
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+player = tanjun.Component(name="player", strict=True).load_from_scope().make_loader()

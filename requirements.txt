@@ -1,9 +1,9 @@
+setuptools~=58.1.0
+pip~=22.0.4
 hikari~=2.0.0.dev108
 hikari-tanjun
 git+https://github.com/FasterSpeeding/Tanjun.git
-pandas~=1.4.1
-pip~=22.0.4
-setuptools~=58.1.0
-numpy~=1.22.3
 pymongo[srv]
+pandas~=1.4.1
+numpy~=1.22.3
 sympy

@@ -1,15 +1,14 @@
+import tanjun
 import hikari
-
-from utils.utils import *
-from __init__ import *
-import config
-from __main__ import Bot
-# from __main__ import bot
-import time
+import math
+from datetime import datetime
 from hikari.interactions.base_interactions import ResponseType
 
+from Challenger.utils import *
+from Challenger.config import Config
 
 component = tanjun.Component(name="hi module")
+
 
 
 
@@ -21,15 +20,17 @@ in order of priority:
 • show when opponent declares result, and when there's a conflict
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• add permission checks to commands
-• limit bots permissions
 • Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • remove player from queue after 10 mins
 • Automatically assign roles based on Elo
+• Every match update is announced in the set channel, players should use /match history to browse matches instead of scrolling in the channel
+• Add tournaments support
+
 
 Low priority:
-• Command to reset all data in bot
-• /history show your recent matches
+• option to show details in match history
+• presets for elo roles
+• reset data command
 • Automatically register players on commands
 • see distribution of everyone's elo
 • /stats show your percentile
@@ -54,7 +55,7 @@ Best of 3 and 5
 
 @component.with_slash_command
 @tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
-async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
+async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
 
     basics_embed = hikari.Embed(title="Basic Use", description="To get started, type /register. Make sure you're in a channel with a 1v1 lobby. Join the queue to get matched with another player. When the queue is full, a match is created, and you can see its status in whichever channel is set up to record matches", colour=Colors.PRIMARY)
     basics_embed.add_field(name="Commands", value="`/register` - Register your username and gain access to most features!\n`/join` - Join the queue to be matched with another player\n`/leave` - Leave the queue\n`/declare [win, loss, draw, or cancel]` - declare the results of the match. Both players must agree for result to be decided. Staff can handle disputes", inline=True)
@@ -74,9 +75,12 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="Basics").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=[basics_embed], components=[page_dropdown], user_mentions=[ctx.author])
+    response = await ctx.edit_initial_response(embeds=[basics_embed], components=[page_dropdown], user_mentions=[ctx.author], ensure_result=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(
+            ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
+            ("interaction.user.id", ctx.author.id),
+            ("interaction.message.id", response.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             page = event.interaction.values[0]
@@ -86,16 +90,33 @@ async def help_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=
             await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
 
 
-
 @component.with_slash_command
-@tanjun.as_slash_command("about", "About", default_to_ephemeral=True)
-async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type=Bot)) -> None:
+# @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.as_slash_command("about", "About", default_to_ephemeral=False)
+async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)) -> None:
 
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(ctx.author.avatar_url)
+    user = await bot.rest.fetch_my_user()
+    avatar = user.avatar_url
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(avatar)
+
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
     about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition", inline=True)
-    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({config.Config.bot_invite_link})" , inline=True)
-    about_embed.set_footer("By Lilapela#1234")
+    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({Config.INVITE_LINK}) or click the link in my profile", inline=True)
+    about_embed.set_footer("By Lilapela#5348")
+
+    member = bot.cache.get_member(ctx.guild_id, user.id)
+    bot_perms = await tanjun.utilities.fetch_permissions(client, member)
+    if Config.REQUIRED_PERMISSIONS & bot_perms == bot_perms:
+        about_embed.add_field(name="Permissions", value=f":white_check_mark: This bot has all the required permissions", inline=True)
+    else:
+        about_embed.add_field(name="Permissions", value=f":x: This bot is missing the following required permissions: {Config.REQUIRED_PERMISSIONS}", inline=True)
+
+    # unnecessary_perms = bot_perms ^ Config.REQUIRED_PERMISSIONS & bot_perms
+    # if unnecessary_perms:
+    #     about_embed.add_field(name="Unnecessary perms", value="This bot has permissions it doesn't need: {}".format(str(unnecessary_perms).split("|")), inline=True)
+
+    permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
+    permissions_embed.add_field("View Channels", "Required for the bot to view channels")
 
     todo_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
     todo_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
@@ -109,9 +130,12 @@ async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="About").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
+    response = await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True, ensure_result=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(
+            ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
+            ("interaction.user.id", ctx.author.id),
+            ("interaction.message.id", response.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             page = event.interaction.values[0]
@@ -120,19 +144,14 @@ async def about_command(ctx: tanjun.abc.Context, bot:Bot  = tanjun.injected(type
 
             await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
 
+    await ctx.edit_initial_response(embed=about_embed, components=[])
 
-@component.with_slash_command
-@tanjun.as_slash_command("invite-pela", "invite pela to your own server", default_to_ephemeral=False)
-async def hi_test(ctx: tanjun.abc.Context) -> None:
-    await ctx.respond(f"This is the invite link: " + INVITE_LINK)
 
 @component.with_slash_command
 @tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
-async def uptime(ctx:tanjun.abc.Context, bot:Bot=tanjun.injected(type=Bot)) -> None:
-    time_diff = time.time() - bot.start_time
-    await ctx.respond("Pela's current session's uptime is: " + str(round(time_diff/3600)) + " hours, " + str(round((time_diff/60)%60)) + " minutes, " + str(round(time_diff%60)) + " seconds")
+async def uptime(ctx:tanjun.abc.Context, client:tanjun.Client = tanjun.injected(type=tanjun.abc.Client)) -> None: #TODO ping
+    time_diff = datetime.now() - client.metadata["start_time"]
+    await ctx.respond("Challenger's current session's uptime is: " + str(datetime.timedelta(seconds=time_diff)))
 
 
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+help = tanjun.Component(name="help", strict=True).load_from_scope().make_loader()

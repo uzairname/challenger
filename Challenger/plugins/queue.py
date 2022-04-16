@@ -1,18 +1,19 @@
-import hikari
-from utils.utils import *
-from utils.ELO import *
-from database import Database
-from __main__ import bot
+import tanjun
 from datetime import datetime
+
+
+from Challenger.utils import *
+from Challenger.database import Session
+from Challenger.config import *
 
 
 component = tanjun.Component(name="queue module")
 
 
-
-
 async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
-    DB = Database(ctx.guild_id)
+    """creates a new match between the 2 players and announces it to the channel"""
+
+    DB = Session(ctx.guild_id)
 
     p1_ping = "<@" + str(p1_info.name) + ">"
     p2_ping = "<@" + str(p2_info.name) + ">"
@@ -30,30 +31,23 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
 
 
 
-async def update_match(matches, match_id, new_result = None, updated_players=None):
-    updated_players = updated_players or []
-
-    match = matches.loc[match_id]
-
-
 #join the queue
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
-@check_errors
 @ensure_registered
-@check_for_queue
+@get_channel_lobby
 async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 
-    DB = Database(ctx.guild_id)
+    await ctx.respond("please wait")
 
-    #Ensure player has at least 1 role in the queue roles
-    is_allowed = False
-    for role in queue["roles"]:
-        if role in ctx.member.role_ids:
-            is_allowed = True
-    if not is_allowed:
-        await ctx.respond(f"{ctx.author.mention} You're missing the required roles to join this lobby")
-        return
+    DB = Session(ctx.guild_id)
+
+    #Ensure player has at the required role
+    if queue["required_role"]:
+        if not queue["required_role"] in ctx.member.role_ids:
+            await ctx.respond(f"{ctx.author.mention} You're missing the required role to join this lobby")
+            return
 
     player_id=ctx.author.id
 
@@ -74,7 +68,7 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
     #add player to queue
     if not queue["player"]:
         queue["player"] = player_id
-        DB.upsert_queue(queue)
+        DB.upsert_lobby(queue)
 
         await ctx.edit_initial_response(f"You silently joined the queue")
         await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
@@ -85,19 +79,20 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
         p2_info = DB.get_players(user_id=player_id).iloc[0]
 
         queue["player"] = None
-        DB.upsert_queue(queue)
+        DB.upsert_lobby(queue)
 
         await start_new_match(ctx, p1_info, p2_info)
 
 
 #leave queue
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
-@check_for_queue
+@get_channel_lobby
 async def leave_q(ctx: tanjun.abc.Context, queue) -> None:
 
-    DB = Database(ctx.guild_id)
+    DB = Session(ctx.guild_id)
     player_id = ctx.author.id
 
     response = "Left the queue"
@@ -107,7 +102,7 @@ async def leave_q(ctx: tanjun.abc.Context, queue) -> None:
     else:
         response = "You're not in the queue"
 
-    DB.upsert_queue(queue)
+    DB.upsert_lobby(queue)
     await ctx.edit_initial_response(response)
 
 
@@ -121,8 +116,9 @@ def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
 
 
 @component.with_slash_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
-@check_for_queue
+@get_channel_lobby
 async def queue_status(ctx: tanjun.abc.Context, queue) -> None:
     if queue["player"]:
         await ctx.edit_initial_response("1 player in queue")
@@ -131,7 +127,4 @@ async def queue_status(ctx: tanjun.abc.Context, queue) -> None:
 
 
 
-
-@tanjun.as_loader
-def load(client: tanjun.abc.Client) -> None:
-    client.add_component(component.copy())
+queue = tanjun.Component(name="queue", strict=True).load_from_scope().make_loader()
