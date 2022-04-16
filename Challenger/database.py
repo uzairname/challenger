@@ -1,12 +1,25 @@
 import os
 from typing import List
 from enum import Enum
+import time
 
 import numpy as np
 import pandas as pd
 import pymongo
+import alluka
 
 from Challenger.config import Database_Config
+
+
+class Client(pymongo.MongoClient):
+
+    def __init__(self):
+
+        start = time.perf_counter()
+        url = os.environ.get("MONGODB_URL")
+        super().__init__(url)
+        print("Time taken to connect to mongo client", time.perf_counter()- start)
+
 
 
 class Session:
@@ -19,7 +32,7 @@ class Session:
         "p2_id", "p2_elo", "p2_elo_after", "p2_declared", "p2_is_ranked", "p2_is_ranked_after"])\
         .set_index("match_id")
 
-    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "lobby_name", "role_required", "player", "time_joined"])
+    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "lobby_name", "required_role", "player", "time_joined"])
 
 
     #these are structured differently
@@ -35,10 +48,11 @@ class Session:
         ELO_ROLES = "elo_roles"
 
 
-    def __init__(self, guild_id):
+    def __init__(self, guild_id, client=None):
+
+        self.client = client or Client()
+
         self.guild_id = guild_id
-        url = os.environ.get("MONGODB_URL")
-        self.client = pymongo.MongoClient(url)
 
         if guild_id in Database_Config.KNOWN_GUILDS:
             self.guild_identifier = Database_Config.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
@@ -211,8 +225,10 @@ class Session:
             queue["channel_id"] = int(queue["channel_id"])
         if queue["player"] is not None:
             queue["player"] = int(queue["player"])
-        if queue["role_required"] is not None:
-            queue["role_required"] = int(queue["role_required"])
+        if queue["required_role"] is not None:
+            queue["required_role"] = int(queue["required_role"])
+
+        required_role = 1
 
         queuedict = queue.to_dict()
         self.guildDB[self.tbl_names.LOBBIES.value].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)

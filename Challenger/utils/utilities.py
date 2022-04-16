@@ -57,19 +57,18 @@ def describe_match(match: pd.Series, DB):
     p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
     p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
 
-    p1_prior_elo_displayed = str(round(match["p1_elo"]))
-    if not match["p1_is_ranked"]:
-        p1_prior_elo_displayed += "?"
-    p2_prior_elo_displayed = str(round(match["p2_elo"]))
-    if not match["p2_is_ranked"]:
-        p2_prior_elo_displayed += "?"
+    def displayed_elo(elo, is_ranked):
+        if elo is None:
+            return "?"
+        if is_ranked:
+            return str(round(elo))
+        else:
+            return str(round(elo)) + "?"
 
-    p1_after_elo_displayed = str(round(match["p1_elo_after"]))
-    if not match["p1_is_ranked_after"]:
-        p1_after_elo_displayed += "?"
-    p2_after_elo_displayed = str(round(match["p2_elo_after"]))
-    if not match["p2_is_ranked_after"]:
-        p2_after_elo_displayed += "?"
+    p1_prior_elo_displayed = displayed_elo(match["p1_elo"], match["p1_is_ranked"])
+    p2_prior_elo_displayed = displayed_elo(match["p2_elo"], match["p2_is_ranked"])
+    p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
+    p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
 
 
     if match["outcome"] == Outcome.PLAYER_1:

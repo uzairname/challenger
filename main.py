@@ -4,8 +4,9 @@
 import os
 import pandas as pd
 from Challenger.config import Config
-import Challenger.database as db
+from Challenger.database import *
 from Challenger.bot import build_bot
+
 
 
 if __name__ == "__main__":

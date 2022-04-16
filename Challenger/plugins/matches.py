@@ -69,9 +69,8 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
 
     matches_per_page = 2
 
-    matches = DB.get_matches(user_id=ctx.author.id, number=matches_per_page).sort_index(ascending=True) #5 matches per page
 
-    def get_embeds_for_page(page_number):
+    def get_embeds_for_page(page_number, user_id=None):
         matches = DB.get_matches(user_id=user_id, number=matches_per_page, increasing=False, skip=page_number*matches_per_page)
 
         embeds = []
@@ -80,18 +79,13 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
             embed = describe_match(match)
             embeds.append(embed)
 
+        if len(embeds) == 0:
+            embed = Custom_Embed(type=Embed_Type.INFO, title="No matches found")
+            embeds.append(embed)
+
         return embeds
 
-
-
-    if matches.empty:
-        await ctx.respond("you haven't played any matches")
-        return
-
-    embeds = []
-
-    for match_id, match in matches.iterrows():
-        embeds.append(describe_match(match, DB))
+    embeds = get_embeds_for_page(0, user_id)
 
     await ctx.edit_initial_response(embeds=embeds)
 
@@ -118,6 +112,19 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
             embeds = get_embeds_for_page(cur_page)
             prev_page_exists = cur_page >= 0
             next_page_exists = len(get_embeds_for_page(cur_page+1)) > 0
+
+
+
+            for i in page_navigator.components[0]:
+                print(i)
+
+                label = i._options.label
+                component = i.options
+                if label == "Older":
+                    component.set_is_disabled(not prev_page_exists)
+                elif label == "More recent":
+                    component.set_is_disabled(not next_page_exists)
+
             print(next_page_exists)
 
             await ctx.edit_initial_response(embeds=embeds, components=[page_navigator])
