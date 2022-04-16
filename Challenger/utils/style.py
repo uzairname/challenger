@@ -17,7 +17,7 @@ class Embed_Type:
 
 class Custom_Embed(hikari.Embed):
 
-    def __init__(self, type, title=None, description=None, url=None, color=None, colour=None, timestamp=None):
+    def __init__(self, type, title=None, description=None, url=None, color=None, timestamp=None):
 
         if type == Embed_Type.ERROR:
             super().__init__(color=color or Colors.ERROR, title=title or "Error", description=description or "Error.", url=url, timestamp=timestamp)

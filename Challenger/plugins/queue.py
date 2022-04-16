@@ -11,6 +11,8 @@ component = tanjun.Component(name="queue module")
 
 
 async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
+    """creates a new match between the 2 players and announces it to the channel"""
+
     DB = Session(ctx.guild_id)
 
     p1_ping = "<@" + str(p1_info.name) + ">"
@@ -29,12 +31,6 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
 
 
 
-async def update_match(matches, match_id, new_result = None, updated_players=None):
-    updated_players = updated_players or []
-
-    match = matches.loc[match_id]
-
-
 #join the queue
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
@@ -42,6 +38,8 @@ async def update_match(matches, match_id, new_result = None, updated_players=Non
 @ensure_registered
 @get_channel_lobby
 async def join_q(ctx: tanjun.abc.Context, queue) -> None:
+
+    await ctx.respond("please wait")
 
     DB = Session(ctx.guild_id)
 

@@ -11,6 +11,7 @@ component = tanjun.Component(name="hi module")
 
 
 
+
 bot_todo = """
 
 **In order of priority**
@@ -22,8 +23,12 @@ in order of priority:
 • Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
 • remove player from queue after 10 mins
 • Automatically assign roles based on Elo
+• Every match update is announced in the set channel, players should use /match history to browse matches instead of scrolling in the channel
+• Add tournaments support
+
 
 Low priority:
+• option to show details in match history
 • presets for elo roles
 • reset data command
 • Automatically register players on commands
@@ -70,9 +75,12 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="Basics").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=[basics_embed], components=[page_dropdown], user_mentions=[ctx.author])
+    response = await ctx.edit_initial_response(embeds=[basics_embed], components=[page_dropdown], user_mentions=[ctx.author], ensure_result=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(
+            ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
+            ("interaction.user.id", ctx.author.id),
+            ("interaction.message.id", response.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             page = event.interaction.values[0]
@@ -122,9 +130,12 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="About").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
+    response = await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True, ensure_result=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT)) as stream:
+    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(
+            ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
+            ("interaction.user.id", ctx.author.id),
+            ("interaction.message.id", response.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             page = event.interaction.values[0]

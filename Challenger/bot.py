@@ -36,7 +36,10 @@ def build_client(bot:hikari.GatewayBot):
 async def on_guild_available(event:hikari.GuildAvailableEvent):
     print(event.guild.name)
     DB = Session(event.guild_id)
-    DB.init_database(event.guild.name)
+    DB.create_collections()
+    config = DB.get_config()
+    config["guild_name"] = event.guild.name
+    DB.upsert_config(config)
 
 
 async def on_starting():

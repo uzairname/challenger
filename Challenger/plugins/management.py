@@ -8,7 +8,6 @@ from Challenger.database import Session
 
 
 
-
 config = tanjun.slash_command_group("config", "Change the bot settings", default_to_ephemeral=False)
 
 
@@ -49,7 +48,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 
     embed = Custom_Embed(type=Embed_Type.INFO,
         title="Setup 1v1 lobbies",
-        description="Each channel can have one lobby with its own separate queue. To add, edit, or delete a lobby, enter the channel name followed by its name (optional) and allowed roles. To remove required roles from a lobby, enter no roles. A registered player with at least one of these roles can join the lobby")
+        description="Each lobby has its own separate 1v1 queue, and is assigned to a channel. Enter the lobby name and the channel id. To delete a lobby, select the delete option. Required roles are optional. If specified, only players with those roles can join the queue in the lobby. To remove required roles from a lobby, enter no roles.")
 
     lobbies_list = ""
     all_lobbies = DB.get_lobbies()
@@ -68,8 +67,12 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         selection += "**Updating or adding lobby:**\n"
     else:
         selection += "**No action**\n"
-    input_params = InputParser(str(name) + str(channel) + str(role_required))
-    selection += input_params.describe()
+
+    selection += "In channel: " + channel.mention + "\n"
+    if name:
+        selection += "With name: " + name + "\n"
+    if role_required:
+        selection += "With required role: " + role_required.mention + "\n"
 
     embed.add_field(name="Current lobbies", value=lobbies_list)
     embed.add_field(name="Your selection", value=selection)

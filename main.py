@@ -17,7 +17,5 @@ if __name__ == "__main__":
         pd.options.display.width = 100
         pd.options.mode.chained_assignment = None
 
-        testing_DB = db.Session(Config.TESTING_GUILD_ID)
-        testing_DB.test()
 
     build_bot(os.environ.get('DISCORD_TOKEN')).run()

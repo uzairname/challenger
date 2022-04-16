@@ -30,7 +30,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["tag"] = tag
         player["time_registered"] = datetime.now()
         player["is_ranked"] = False
-        player["elo"] = Config.DEFAULT_ELO
+        player["elo"] = scoring.DEFAULT_ELO
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return

@@ -10,16 +10,9 @@ from Challenger.config import Config
 
 
 async def on_error(ctx: tanjun.abc.Context, exception: BaseException) -> None:
-    """Handle an unexpected error during command execution.
-    This is the default error handler for all commands.
-    Parameters
-    ----------
-    ctx : tanjun.abc.Context
-        The context of the command.
-    exception : BaseException
-        The exception that was raised.
     """
-    # TODO: better permission checks
+    Handle an unexpected error during command execution.
+    """
     embed = hikari.Embed(
         title=f"Unexpected {type(exception).__name__}",
         color=Colors.ERROR,

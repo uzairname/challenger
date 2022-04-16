@@ -6,25 +6,25 @@ import numpy as np
 import pandas as pd
 import pymongo
 
-from Challenger.config import Config
+from Challenger.config import Database_Config
 
 
 class Session:
 
-    empty_player = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked"]).set_index("user_id")
+    empty_player_df = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked"]).set_index("user_id")
 
-    empty_match = pd.DataFrame([], columns=[
+    empty_match_df = pd.DataFrame([], columns=[
         "match_id", "time_started", "outcome", "staff_declared",
         "p1_id", "p1_elo", "p1_elo_after", "p1_declared", "p1_is_ranked", "p1_is_ranked_after",
         "p2_id", "p2_elo", "p2_elo_after", "p2_declared", "p2_is_ranked", "p2_is_ranked_after"])\
         .set_index("match_id")
 
-    empty_lobby = pd.DataFrame([], columns=["channel_id", "lobby_name", "role_required", "player", "time_joined"])
+    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "lobby_name", "role_required", "player", "time_joined"])
 
+
+    #these are structured differently
     empty_elo_roles = pd.DataFrame([], columns=["role", "elo_min", "elo_max", "priority"])
-
     empty_config = pd.Series(index=["results_channel", "staff_role", "guild_name"], dtype="float64").replace(np.nan, None)
-
     empty_config_df = pd.DataFrame([], columns=["guild_name", "default_results_channel", "staff_role"]) #TODO use this
 
     class tbl_names(Enum):
@@ -38,35 +38,24 @@ class Session:
     def __init__(self, guild_id):
         self.guild_id = guild_id
         url = os.environ.get("MONGODB_URL")
-        client = pymongo.MongoClient(url)
+        self.client = pymongo.MongoClient(url)
 
-        self.guild_name = str(guild_id)
+        if guild_id in Database_Config.KNOWN_GUILDS:
+            self.guild_identifier = Database_Config.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
+        else:
+            self.guild_identifier = str(guild_id)
 
-        if guild_id == Config.PX_GUILD_ID:
-            self.guild_name = "PX"
-        elif guild_id == Config.TESTING_GUILD_ID:
-            self.guild_name = "testing"
-
-        self.guildDB = client["guild_" + self.guild_name]
+        self.guildDB = self.client["guild_" + self.guild_identifier]
 
 
-    def test(self): #called in development for debugging
-
-        self.get_elo_roles()
-        self.get_players()
-        self.get_matches()
-        self.get_lobbies()
-        self.get_config()
-
+    def test(self):
         pass
 
 
-    def init_database(self, guild_name):
+    def create_collections(self):
 
         #update the guild's name in the db
-        config = self.get_config()
-        config["guild_name"] = guild_name
-        self.upsert_config(config)
+
 
         #make sure all required collections exist in this guild's database
         existing_tables = self.guildDB.list_collection_names()
@@ -76,8 +65,12 @@ class Session:
                 self.guildDB.create_collection(i.value)
 
 
-    #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
+    def delete_database(self):
+        self.client.drop_database(self.guildDB.name)
 
+
+
+    #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
 
     def get_players(self, user_id=None, user_ids: List =None, staff=None, top_by_elo=None) -> pd.DataFrame:
 
@@ -100,12 +93,12 @@ class Session:
         players_df = pd.DataFrame(list(cur))
         if not players_df.empty:
             players_df.set_index("user_id", inplace=True)
-        full_players_df = pd.concat([self.empty_player, players_df])[self.empty_player.columns].replace(np.nan, None)
+        full_players_df = pd.concat([self.empty_player_df, players_df])[self.empty_player_df.columns].replace(np.nan, None)
         return full_players_df
 
     def get_new_player(self, user_id) -> pd.Series:
         player_df = pd.DataFrame([[user_id]], columns=["user_id"]).set_index("user_id")
-        new_player = pd.concat([self.empty_player, player_df]).iloc[0]
+        new_player = pd.concat([self.empty_player_df, player_df]).iloc[0]
         return new_player
 
     def upsert_player(self, player:pd.Series): #takes a series returned from get_players or new_player
@@ -125,7 +118,18 @@ class Session:
 
 
 
-    def get_matches(self, user_id=None, match_id=None, from_match=None, up_to_match=None, number=None, from_first=False) -> pd.DataFrame:
+    def get_matches(self, user_id=None, match_id=None, number=None, skip=0, increasing=False) -> pd.DataFrame:
+        """
+        Params
+        ------
+        user_id: int
+            if specified gets all matches where the user is involved
+        match_id: int
+            if match_id is specified, returns the match with that id
+        increasing: if true, returns matches from oldest to newest
+        """
+
+        print("from guild: " + self.guild_identifier)
 
         cur_filter = {}
         if user_id:
@@ -136,38 +140,32 @@ class Session:
             match_id = int(match_id)
             cur_filter["match_id"] = match_id
 
-        if from_match:
-            from_match = int(from_match)
-            cur_filter["match_id"] = {"$gte":from_match}
+        sort_order = 1 if increasing else -1
+        cur = self.guildDB[self.tbl_names.MATCHES.value].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order).skip(skip)
 
-        if up_to_match:
-            up_to_match = int(up_to_match)
-            cur_filter["match_id"] = {"$lte":up_to_match}
-
-        sort_order = 1 if from_first else -1
-        cur = self.guildDB[self.tbl_names.MATCHES.value].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order)
         if number:
-            cur.limit(number)
+            cur.limit(number) #TODO: always limit to 100 or so, if needed
 
         matches_df = pd.DataFrame(list(cur), dtype="object")
         if not matches_df.empty:
             matches_df.set_index("match_id", inplace=True)
-        full_matches_df = pd.concat([self.empty_match, matches_df])[self.empty_match.columns].replace(np.nan, None)
+        full_matches_df = pd.concat([self.empty_match_df, matches_df])[self.empty_match_df.columns].replace(np.nan, None)
         return full_matches_df
 
     def get_new_match(self) -> pd.Series:
 
         prev_match = self.get_matches(number=1)
         if prev_match.empty:
-            new_id = 0
+            new_id = 1
         else:
-            new_id = prev_match.iloc[0].name + 1
+            new_id = prev_match.index.max() + 1
 
         match_df = pd.DataFrame([[new_id]], columns=["match_id"]).set_index("match_id")
-        new_match = pd.concat([self.empty_match, match_df]).iloc[0]
+        new_match = pd.concat([self.empty_match_df, match_df]).iloc[0]
         return new_match
 
     def upsert_match(self, match:pd.Series):
+        match = match.copy()
         match["match_id"] = match.name #match_id is the index of the match
         match = match.replace(np.nan, None) #replace nan with none fixes the types. set dtype to object
 
@@ -184,6 +182,9 @@ class Session:
         for i in matches.index:
             self.upsert_match(matches.loc[i])
 
+    def delete_all_matches(self):
+        self.guildDB[self.tbl_names.MATCHES.value].delete_many({})
+
 
 
     def get_lobbies(self, channel_id = None) -> pd.DataFrame:
@@ -194,18 +195,18 @@ class Session:
         cur = self.guildDB[self.tbl_names.LOBBIES.value].find(cur_filter, projection={"_id":False})
 
         queues_df =  pd.DataFrame(list(cur))
-        updated_queues_df = pd.concat([self.empty_lobby, queues_df])[self.empty_lobby.columns].replace(np.nan, None)
+        updated_queues_df = pd.concat([self.empty_lobby_df, queues_df])[self.empty_lobby_df.columns].replace(np.nan, None)
         return updated_queues_df.reset_index(drop=True)
 
     def get_new_lobby(self, channel_id) -> pd.Series:
         queue = pd.Series([channel_id], index=["channel_id"])
-        new_queue = pd.concat([self.empty_lobby, pd.DataFrame(queue).T]).iloc[0]
+        new_queue = pd.concat([self.empty_lobby_df, pd.DataFrame(queue).T]).iloc[0]
         return new_queue
 
     def upsert_lobby(self, queue:pd.Series): # only pass something returned from new_queue or get_queue
         queue = queue.replace(np.nan, None)
 
-        self.empty_lobby #Make sure nothning is numpy type
+        self.empty_lobby_df #Make sure nothning is numpy type
         if queue["channel_id"] is not None:
             queue["channel_id"] = int(queue["channel_id"])
         if queue["player"] is not None:
@@ -222,18 +223,17 @@ class Session:
 
 
     def get_config(self) -> pd.Series:
-        cur = self.guildDB[self.tbl_names.CONFIG.value].find({}, projection={"_id":False})
-
-        if cur is None:
+        if self.guildDB[self.tbl_names.CONFIG.value].count_documents({}) == 0:
             self.upsert_config(self.empty_config)
             return self.get_config()
+
+        cur = self.guildDB[self.tbl_names.CONFIG.value].find({}, projection={"_id":False})
 
         return pd.Series(cur[0], dtype="object").replace(np.nan, None)
 
     def upsert_config(self, config:pd.Series): # takes a series returned from get_config
         configdict = config.to_dict()
         self.guildDB[self.tbl_names.CONFIG.value].update_one({}, {"$set":configdict}, upsert=True)
-
 
 
     def upsert_elo_roles(self, elo_roles_df:pd.DataFrame):
@@ -251,3 +251,4 @@ class Session:
         elo_roles_df = pd.DataFrame.from_dict(cur, orient="tight")
         elo_roles_df = pd.concat([self.empty_elo_roles, elo_roles_df]).replace(np.nan, None)
         return elo_roles_df.reset_index(drop=True)
+

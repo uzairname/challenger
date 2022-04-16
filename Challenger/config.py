@@ -16,3 +16,11 @@ class Config:
 
     REQUIRED_PERMISSIONS = hikari.Permissions.NONE.SEND_MESSAGES
     PERMS_ERR_MSG = f"The bot is missing some required permissions. Type /about to see them"
+
+
+
+class Database_Config:
+    TEST_GUILD_ID = 1 # Used for unit tests
+
+    # known names for some known discord servers, for ease of use
+    KNOWN_GUILDS = {Config.TESTING_GUILD_ID: "pela", Config.PX_GUILD_ID: "PX", TEST_GUILD_ID: "testing"}
