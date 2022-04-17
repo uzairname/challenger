@@ -12,13 +12,26 @@ from tanjun.abc import SlashContext
 embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False)
 
 
-@embed.with_command
-@tanjun.as_slash_command("tes", "tes")
-async def test(ctx:tanjun.abc.Context):
-    try:
-        [][0]
-    except IndexError:
-        pass
+async def wait(ctx: tanjun.abc.Context):
+    await asyncio.sleep(5)
+    await ctx.respond("Removed")
+
+
+@tanjun.as_slash_command("enter", "enter", always_defer=True)
+async def enter(ctx:tanjun.abc.Context):
+    message = await ctx.fetch_initial_response()
+
+    for i in asyncio.all_tasks():
+        if i.get_name() == str(ctx.author.id):
+            print(i)
+            i.cancel()
+            break
+
+    asyncio.create_task(wait(ctx), name=str(ctx.author.id) + "joined_q")
+    await ctx.edit_initial_response(content="Waiting...", components=[])
+
+
+
 
 
 

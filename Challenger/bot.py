@@ -34,24 +34,34 @@ def build_client(bot:hikari.GatewayBot):
 
 
 async def on_guild_available(event:hikari.GuildAvailableEvent):
+
     print(event.guild.name)
-    DB = Session(event.guild_id)
+    DB = await get_session(event.guild.id)
     DB.create_collections()
     config = DB.get_config()
     config["guild_name"] = event.guild.name
     DB.upsert_config(config)
 
 
+async def get_session(guild_id:int):
+    return Session(guild_id)
+
+
+
 async def on_starting():
     logging.info("Starting")
 
 
-async def on_started(client=tanjun.injected(type=tanjun.Client)):
+async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)):
 
     logging.info("Started")
 
     if os.environ.get("ENVIRONMENT") == "production":
         await client.declare_global_commands()
     elif os.environ.get("ENVIRONMENT") == "development":
-        client.load_modules("Challenger.plugins.testing")
+
+        await bot.rest.edit_my_nick(guild=Config.TESTING_GUILD_ID, nick="Challenger (Beta)")
+        await bot.update_presence(status=hikari.Status.DO_NOT_DISTURB, activity=hikari.Activity(type=hikari.ActivityType.PLAYING, name="Challenger"))
+        client.load_modules("Challenger.plugins.demo")
         await client.declare_global_commands(guild=Config.TESTING_GUILD_ID)
+        await bot.update_presence(status=hikari.Status.ONLINE)

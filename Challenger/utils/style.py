@@ -4,9 +4,10 @@ import hikari
 
 class Colors: #TODO move to utils
     PRIMARY = "#ffc07d"
-    SECONDARY = "#03212e"
     NEUTRAL = "#a5a5a5"
+    DARK = "#03212e"
     SUCCESS = "#5dde07"
+    WARNING = "#e6d220"
     ERROR = "#db4737"
 
 class Embed_Type:

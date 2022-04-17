@@ -1,6 +1,9 @@
+import asyncio
+
 import tanjun
 from datetime import datetime
 
+import pandas as pd
 
 from Challenger.utils import *
 from Challenger.database import Session
@@ -10,7 +13,7 @@ from Challenger.config import *
 component = tanjun.Component(name="queue module")
 
 
-async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
+async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client=tanjun.injected(type=tanjun.abc.Client)):
     """creates a new match between the 2 players and announces it to the channel"""
 
     DB = Session(ctx.guild_id)
@@ -27,7 +30,10 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
 
     DB.upsert_match(new_match)
 
-    await ctx.get_channel().send("Match " + str(new_match.name) + " started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_ping + " vs " + p2_ping)
+
+    await announce_as_match_update(ctx, embed)
+
 
 
 
@@ -37,7 +43,7 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 @get_channel_lobby
-async def join_q(ctx: tanjun.abc.Context, queue) -> None:
+async def join_q(ctx: tanjun.abc.Context, queue:pd.Series) -> None:
 
     await ctx.respond("please wait")
 
@@ -67,11 +73,20 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 
     #add player to queue
     if not queue["player"]:
+
+        for i in asyncio.all_tasks():
+            if i.get_name() == str(ctx.author.id) + str(queue.name) + "_queue_timeout":
+                i.cancel()
+
+        asyncio.create_task(remove_after_timeout(ctx, DB), name=str(ctx.author.id)+str(queue.name)+"_queue_timeout")
+        print(str(ctx.author.id)+str(queue.name)+"_queue_timeout")
+
         queue["player"] = player_id
         DB.upsert_lobby(queue)
 
         await ctx.edit_initial_response(f"You silently joined the queue")
         await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
+
     else:
         await ctx.edit_initial_response("Queue is full. Creating match")
 
@@ -82,6 +97,14 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
         DB.upsert_lobby(queue)
 
         await start_new_match(ctx, p1_info, p2_info)
+
+
+async def remove_after_timeout(ctx:tanjun.abc.Context, DB:Session):
+    await asyncio.sleep(Config.QUEUE_TIMEOUT)
+    queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0] #would probably break if the channel was deleted after the player joined
+    queue["player"] = None
+    DB.upsert_lobby(queue)
+    await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_TIMEOUT//60) + " minutes")
 
 
 #leave queue
@@ -108,7 +131,7 @@ async def leave_q(ctx: tanjun.abc.Context, queue) -> None:
 
 
 def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
-    matches = DB.get_matches(user_id=player_id, number=num_matches)
+    matches = DB.get_matches(user_id=player_id, limit=num_matches)
     if matches.empty:
         return matches
     matches = matches.sort_values(by="match_id", ascending=True)

@@ -6,3 +6,4 @@ from .management import management
 from .matches import matches
 from .player import player
 from .queue import queue
+from .misc import misc
