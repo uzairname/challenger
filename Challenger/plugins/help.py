@@ -1,7 +1,7 @@
 import tanjun
 import hikari
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from hikari.interactions.base_interactions import ResponseType
 
 from Challenger.utils import *
@@ -144,13 +144,6 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
             await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
 
     await ctx.edit_initial_response(embed=about_embed, components=[])
-
-
-@component.with_slash_command
-@tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
-async def uptime(ctx:tanjun.abc.Context, client:tanjun.Client = tanjun.injected(type=tanjun.abc.Client)) -> None: #TODO ping
-    time_diff = datetime.now() - client.metadata["start_time"]
-    await ctx.respond("Challenger's current session's uptime is: " + str(datetime.timedelta(seconds=time_diff)))
 
 
 help = tanjun.Component(name="help", strict=True).load_from_scope().make_loader()
