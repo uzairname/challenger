@@ -10,7 +10,7 @@ from Challenger.config import *
 component = tanjun.Component(name="queue module")
 
 
-async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
+async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client=tanjun.injected(type=tanjun.abc.Client)):
     """creates a new match between the 2 players and announces it to the channel"""
 
     DB = Session(ctx.guild_id)
@@ -27,7 +27,10 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
 
     DB.upsert_match(new_match)
 
-    await ctx.get_channel().send("Match " + str(new_match.name) + " started: " + p1_ping + " vs " + p2_ping, user_mentions=True)
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_ping + " vs " + p2_ping)
+
+    await announce_as_match_update(ctx, embed)
+
 
 
 
@@ -108,7 +111,7 @@ async def leave_q(ctx: tanjun.abc.Context, queue) -> None:
 
 
 def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
-    matches = DB.get_matches(user_id=player_id, number=num_matches)
+    matches = DB.get_matches(user_id=player_id, limit=num_matches)
     if matches.empty:
         return matches
     matches = matches.sort_values(by="match_id", ascending=True)

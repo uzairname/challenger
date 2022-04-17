@@ -1,5 +1,7 @@
 import tanjun
 import hikari
+from hikari.interactions.base_interactions import ResponseType
+
 from datetime import datetime
 
 from Challenger.utils import *
@@ -83,13 +85,15 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         elif match["outcome"] == losing_result:
             total_losses += 1
 
+    total = total_wins + total_losses + total_draws
+
     displayed_elo = str(round((player["elo"]),2))
     if not player["is_ranked"]:
         displayed_elo += "? (unranked)"
 
     stats_embed = Custom_Embed(type=Embed_Type.INFO, title=f"{player['tag']}'s Stats", description="*_ _*", color=member.accent_color).set_thumbnail(member.avatar_url)
     stats_embed.add_field(name="Elo", value=displayed_elo)
-    stats_embed.add_field(name="Total matches", value=f"{matches.shape[0]}")
+    stats_embed.add_field(name="Total matches", value=f"{total}")
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)
     stats_embed.add_field(name="Losses", value=f"{total_losses}", inline=True)
     stats_embed.add_field(name="Draws", value=f"{total_draws}", inline=True)
@@ -99,51 +103,48 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False)
-async def get_leaderboard(ctx: tanjun.abc.Context) -> None:
+@tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False, always_defer=True)
+async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
 
-    await ctx.respond("please wait")
+    response = await ctx.fetch_initial_response()
 
     DB = Session(ctx.guild_id)
 
-    players = DB.get_players(top_by_elo=[0,20])
-    if players.empty:
-        await ctx.edit_initial_response("No players registered")
-        return
-
-    ranked_players = players.loc[players["is_ranked"]==True]
-    unranked_players = players.loc[players["is_ranked"]==False]
-
-    max_len = 25
-    ranked_list = "```\n"
-    place = 0
-    for index, player, in ranked_players.iterrows():
-        place += 1
-        tag = str(player["tag"])[:max_len]
-        ranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["elo"])) + "\n"
-
-    ranked_list += "```"
-
-    unranked_list = "```\n"
-    unranked_players.sort_values(by="elo", ascending=True, inplace=True)
-    place = 0
-    for index, player in unranked_players.iterrows():
-        place += 1
-        tag = str(player["tag"])[:max_len]
-        unranked_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_len-len(tag))  + str(round(player["elo"])) + "?\n"
-
-    unranked_list += "```"
-
-    ranked_embed = hikari.Embed(title="Leaderboard", description="Page 1: Top 20", color=Colors.PRIMARY)
-    ranked_embed.add_field(name="Rank       Username                                                  Score", value=ranked_list, inline=False)
-
-    unranked_embed = hikari.Embed(title="Unranked Leaderboard", description="Everyone's first few games are scored by provisional elo.\nPage 1: Top 20", color=Colors.PRIMARY)
-    unranked_embed.add_field(name="Rank       Username                                                  Score", value=unranked_list, inline=False)
-
-    await ctx.edit_initial_response("", embeds=[ranked_embed, unranked_embed])
+    # def prev_page_exists(page_num):
+    #     return page_num > 0
+    #
+    # def next_page_exists(page_num):
+    #     return get_leaderboard_for_page(page_num + 1) is not None
 
 
+    def get_leaderboard_for_page(page):
 
+        players_per_page = 2
+        max_name_len = 30
+
+        if page < 0:
+            return None
+
+        players = DB.get_players(by_elo=True, ranked=True, limit=players_per_page, skip=page * players_per_page)
+
+        if players.index.size == 0:
+            return None
+
+        place = page * players_per_page
+
+        lb_list = "```\n"
+        for index, player, in players.iterrows():
+            place += 1
+            tag = str(player["tag"])[:max_name_len]
+            lb_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_name_len-len(tag))  + str(round(player["elo"])) + "\n"
+        lb_list += "```"
+
+        lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
+        lb_embed.add_field(name="Rank       Username                                                  Score", value=lb_list, inline=False)
+
+        return [lb_embed]
+
+    await create_paginator(ctx, bot, response, get_leaderboard_for_page, nextlabel="Lower", prevlabel="Higher")
 
 
 player = tanjun.Component(name="player", strict=True).load_from_scope().make_loader()

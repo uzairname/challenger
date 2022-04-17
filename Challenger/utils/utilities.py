@@ -1,3 +1,5 @@
+import hikari
+import tanjun
 import re
 import numpy as np
 
@@ -5,6 +7,7 @@ import pandas as pd
 
 from .scoring import *
 from .style import *
+from ..database import Session
 
 
 class InputParser():
@@ -70,17 +73,19 @@ def describe_match(match: pd.Series, DB):
     p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
     p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
 
-
+    color = Colors.SUCCESS
     if match["outcome"] == Outcome.PLAYER_1:
         result = str(DB.get_players(user_id=match["p1_id"]).iloc[0]["username"]) + " won"
     elif match["outcome"] == Outcome.PLAYER_2:
         result = str(DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]) + " won"
     elif match["outcome"] == Outcome.CANCEL:
         result = "Cancelled"
+        color = Colors.NEUTRAL
     elif match["outcome"] == Outcome.DRAW:
         result = "Draw"
     else:
         result = "Undecided"
+        color = Colors.WARNING
 
 
     if match["p1_declared"] == Outcome.PLAYER_1:
@@ -100,7 +105,8 @@ def describe_match(match: pd.Series, DB):
     else:
         p2_declared = match["p2_declared"]
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match.name))
+
+    embed = hikari.Embed(title="Match " + str(match.name), color=color)
 
     embed.add_field(name=result, value="*_ _*")
 
@@ -113,6 +119,19 @@ def describe_match(match: pd.Series, DB):
     return embed
 
 
+async def announce_as_match_update(ctx, embed, client=tanjun.injected(type=tanjun.abc.Client)):
+    DB = Session(ctx.guild_id)
+
+    config = DB.get_config()
+    channel_id = config["results_channel"]
+
+    if channel_id is None:
+
+        embed.set_footer(text="ℹ Announcing here because no match announcements channel is set. Type /config match-updates-channel to set one.")
+        await ctx.get_channel().send(embed=embed)
+        return
+    await client.rest.create_message(channel_id, embed=embed)
 
 
-__all__ = ["InputParser", "describe_match"]
+
+__all__ = ["InputParser", "describe_match", "announce_as_match_update"]

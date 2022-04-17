@@ -54,8 +54,9 @@ Best of 3 and 5
 # Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
 
 @component.with_slash_command
-@tanjun.as_slash_command("help", "About", default_to_ephemeral=True)
+@tanjun.as_slash_command("help", "About", default_to_ephemeral=True, always_defer=True)
 async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
+    response = await ctx.fetch_initial_response()
 
     basics_embed = hikari.Embed(title="Basic Use", description="To get started, type /register. Make sure you're in a channel with a 1v1 lobby. Join the queue to get matched with another player. When the queue is full, a match is created, and you can see its status in whichever channel is set up to record matches", colour=Colors.PRIMARY)
     basics_embed.add_field(name="Commands", value="`/register` - Register your username and gain access to most features!\n`/join` - Join the queue to be matched with another player\n`/leave` - Leave the queue\n`/declare [win, loss, draw, or cancel]` - declare the results of the match. Both players must agree for result to be decided. Staff can handle disputes", inline=True)
@@ -75,7 +76,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="Basics").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    response = await ctx.edit_initial_response(embeds=[basics_embed], components=[page_dropdown], user_mentions=[ctx.author], ensure_result=True)
+    await ctx.edit_initial_response(embeds=[basics_embed], components=[page_dropdown], user_mentions=[ctx.author])
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=600).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),

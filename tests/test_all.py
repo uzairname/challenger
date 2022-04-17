@@ -20,7 +20,7 @@ class Test(unittest.TestCase):
 
 
 #noinspection PyMethodMayBeStatic
-# @unittest.skip("Skipping")
+@unittest.skip("Skipping")
 class Test_DB(unittest.TestCase):
 
     def setup_db(self):
@@ -42,7 +42,7 @@ class Test_DB(unittest.TestCase):
         match["p2_id"] = 34365829836532398
 
         DB.upsert_match(match)
-        match2 = DB.get_matches(number=1).iloc[0]
+        match2 = DB.get_matches(limit=1).iloc[0]
 
         assert match.equals(match2)
 
@@ -59,7 +59,7 @@ class Test_DB(unittest.TestCase):
             DB.upsert_match(match)
 
         #ensure that filters are applied in this order: increasing, then offset, then number
-        matches = DB.get_matches(user_id=0, number=5, increasing=False, skip=1) #the 5 matches before the second to last one
+        matches = DB.get_matches(user_id=0, limit=5, increasing=False, skip=1) #the 5 matches before the second to last one
 
         print("matches: \n" + str(matches))
 

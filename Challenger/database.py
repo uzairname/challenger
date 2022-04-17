@@ -41,7 +41,7 @@ class Session:
 
 
     #these are structured differently
-    empty_elo_roles = pd.DataFrame([], columns=["role", "elo_min", "elo_max", "priority"])
+    empty_elo_roles = pd.DataFrame([], columns=["role", "min_elo", "max_elo", "priority"])
     empty_config = pd.Series(index=["results_channel", "staff_role", "guild_name"], dtype="float64").replace(np.nan, None)
     empty_config_df = pd.DataFrame([], columns=["guild_name", "default_results_channel", "staff_role"]) #TODO use this
 
@@ -72,6 +72,11 @@ class Session:
 
 
     def test(self):
+        self.guildDB = self.client["guild_pela"]
+
+        players = self.get_players(by_elo=True, ranked=True, skip=2, limit=2)
+        print(players)
+
         pass
 
 
@@ -95,23 +100,32 @@ class Session:
 
     #get always returns a properly formatted series or DF, even if there doesn't exist one. can pass a series from these to upsert __. An empty series works
 
-    def get_players(self, user_id=None, user_ids: List =None, staff=None, top_by_elo=None) -> pd.DataFrame:
+    def get_players(self, user_id=None, user_ids:List =None, staff=None, limit=None, skip=0, by_elo:bool=False, ranked:bool=None) -> pd.DataFrame:
+
+        """
+        params applied in this order: by_elo/ranked, skip, limit
+        """
 
         #dataframe of all players
         cur_filter = {}
         if user_ids is not None:
             cur_filter["user_id"] = {"$in": user_ids}
-        if user_id:
+        if user_id is not None:
             cur_filter["user_id"] = int(user_id)
         if staff:
             cur_filter["staff"] = staff
+        if ranked is not None:
+            cur_filter["is_ranked"] = ranked
 
         cur = self.guildDB[self.tbl_names.PLAYERS.value].find(cur_filter, projection={"_id":False})
 
-        if top_by_elo:
+        if by_elo:
             cur.sort("elo", -1)
-            cur.skip(top_by_elo[0])
-            cur.limit(top_by_elo[1])
+
+        cur.skip(skip)
+
+        if limit is not None:
+            cur.limit(limit)
 
         players_df = pd.DataFrame(list(cur))
         if not players_df.empty:
@@ -141,7 +155,7 @@ class Session:
 
 
 
-    def get_matches(self, user_id=None, match_id=None, number=None, skip=0, increasing=False) -> pd.DataFrame:
+    def get_matches(self, user_id=None, match_id=None, limit=None, skip=0, increasing=False) -> pd.DataFrame:
         """
         Params
         ------
@@ -167,8 +181,8 @@ class Session:
         sort_order = 1 if increasing else -1
         cur = self.guildDB[self.tbl_names.MATCHES.value].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order).skip(skip)
 
-        if number is not None:
-            cur.limit(number) #TODO: always limit to 100 or so, if needed
+        if limit is not None:
+            cur.limit(limit) #TODO: always limit to 100 or so, if needed
 
         matches_df = pd.DataFrame(list(cur), dtype="object")
         if not matches_df.empty:
@@ -178,7 +192,7 @@ class Session:
 
     def get_new_match(self) -> pd.Series:
 
-        prev_match = self.get_matches(number=1)
+        prev_match = self.get_matches(limit=1)
         if prev_match.empty:
             new_id = 1
         else:

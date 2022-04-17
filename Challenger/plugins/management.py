@@ -11,29 +11,77 @@ from Challenger.database import Session
 config = tanjun.slash_command_group("config", "Change the bot settings", default_to_ephemeral=False)
 
 
-async def config_help_instructions(**kwargs):
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Config Help", description="Config settings help")
-    return embed
+
 
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=False, always_defer=True)
-@take_input(input_instructions=config_help_instructions)
 @ensure_staff
-async def config_help(event, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
+async def config_help(ctx):
 
-    button_id = event.interaction.custom_id
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Config Help", description="Staff can use the following commands to change the bot settings type `/config [command name]` to use them")
+    embed.add_field(name="`view`", value="View the current config settings")
+    embed.add_field(name="`lobbies`", value="View, add, or remove lobbies")
+    embed.add_field(name="`staff`", value="Link or unlink a role to bot staff")
+    embed.add_field(name="`elo-roles`", value="Set or unset roles that are automatically assigned to players based on their elo")
+    embed.add_field(name="`match-updates-channel`", value="Set the channel for match updates")
+    embed.add_field(name="`reset`", value="Reset the bot to its default settings")
 
-    def process_input():
-        if button_id == "Cancel":
-            return "Cancelled", Embed_Type.CANCEL
-        if button_id != "Confirm":
-            return "Invalid button", Embed_Type.ERROR
-        return "Confirmed", Embed_Type.CONFIRM
 
-    confirm_message, type = process_input()
-    confirm_embed = Custom_Embed(type=type, description=confirm_message)
-    return confirm_embed
+    await ctx.edit_initial_response(embed=embed)
+
+
+
+@config.with_command
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.as_slash_command("view", "View the config settings", default_to_ephemeral=False, always_defer=True)
+@ensure_staff
+async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
+
+    DB = Session(ctx.guild_id)
+
+    lobbies_list = ""
+    all_lobbies = DB.get_lobbies()
+    if all_lobbies.empty:
+        lobbies_list = "No lobbies"
+    for index, lobby in all_lobbies.iterrows():
+        lobbies_list += "\nLobby \"**" + str(lobby["lobby_name"]) + "**\" in channel <#" + str(
+            lobby["channel_id"]) + ">"
+        if lobby["required_role"]:
+            lobbies_list += "\nWith required role <#" + lobby["required_role"] + ">"
+
+    staff_role = DB.get_config()["staff_role"]
+    if staff_role is None:
+        staff_list = "No staff role specified. Anyone with the \"manage server\" permission is considered staff"
+    else:
+        staff_list = "Current staff role: <@&" + str(staff_role) + ">\nStaff:"
+    members = client.rest.fetch_members(ctx.guild_id)
+    async for member in members:
+        if staff_role in member.role_ids:
+            staff_list += "\n" + member.username
+
+
+    elo_roles_list = ""
+
+    elo_roles = DB.get_elo_roles()
+    if elo_roles.empty:
+        elo_roles_list = "No elo roles"
+    for index, role in elo_roles.iterrows():
+        elo_roles_list += "\n<@&" + str(index) + ">: " + str(role["min_elo"]) + " to " + str(role["max_elo"])
+
+
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Config", description="Current config settings")
+    embed.add_field(name="Lobbies", value=lobbies_list)
+    embed.add_field(name="Staff", value=staff_list)
+    embed.add_field(name="Elo Roles", value=elo_roles_list)
+
+    await ctx.edit_initial_response(embed=embed)
+
+
+
+
+
+
 
 
 
@@ -58,7 +106,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         lobbies_list += "\nLobby \"**" + str(lobby["lobby_name"]) + "**\" in channel <#" + str(
             lobby["channel_id"]) + ">"
         if lobby["role_required"]:
-            lobbies_list += "\nWith required role " + lobby[role_required].mention
+            lobbies_list += "\nWith required role <#" + lobby["role_required"] + ">"
 
     selection = ""
     if action == "delete":
@@ -171,8 +219,8 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
 
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_role_slash_option("role", "role", default="")
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
+@tanjun.with_role_slash_option("role", "role", default="")
 @tanjun.as_slash_command("staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_staff_instructions)
 @ensure_staff
@@ -258,7 +306,7 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=t
 
         df = df.loc[df["role"] != role].sort_values("priority")
         df["priority"] = range(len(df.index))
-        row = pd.Series([role_id, len(df.index), elo_min, elo_max], index=["role", "priority", "elo_min", "elo_max"])
+        row = pd.Series([role_id, len(df.index), elo_min, elo_max], index=["role", "priority", "min_elo", "max_elo"])
         df = pd.concat([df, pd.DataFrame(row).T]).reset_index(drop=True)
 
         DB.upsert_elo_roles(df)
@@ -292,7 +340,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
     selection += input_params.describe()
 
     embed = hikari.Embed(title="Add or remove results channel",
-                        description="Link a channel to the results channel. Results channel is where match results are posted",
+                        description="Set a channel for match announcements. Results are posted in the channel when a match is initially created, when the result is decided by the players, and when staff updates a match's result",
                         color=Colors.PRIMARY)
     embed.add_field(name="Current Results Channel", value=cur_results_channel)
     embed.add_field(name="Selection", value=selection)
@@ -303,7 +351,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"add/update channel", "remove":"reset to default"}, default="update")
 @tanjun.with_str_slash_option("channel", "channel", default="")
-@tanjun.as_slash_command("results-channel", "Set a results channel", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("match-updates-channel", "Set a channel to send match results announcements to", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_results_channel_instructions)
 async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 

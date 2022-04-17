@@ -67,67 +67,35 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
 
     user_id = player.id if player else None
 
-    matches_per_page = 2
+    matches_per_page = 5
 
-    def get_embeds_for_page(page_number, user_id=None):
-        matches = DB.get_matches(user_id=user_id, number=matches_per_page, increasing=False, skip=page_number*matches_per_page)
+    def get_matches_for_page(page_number):
+
+        if page_number < 0:
+            return None
+
+        matches = DB.get_matches(user_id=user_id, limit=matches_per_page, increasing=False, skip=page_number * matches_per_page)
+
+        if matches.index.size == 0:
+            return None
 
         embeds = []
 
-        for match_id, match in matches.iterrows():
+        for match_id, match in matches.sort_index(ascending=True).iterrows():
             embed = describe_match(match, DB)
             embeds.append(embed)
 
         return embeds
 
-    embeds = get_embeds_for_page(0, user_id)
 
-    if len(embeds) == 0:
-        embed = Custom_Embed(type=Embed_Type.INFO, title="No matches found")
-        embeds.append(embed)
-
-    await ctx.edit_initial_response(embeds=embeds)
-
-    page_navigator = ctx.rest.build_action_row()
-    page_navigator.add_button(hikari.messages.ButtonStyle.PRIMARY, "Older").set_label("Older").set_emoji("⬅️").set_is_disabled(not len(get_embeds_for_page(1, user_id)) > 0).add_to_container()
-    page_navigator.add_button(hikari.messages.ButtonStyle.PRIMARY, "More recent").set_label("More recent").set_emoji("➡️").set_is_disabled(True).add_to_container()
-
-    await ctx.edit_initial_response(embeds=embeds, components=[page_navigator])
-
-    cur_page = 0
-
-
-    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(
-                ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
-                ("interaction.user.id", ctx.author.id),
-                ("interaction.message.id", response.id)) as stream:
-
-        async for event in stream:
-            await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
-
-            embeds = get_embeds_for_page(cur_page, user_id)
-            prev_page_exists = cur_page > 0
-            next_page_exists = len(get_embeds_for_page(cur_page+1, user_id)) > 0
-
-            for i in page_navigator.components:
-                if i.label == "Older":
-                    i.set_is_disabled(not next_page_exists)
-                elif i.label == "More recent":
-                    i.set_is_disabled(not prev_page_exists)
-
-            if event.interaction.custom_id == "Older" and next_page_exists:
-                cur_page += 1
-            elif event.interaction.custom_id == "More recent" and prev_page_exists:
-                cur_page -= 1
-
-            await ctx.edit_initial_response(embeds=embeds, components=[page_navigator])
+    await create_paginator(ctx, bot, response, get_matches_for_page, nextlabel="Older", prevlabel="Newer")
 
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
-@tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("override", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @ensure_registered
 async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanjun.injected(type=tanjun.abc.Client)):
@@ -315,13 +283,7 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
         embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
 
 
-    config = DB.get_config()
-    channel_id = config["results_channel"]
-
-    if channel_id is None:
-        await ctx.get_channel().send("\nNo match announcements channel specified. Announcing here", embed=embed)
-        return
-    await client.rest.create_message(channel_id, embed=embed)
+    await announce_as_match_update(ctx, embed)
 
 
 
