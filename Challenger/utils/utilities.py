@@ -133,21 +133,24 @@ async def announce_as_match_update(ctx, embed, client=tanjun.injected(type=tanju
     await client.rest.create_message(channel_id, embed=embed)
 
 
-def update_player_elo(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, user_id, elo):
+async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, user_id):
 
     DB = Session(ctx.guild_id)
 
+    elo = DB.get_players(user_id=user_id).iloc[0]["elo"]
+    print("elo", elo)
     elo_roles = DB.get_elo_roles()
+    print("elo_roles\n", elo_roles)
 
-    for role_id, role_spec in elo_roles.sort_values("priority").iterrows():
-        if role_spec["min_elo"] <= elo <= role_spec["max_elo"]:
+    for role_id, role_info in elo_roles.sort_values("min_elo", ascending=False).iterrows(): #by default the role with the highest minimum elo will have the highest priority
+        print("role: ", "<@&" + str(role_id) + ">")
+        if role_info["min_elo"] <= elo <= role_info["max_elo"]:
+            print("elo in range", role_info["min_elo"], role_info["max_elo"])
+            await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
+        else:
+            print("elo not in range", role_info["min_elo"], role_info["max_elo"])
+            await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
 
-            bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
-
-            break
 
 
-
-
-
-__all__ = ["InputParser", "describe_match", "announce_as_match_update"]
+__all__ = ["InputParser", "describe_match", "announce_as_match_update", "update_player_elo_roles"]

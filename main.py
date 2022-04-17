@@ -1,10 +1,8 @@
 # hi
 
-
+import hikari
 import os
 import pandas as pd
-from Challenger.config import Config
-# from Challenger.database import *
 from Challenger.bot import build_bot
 
 if __name__ == "__main__":
@@ -16,5 +14,4 @@ if __name__ == "__main__":
         pd.options.display.width = 100
         pd.options.mode.chained_assignment = None
 
-
-    build_bot(os.environ.get('DISCORD_TOKEN')).run()
+    build_bot(os.environ.get('DISCORD_TOKEN')).run(status=hikari.Status.DO_NOT_DISTURB)

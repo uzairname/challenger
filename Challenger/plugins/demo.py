@@ -4,6 +4,8 @@ from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
 from hikari.messages import ButtonStyle
 
+from Challenger.utils import *
+
 import asyncio
 import tanjun
 from tanjun.abc import SlashContext
@@ -12,26 +14,12 @@ from tanjun.abc import SlashContext
 embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False)
 
 
-async def wait(ctx: tanjun.abc.Context):
-    await asyncio.sleep(5)
-    await ctx.respond("Removed")
-
-
+@tanjun.with_user_slash_option("person", "a user")
 @tanjun.as_slash_command("enter", "enter", always_defer=True)
-async def enter(ctx:tanjun.abc.Context):
-    message = await ctx.fetch_initial_response()
+async def enter(ctx:tanjun.abc.Context, person:hikari.User, bot=tanjun.injected(type=hikari.GatewayBot)):
 
-    for i in asyncio.all_tasks():
-        if i.get_name() == str(ctx.author.id):
-            print(i)
-            i.cancel()
-            break
-
-    asyncio.create_task(wait(ctx), name=str(ctx.author.id) + "joined_q")
-    await ctx.edit_initial_response(content="Waiting...", components=[])
-
-
-
+    await update_player_elo_roles(ctx, bot, person.id)
+    await ctx.edit_initial_response("Done")
 
 
 
