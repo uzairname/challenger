@@ -16,14 +16,11 @@ bot_todo = """
 
 **In order of priority**
 
-in order of priority: 
-• show when opponent declares result, and when there's a conflict
-• Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
- https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• Leaderboard shows multiple pages (dropdown to select groups of 200, buttons to select groups of 20 players)
+in order of priority:
 • remove player from queue after 10 mins
 • Automatically assign roles based on Elo
-• Every match update is announced in the set channel, players should use /match history to browse matches instead of scrolling in the channel
+• Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
+ https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Add tournaments support
 
 
@@ -93,8 +90,9 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
 
 @component.with_slash_command
 # @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("about", "About", default_to_ephemeral=False)
+@tanjun.as_slash_command("about", "About", default_to_ephemeral=False, always_defer=True)
 async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)) -> None:
+    response = await ctx.fetch_initial_response()
 
     user = await bot.rest.fetch_my_user()
     avatar = user.avatar_url
@@ -131,9 +129,9 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="About").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    response = await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True, ensure_result=True)
+    await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(
+    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
             ("interaction.user.id", ctx.author.id),
             ("interaction.message.id", response.id)) as stream:

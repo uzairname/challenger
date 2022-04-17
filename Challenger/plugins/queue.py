@@ -1,6 +1,9 @@
+import asyncio
+
 import tanjun
 from datetime import datetime
 
+import pandas as pd
 
 from Challenger.utils import *
 from Challenger.database import Session
@@ -40,7 +43,7 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client=tanju
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 @get_channel_lobby
-async def join_q(ctx: tanjun.abc.Context, queue) -> None:
+async def join_q(ctx: tanjun.abc.Context, queue:pd.Series) -> None:
 
     await ctx.respond("please wait")
 
@@ -70,11 +73,20 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
 
     #add player to queue
     if not queue["player"]:
+
+        for i in asyncio.all_tasks():
+            if i.get_name() == str(ctx.author.id) + str(queue.name) + "_queue_timeout":
+                i.cancel()
+
+        asyncio.create_task(remove_after_timeout(ctx, DB), name=str(ctx.author.id)+str(queue.name)+"_queue_timeout")
+        print(str(ctx.author.id)+str(queue.name)+"_queue_timeout")
+
         queue["player"] = player_id
         DB.upsert_lobby(queue)
 
         await ctx.edit_initial_response(f"You silently joined the queue")
         await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
+
     else:
         await ctx.edit_initial_response("Queue is full. Creating match")
 
@@ -85,6 +97,14 @@ async def join_q(ctx: tanjun.abc.Context, queue) -> None:
         DB.upsert_lobby(queue)
 
         await start_new_match(ctx, p1_info, p2_info)
+
+
+async def remove_after_timeout(ctx:tanjun.abc.Context, DB:Session):
+    await asyncio.sleep(Config.QUEUE_TIMEOUT)
+    queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0] #would probably break if the channel was deleted after the player joined
+    queue["player"] = None
+    DB.upsert_lobby(queue)
+    await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_TIMEOUT//60) + " minutes")
 
 
 #leave queue

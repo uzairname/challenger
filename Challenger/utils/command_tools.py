@@ -114,7 +114,7 @@ def take_input(input_instructions:typing.Callable):
 
             confirm_embed = Custom_Embed(type=Embed_Type.INFO, title="Confirm?", description="Nothing selected")
 
-            with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(
+            with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
                 ("interaction.user.id", ctx.author.id),
                 ("interaction.message.id", response.id)
@@ -164,7 +164,7 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
     await ctx.edit_initial_response(embeds=embeds, component=page_navigator)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.DEFAULT_TIMEOUT).filter(
+    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
             ("interaction.user.id", ctx.author.id),
             ("interaction.message.id", message.id)) as stream:

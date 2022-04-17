@@ -30,7 +30,6 @@ DEFAULT_K = 30  # maximum change in one game
 NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
 
 
-
 def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> List[float]:
     if result == Outcome.CANCEL or result is None:
         return [0,0]

@@ -155,7 +155,7 @@ class Session:
 
 
 
-    def get_matches(self, user_id=None, match_id=None, limit=None, skip=0, increasing=False) -> pd.DataFrame:
+    def get_matches(self, user_id=None, match_id=None, limit=None, skip=0, increasing=True) -> pd.DataFrame:
         """
         Params
         ------

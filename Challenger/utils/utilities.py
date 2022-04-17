@@ -133,5 +133,21 @@ async def announce_as_match_update(ctx, embed, client=tanjun.injected(type=tanju
     await client.rest.create_message(channel_id, embed=embed)
 
 
+def update_player_elo(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, user_id, elo):
+
+    DB = Session(ctx.guild_id)
+
+    elo_roles = DB.get_elo_roles()
+
+    for role_id, role_spec in elo_roles.sort_values("priority").iterrows():
+        if role_spec["min_elo"] <= elo <= role_spec["max_elo"]:
+
+            bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
+
+            break
+
+
+
+
 
 __all__ = ["InputParser", "describe_match", "announce_as_match_update"]

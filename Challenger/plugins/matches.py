@@ -80,7 +80,6 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
             return None
 
         embeds = []
-
         for match_id, match in matches.sort_index(ascending=True).iterrows():
             embed = describe_match(match, DB)
             embeds.append(embed)
@@ -88,14 +87,14 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
         return embeds
 
 
-    await create_paginator(ctx, bot, response, get_matches_for_page, nextlabel="Older", prevlabel="Newer")
+    await create_paginator(ctx, bot, response, get_matches_for_page, nextlabel="Older", prevlabel="More recent")
 
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL})
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
-@tanjun.as_slash_command("override", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @ensure_registered
 async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanjun.injected(type=tanjun.abc.Client)):
@@ -152,7 +151,7 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
 def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=None):
     """
     params:
-        matches: a DataFrame of matches. must have columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked", "outcome"
+        matches: a DataFrame of matches. must index "match_id", and columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_elo_after", "p2_elo_after", "p1_is_ranked", "p2_is_ranked", "p1_is_ranked_after", "p2_is_ranked_after", "outcome"
         match_id: the match id of the match to be updated
         new_outcome: the new outcome of the match
 
@@ -173,8 +172,8 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
     if p1_id in _updated_players.index or p2_id in _updated_players.index or new_outcome is not None:
 
         #By default their prior elo is what it is in the database. If it changed, update it
-        p1_elo = match["p1_elo"]
-        p2_elo = match["p2_elo"]
+        p1_elo = matches.loc[match_id, "p1_elo"]
+        p2_elo = matches.loc[match_id, "p2_elo"]
         for user_id, player in _updated_players.iterrows():
             if user_id == p1_id:
                 p1_elo = _updated_players.loc[user_id, "elo"]
@@ -183,6 +182,12 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
             if user_id == p2_id:
                 p2_elo = _updated_players.loc[user_id, "elo"]
                 matches.loc[match_id, "p2_elo"] = p2_elo
+
+        #determine whether they're ranked based on the updated matches before this one
+        matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id-1)
+        matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id-1)
+        matches.loc[match_id, "p1_is_ranked_after"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
+        matches.loc[match_id, "p2_is_ranked_after"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
 
         outcome = match["outcome"]
         if new_outcome is not None:
@@ -202,11 +207,6 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
         matches.loc[match_id, "p1_elo_after"] = p1_elo_after
         matches.loc[match_id, "p2_elo_after"] = p2_elo_after
 
-        #determine whether they're ranked based on the updated matches before this one
-        matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id-1)
-        matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id-1)
-        matches.loc[match_id, "p1_is_ranked_after"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
-        matches.loc[match_id, "p2_is_ranked_after"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
 
         _updated_players.loc[p1_id, "elo"] = p1_elo_after
         _updated_players.loc[p2_id, "elo"] = p2_elo_after
@@ -215,10 +215,10 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
 
 
     # do the same to the next match
-    if matches[match_id+1:].empty:
-        return matches, _updated_players
+    if match_id+1 in matches.index:
+        return calculate_new_elos(matches=matches, match_id=match_id + 1, _updated_players=_updated_players)
     else:
-        return calculate_new_elos(matches, match_id + 1, _updated_players=_updated_players)
+        return matches, _updated_players
 
 
 async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client), staff_declared=None):
@@ -250,18 +250,18 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
 
 
     # announce the updated match in the match announcements channel
-    updated_players_message = ""
+    updated_players_str = ""
 
     for index, row in updated_players.iterrows():
-        displayed_prior_elo = str(round(players_before.loc[index, "elo"]))
+        prior_elo_str = str(round(players_before.loc[index, "elo"]))
         if not players_before.loc[index, "is_ranked"]:
-            displayed_prior_elo += "?"
+            prior_elo_str += "?"
 
-        displayed_updated_elo = str(round(updated_players.loc[index, "elo"]))
+        updated_elo_str = str(round(updated_players.loc[index, "elo"]))
         if not updated_players.loc[index, "is_ranked"]:
-            displayed_updated_elo += "?"
+            updated_elo_str += "?"
 
-        updated_players_message += "<@" + str(index) + "> " + displayed_prior_elo + " -> " + displayed_updated_elo + "\n"
+        updated_players_str += "<@" + str(index) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
 
     if new_outcome == Outcome.PLAYER_1: #refactor this
         winner_id = match["p1_id"]
@@ -277,7 +277,7 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
         displayed_outcome = "Ongoing" #undecided, or ongoing
 
     embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Updated: **" + displayed_outcome + "**", description="*_ _*")
-    embed.add_field(name="Updated Elo", value=updated_players_message)
+    embed.add_field(name="Updated Elo", value=updated_players_str)
 
     if staff_declared:
         embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")

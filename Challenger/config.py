@@ -12,7 +12,8 @@ class Config:
     INVITE_LINK = "https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=544857254992&scope=bot%20applications.commands"
 
 
-    DEFAULT_TIMEOUT = 120
+    COMPONENT_TIMEOUT = 120
+    QUEUE_TIMEOUT = 60
 
     REQUIRED_PERMISSIONS = hikari.Permissions.NONE.SEND_MESSAGES
     PERMS_ERR_MSG = f"The bot is missing some required permissions. Type /about to see them"

@@ -119,7 +119,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
 
     def get_leaderboard_for_page(page):
 
-        players_per_page = 2
+        players_per_page = 20
         max_name_len = 30
 
         if page < 0:
