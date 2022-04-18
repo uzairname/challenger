@@ -12,14 +12,11 @@ component = tanjun.Component(name="hi module")
 
 
 
-bot_todo = """
+todo_str = """
 
 **In order of priority**
  
 in order of priority:
-fix stuff and release first stable version
-
-Low priority:
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Add tournaments support
@@ -31,20 +28,15 @@ Low priority:
 • /stats show your percentile
 • Associate each match with a message id in match announcements, so that message can be edited
 • /compare (player) show your expected probability of beating opponent, and your winrate against them. Elo change for winning and losing 
-• make displayed results pretty
-• /join records match time
-• ping command
-• fix leaderboard display on mobile
 • shorthand for commands ex. declare match results /d
-• rename /declare to /claim
 """
 
-bot_features = """
+future_features_str = """
 Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search
-Ability to change old match results. When your elo change depends on the elo difference, fixing the result of an old match (for whatever reason, maybe it was declared wrong or someone was caught boosting and their impact needs to be reverted) has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo.
+
 Support for tournaments
 
-Best of 3 and 5
+Support for best of 3 and 5 matches, elo is updated accordingly
 """
 # Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
 
@@ -94,15 +86,16 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     response = await ctx.fetch_initial_response()
 
     user = await bot.rest.fetch_my_user()
+    member = bot.cache.get_member(ctx.guild_id, user.id)
     avatar = user.avatar_url
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(avatar)
+
+    #about
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot. 1v1 other players to climb the leaderboards! You can customize roles, lobbies, and more.", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
     about_embed.add_field(name="Github", value=f"[View the source code]({Config.GITHUB_LINK})", inline=True)
     about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
-    about_embed.set_footer("By Lilapela#5348")
-
-    member = bot.cache.get_member(ctx.guild_id, user.id)
+    about_embed.set_footer("Lilapela#5348")
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
     print(bot_perms.value)
     missing_perms = Config.REQUIRED_PERMISSIONS & ~bot_perms
@@ -112,14 +105,22 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
         perms_message = f":white_check_mark: This bot has all the required permissions"
     about_embed.add_field(name="Permissions", value=perms_message, inline=True)
 
+
+    features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
+    features_embed.add_field(name=":trophy: Scoring", value="Scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). For everyone's first few games, Challenger uses an advanced provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to accurately score players so that they don't have to grind to match their elo to their skill level.")
+    features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
+
+
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
     permissions_embed.add_field("View Channels", "Required for the bot to view channels")
 
     todo_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
-    todo_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
-    todo_embed.add_field(name="Possible Future Features", value=bot_features)
+    todo_embed.add_field(name="What I'm working on", value=todo_str[0:1000])
+    todo_embed.add_field(name="Possible Future Features", value=future_features_str)
 
-    pages = {"About": about_embed, "Todo": todo_embed}
+
+    pages = {"About": about_embed, "Features":features_embed, "Todo": todo_embed}
 
     page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
     for i in pages:

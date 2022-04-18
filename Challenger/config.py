@@ -40,4 +40,4 @@ class Elo:
 class Database_Config:
 
     # known names for some known discord servers, for ease of use. testing is for unit testing
-    KNOWN_GUILDS = {Config.DEV_GUILD_ID: "development", 947184983120957452: "PX", 1: "testing"}
+    KNOWN_GUILDS = {1: "testing", Config.DEV_GUILD_ID: "development", 947184983120957452: "PX", 921447683154145331:"B2T"}

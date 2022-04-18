@@ -50,9 +50,6 @@ async def long_lb(ctx: tanjun.abc.Context):
 
 
 
-
-
-
 @embed.with_command
 @tanjun.as_slash_command("interactive-post", f"Build an Embed!")
 async def interactive_post(
@@ -106,10 +103,6 @@ async def title(ctx: SlashContext, bot: hikari.GatewayBot, client: tanjun.Client
                 return
     except asyncio.TimeoutError:
         await ctx.edit_initial_response("Waited for 60 seconds... Timeout.", embed=None, components=[])
-
-
-
-
 
 
 
