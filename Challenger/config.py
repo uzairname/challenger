@@ -7,7 +7,7 @@ import hikari
 class Config:
 
     # version based on current month
-    VERSION = '2022-04 1'
+    VERSION = '2022-04 2'
 
     OWNER_ID = 623257053879861248  # Lilapela's ID
     TESTING_GUILD_ID = 907729885726933043
