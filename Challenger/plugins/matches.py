@@ -219,7 +219,7 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
         return matches, _updated_players
 
 
-async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client), staff_declared=None):
+async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), staff_declared=None):
 
     DB = Session(ctx.guild_id)
     matches = DB.get_matches() #TODO dont get all the matches at once
@@ -250,16 +250,17 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, clien
     # announce the updated match in the match announcements channel
     updated_players_str = ""
 
-    for index, row in updated_players.iterrows():
-        prior_elo_str = str(round(players_before.loc[index, "elo"]))
-        if not players_before.loc[index, "is_ranked"]:
+    for id, row in updated_players.iterrows():
+        prior_elo_str = str(round(players_before.loc[id, "elo"]))
+        if not players_before.loc[id, "is_ranked"]:
             prior_elo_str += "?"
 
-        updated_elo_str = str(round(updated_players.loc[index, "elo"]))
-        if not updated_players.loc[index, "is_ranked"]:
+        updated_elo_str = str(round(updated_players.loc[id, "elo"]))
+        if not updated_players.loc[id, "is_ranked"]:
             updated_elo_str += "?"
 
-        updated_players_str += "<@" + str(index) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
+        updated_players_str += "<@" + str(id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
+        await update_player_elo_roles(ctx, bot, id)
 
     if new_outcome == Outcome.PLAYER_1: #refactor this
         winner_id = match["p1_id"]
