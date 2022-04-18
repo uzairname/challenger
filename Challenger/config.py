@@ -2,6 +2,7 @@ import os
 import typing
 import hikari
 
+from hikari import Permissions
 
 @typing.final
 class Config:
@@ -21,13 +22,13 @@ class Config:
     COMPONENT_TIMEOUT = 120
     QUEUE_TIMEOUT = 300
 
-    REQUIRED_PERMISSIONS = hikari.Permissions.NONE.SEND_MESSAGES.VIEW_CHANNEL.MANAGE_ROLES
+    REQUIRED_PERMISSIONS = Permissions.VIEW_CHANNEL | Permissions.SEND_MESSAGES | Permissions.EMBED_LINKS | Permissions.MANAGE_ROLES
     PERMS_ERR_MSG = f"The bot is missing some required permissions. Type /about to see them"
 
     if os.environ.get("ENVIRONMENT") == "development":
         INVITE_LINK = "https://discord.com/api/oauth2/authorize?client_id=951132825803964447&permissions=" + str(REQUIRED_PERMISSIONS.value) + "&scope=bot%20applications.commands"
     elif os.environ.get("ENVIRONMENT") == "production":
-        INVITE_LINK =  ""
+        INVITE_LINK =  "https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=" + str(REQUIRED_PERMISSIONS.value) + "&scope=bot%20applications.commands"
 
 
 
