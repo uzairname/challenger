@@ -17,13 +17,12 @@ bot_todo = """
 **In order of priority**
 
 in order of priority:
-• Automatically assign roles based on Elo
+fix stuff and release first stable version
+
+Low priority:
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Add tournaments support
-
-
-Low priority:
 • option to show details in match history
 • presets for elo roles
 • reset data command

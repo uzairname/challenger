@@ -294,8 +294,6 @@ class Session:
 
         elo_roles_df = pd.DataFrame(list(cur), dtype="object")
 
-        # print(elo_roles_df)
-
         if not elo_roles_df.empty:
             elo_roles_df.set_index("role_id", inplace=True)
 

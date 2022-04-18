@@ -112,7 +112,7 @@ def take_input(input_instructions:typing.Callable):
             instructions_embed = await input_instructions(ctx=ctx, **kwargs)
             response = await ctx.respond(embeds=[instructions_embed], components=[confirm_cancel_row], ensure_result=True)
 
-            confirm_embed = Custom_Embed(type=Embed_Type.INFO, title="Confirm?", description="Nothing selected")
+            confirm_embed = None
 
             with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
@@ -130,7 +130,10 @@ def take_input(input_instructions:typing.Callable):
                     else:
                         confirm_embed = Custom_Embed(type=Embed_Type.ERROR, description="Invalid action.")
 
-            await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])
+            if confirm_embed is not None:
+                await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])
+            else:
+                await ctx.edit_initial_response(embeds=[instructions_embed, hikari.Embed(title="Timed Out", description="timed out", color=Colors.NEUTRAL)], components=[])
 
         return wrapper
     return wrapper_take_input
