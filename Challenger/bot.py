@@ -45,10 +45,11 @@ async def on_guild_available(event:hikari.GuildAvailableEvent):
 
 async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)):
 
-    if os.environ.get("ENVIRONMENT") == "production":
+    if os.environ.get("ENVIRONMENT") == "production" or os.environ.get("ENVIRONMENT") == "staging":
         await client.declare_global_commands()
-    elif os.environ.get("ENVIRONMENT") == "development":
+        await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.COMPETING, name="everything"))
 
+    elif os.environ.get("ENVIRONMENT") == "development":
         client.load_modules("Challenger.plugins.demo")
         await client.declare_global_commands(guild=Config.DEV_GUILD_ID)
         await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name=Config.VERSION))
