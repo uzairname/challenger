@@ -1,7 +1,7 @@
 import tanjun
 import hikari
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from hikari.interactions.base_interactions import ResponseType
 
 from Challenger.utils import *
@@ -17,14 +17,12 @@ bot_todo = """
 **In order of priority**
 
 in order of priority:
-• remove player from queue after 10 mins
-• Automatically assign roles based on Elo
+fix stuff and release first stable version
+
+Low priority:
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Add tournaments support
-
-
-Low priority:
 • option to show details in match history
 • presets for elo roles
 • reset data command
@@ -51,7 +49,8 @@ Best of 3 and 5
 # Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
 
 @component.with_slash_command
-@tanjun.as_slash_command("help", "About", default_to_ephemeral=True, always_defer=True)
+@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.as_slash_command("help", "how to use", default_to_ephemeral=True, always_defer=True)
 async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
     response = await ctx.fetch_initial_response()
 
@@ -99,20 +98,19 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
-    about_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition", inline=True)
-    about_embed.add_field(name=f"Invite link", value=f"[**Invite**]({Config.INVITE_LINK}) or click the link in my profile", inline=True)
+    about_embed.add_field(name="Github", value=f"View the [source code]({Config.GITHUB_LINK})", inline=True)
+    about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
     about_embed.set_footer("By Lilapela#5348")
 
     member = bot.cache.get_member(ctx.guild_id, user.id)
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
-    if Config.REQUIRED_PERMISSIONS & bot_perms == bot_perms:
-        about_embed.add_field(name="Permissions", value=f":white_check_mark: This bot has all the required permissions", inline=True)
+    print(bot_perms.value)
+    missing_perms = Config.REQUIRED_PERMISSIONS & ~bot_perms
+    if missing_perms:
+        perms_message = f":x: This bot is missing the following required permissions: `{missing_perms}`\n\n Re-invite the bot with the link above"
     else:
-        about_embed.add_field(name="Permissions", value=f":x: This bot is missing the following required permissions: {Config.REQUIRED_PERMISSIONS}", inline=True)
-
-    # unnecessary_perms = bot_perms ^ Config.REQUIRED_PERMISSIONS & bot_perms
-    # if unnecessary_perms:
-    #     about_embed.add_field(name="Unnecessary perms", value="This bot has permissions it doesn't need: {}".format(str(unnecessary_perms).split("|")), inline=True)
+        perms_message = f":white_check_mark: This bot has all the required permissions"
+    about_embed.add_field(name="Permissions", value=perms_message, inline=True)
 
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
     permissions_embed.add_field("View Channels", "Required for the bot to view channels")
@@ -120,7 +118,6 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     todo_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
     todo_embed.add_field(name="What I'm working on", value=bot_todo[0:1000])
     todo_embed.add_field(name="Possible Future Features", value=bot_features)
-    todo_embed.add_field(name="Github", value="View the source code\nhttps://github.com/lilapela/competition")
 
     pages = {"About": about_embed, "Todo": todo_embed}
 
@@ -144,13 +141,6 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
             await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
 
     await ctx.edit_initial_response(embed=about_embed, components=[])
-
-
-@component.with_slash_command
-@tanjun.as_slash_command("uptime", "get Pela's uptime", default_to_ephemeral=False)
-async def uptime(ctx:tanjun.abc.Context, client:tanjun.Client = tanjun.injected(type=tanjun.abc.Client)) -> None: #TODO ping
-    time_diff = datetime.now() - client.metadata["start_time"]
-    await ctx.respond("Challenger's current session's uptime is: " + str(datetime.timedelta(seconds=time_diff)))
 
 
 help = tanjun.Component(name="help", strict=True).load_from_scope().make_loader()

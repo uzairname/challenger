@@ -4,31 +4,49 @@ from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
 from hikari.messages import ButtonStyle
 
+from Challenger.utils import *
+
 import asyncio
 import tanjun
 from tanjun.abc import SlashContext
 
 
+
 embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False)
 
 
-async def wait(ctx: tanjun.abc.Context):
-    await asyncio.sleep(5)
-    await ctx.respond("Removed")
-
-
+@tanjun.with_user_slash_option("person", "a user")
 @tanjun.as_slash_command("enter", "enter", always_defer=True)
-async def enter(ctx:tanjun.abc.Context):
-    message = await ctx.fetch_initial_response()
+async def enter(ctx:tanjun.abc.Context, person:hikari.User, bot=tanjun.injected(type=hikari.GatewayBot)):
 
-    for i in asyncio.all_tasks():
-        if i.get_name() == str(ctx.author.id):
-            print(i)
-            i.cancel()
-            break
+    await update_player_elo_roles(ctx, bot, person.id)
+    await ctx.edit_initial_response("Done")
 
-    asyncio.create_task(wait(ctx), name=str(ctx.author.id) + "joined_q")
-    await ctx.edit_initial_response(content="Waiting...", components=[])
+
+
+import string
+import random
+
+
+@tanjun.as_slash_command("long-lb", "very big sample lb", always_defer=True)
+async def long_lb(ctx: tanjun.abc.Context):
+
+    embeds = []
+    # made up mock sample players and elo
+    for i in range(0, 10):
+        num_lines = 20
+        num_fields = 3
+        Embed = hikari.Embed(title="_", description="*_ _*")
+        for k in range(num_fields):
+            string_ = ""
+            for j in range(num_lines):
+                name = ''.join(random.choices(string.ascii_letters, k=random.randint(1, 10)))
+                elo = random.randint(0, 1000)
+                string_ = string_ + f"{j+k*num_lines+i*num_fields*num_lines}. {name} - {elo}" + "\n"
+            Embed.add_field(name=f"_", value=string_)
+
+        await ctx.get_channel().send(embed=Embed)
+
 
 
 

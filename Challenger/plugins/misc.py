@@ -1,5 +1,6 @@
 import tanjun
 import time
+from datetime import datetime, timedelta
 
 from Challenger.utils import *
 from Challenger.database import Session
@@ -13,9 +14,9 @@ def measure_time(func):
         await func(start_time=start_time, *args, **kwargs)
     return wrapper
 
-@tanjun.as_slash_command("ping", "ping", always_defer=True)
+@tanjun.as_slash_command("bot-status", "get info about the bot's ping and uptime", always_defer=True)
 @measure_time
-async def ping_command(ctx:tanjun.abc.Context, start_time, **kwargs):
+async def bot_status_command(ctx:tanjun.abc.Context, start_time, client=tanjun.injected(type=tanjun.abc.Client)):
 
     start_db = time.perf_counter()
     DB = Session(ctx.guild_id)
@@ -28,8 +29,14 @@ async def ping_command(ctx:tanjun.abc.Context, start_time, **kwargs):
     rest_time = (time.perf_counter() - rest_start) * 1000
 
     total = (time.perf_counter() - start_time) * 1_000
-    await ctx.respond(
-        f"PONG\n - Database: {DB_time:.0f}ms\n - Rest: {rest_time:.0f}ms\n - Gateway: {heartbeat_latency:.0f}ms")
+
+    response = ""
+
+    time_diff = datetime.now() - client.metadata["start_time"]
+    response += f"PONG\n - Database: {DB_time:.0f}ms\n - Rest: {rest_time:.0f}ms\n - Gateway: {heartbeat_latency:.0f}ms\n"
+    response += "Bot has been online for: " + str(timedelta(seconds=time_diff.total_seconds())) + "\n"
+
+    await ctx.respond(response)
 
 
 

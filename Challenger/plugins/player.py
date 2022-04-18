@@ -47,7 +47,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_member_slash_option("player", "their mention", default=None)
-@tanjun.as_slash_command("stats", "view your or someone else's stats", default_to_ephemeral=True)
+@tanjun.as_slash_command("stats", "view your or someone else's stats", default_to_ephemeral=False, always_defer=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
     await ctx.respond("...")
@@ -98,7 +98,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     stats_embed.add_field(name="Losses", value=f"{total_losses}", inline=True)
     stats_embed.add_field(name="Draws", value=f"{total_draws}", inline=True)
 
-    await ctx.get_channel().send(embed=stats_embed)
+    await ctx.edit_initial_response(embed=stats_embed)
 
 
 @component.with_slash_command

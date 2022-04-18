@@ -38,10 +38,10 @@ class Session:
         .set_index("match_id")
 
     empty_lobby_df = pd.DataFrame([], columns=["channel_id", "lobby_name", "required_role", "player", "time_joined"])
+    empty_elo_roles = pd.DataFrame([], columns=["role_id", "min_elo", "max_elo"]).set_index("role_id")
 
 
     #these are structured differently
-    empty_elo_roles = pd.DataFrame([], columns=["role", "min_elo", "max_elo", "priority"])
     empty_config = pd.Series(index=["results_channel", "staff_role", "guild_name"], dtype="float64").replace(np.nan, None)
     empty_config_df = pd.DataFrame([], columns=["guild_name", "default_results_channel", "staff_role"]) #TODO use this
 
@@ -276,19 +276,28 @@ class Session:
         self.guildDB[self.tbl_names.CONFIG.value].update_one({}, {"$set":configdict}, upsert=True)
 
 
+    def upsert_elo_role(self, elo_role:pd.Series):
+        elo_role = elo_role.copy()
+        elo_role["role_id"] = elo_role.name
+        elo_role = elo_role.replace(np.nan, None)
+
+        elo_role_dict = elo_role.to_dict()
+        self.guildDB[self.tbl_names.ELO_ROLES.value].update_one({"role_id":elo_role_dict["role_id"]}, {"$set":elo_role_dict}, upsert=True)
+
     def upsert_elo_roles(self, elo_roles_df:pd.DataFrame):
-        self.guildDB[self.tbl_names.ELO_ROLES.value].update_many({}, {"$set":elo_roles_df.to_dict("tight")}, upsert=True)
+        for index, elo_role in elo_roles_df.iterrows():
+            self.upsert_elo_role(elo_role)
 
     def get_elo_roles(self) -> pd.DataFrame:
-        cur = self.guildDB[self.tbl_names.ELO_ROLES.value].find_one()
 
-        if cur is None:
-            df = pd.DataFrame.to_dict(self.empty_elo_roles, orient="tight")
-            df = pd.DataFrame.from_dict(df, orient="tight")
-            self.upsert_elo_roles(self.empty_elo_roles)
-            return df
+        cur = self.guildDB[self.tbl_names.ELO_ROLES.value].find(projection={"_id":False})
 
-        elo_roles_df = pd.DataFrame.from_dict(cur, orient="tight")
-        elo_roles_df = pd.concat([self.empty_elo_roles, elo_roles_df]).replace(np.nan, None)
-        return elo_roles_df.reset_index(drop=True)
+        elo_roles_df = pd.DataFrame(list(cur), dtype="object")
 
+        if not elo_roles_df.empty:
+            elo_roles_df.set_index("role_id", inplace=True)
+
+        print(elo_roles_df)
+
+        full_elo_roles_df = pd.concat([self.empty_elo_roles, elo_roles_df])[self.empty_elo_roles.columns].replace(np.nan, None)
+        return full_elo_roles_df

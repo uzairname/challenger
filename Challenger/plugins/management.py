@@ -280,10 +280,10 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="link role")
 @tanjun.with_str_slash_option("max_elo", "max elo", default=float("inf"))
 @tanjun.with_str_slash_option("min_elo", "min elo", default=float("-inf"))
 @tanjun.with_role_slash_option("role", "role", default=None)
-@tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="link role")
 @tanjun.as_slash_command("elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_elo_roles_instructions)
 @ensure_staff
@@ -304,10 +304,11 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=t
         DB = Session(ctx.guild_id)
         df = DB.get_elo_roles()
 
-        df = df.loc[df["role"] != role].sort_values("priority")
-        df["priority"] = range(len(df.index))
-        row = pd.Series([role_id, len(df.index), elo_min, elo_max], index=["role", "priority", "min_elo", "max_elo"])
-        df = pd.concat([df, pd.DataFrame(row).T]).reset_index(drop=True)
+        df = df.loc[df.index != role]
+        row = pd.Series([elo_min, elo_max], index=["min_elo", "max_elo"], name=role_id)
+        df = pd.concat([df, pd.DataFrame(row).T])
+
+        print("██" +str(df))
 
         DB.upsert_elo_roles(df)
         return "Updated Elo Role", Embed_Type.CONFIRM
