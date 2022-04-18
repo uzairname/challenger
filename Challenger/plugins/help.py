@@ -98,7 +98,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! This is a ranking bot. 1v1 other players to climb the elo leaderboards!", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
-    about_embed.add_field(name="Github", value=f"View the [source code]({Config.GITHUB_LINK})", inline=True)
+    about_embed.add_field(name="Github", value=f"[View the source code]({Config.GITHUB_LINK})", inline=True)
     about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
     about_embed.set_footer("By Lilapela#5348")
 
