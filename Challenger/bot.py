@@ -50,5 +50,5 @@ async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.Gate
     elif os.environ.get("ENVIRONMENT") == "development":
 
         client.load_modules("Challenger.plugins.demo")
-        await client.declare_global_commands(guild=Config.TESTING_GUILD_ID)
+        await client.declare_global_commands(guild=Config.DEV_GUILD_ID)
         await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name=Config.VERSION))
