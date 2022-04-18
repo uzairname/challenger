@@ -1,6 +1,7 @@
 from typing import List
 
 from Challenger.utils import *
+from Challenger.config import *
 
 import math
 import numpy as np
@@ -23,20 +24,13 @@ class Declare:
     CANCEL = "cancel"
 
 
-ELO_STDEV = 150  # estimate of standard deviation of everyone's elo
-DEFAULT_ELO = 1000  # everyone's starting score
-DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. 2.7 is an arbitrary scaling factor
-DEFAULT_K = 30  # maximum change in one game
-NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
-
-
 def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> List[float]:
     if result == Outcome.CANCEL or result is None:
         return [0,0]
     allocated = {Outcome.PLAYER_1:1, Outcome.PLAYER_2:0, Outcome.DRAW:0.5}[result] #what percent of the elo gets allocated to player 1
 
-    k = DEFAULT_K
-    scale = DEFAULT_SCALE
+    k = Elo.DEFAULT_K
+    scale = Elo.DEFAULT_SCALE
 
     def p(A, B): #probability of A beating B
         return 1 / (1 + math.pow(10, -(A - B) / scale))
@@ -48,7 +42,7 @@ def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> List[float]:
 
 
 
-def calc_bayeselo(game_results, avg_elo=DEFAULT_ELO, std_elo=150, initial_std=1):
+def calc_bayeselo(game_results, avg_elo=Elo.DEFAULT_ELO, std_elo=150, initial_std=1):
     #game_results is a list of tuples of the form (opponent_elo, result(win/lose))
     raise NotImplementedError
 

@@ -96,13 +96,11 @@ async def join_q(ctx: tanjun.abc.Context, queue:pd.Series) -> None:
 
 
 async def remove_after_timeout(ctx:tanjun.abc.Context, DB:Session):
-    await asyncio.sleep(Config.QUEUE_TIMEOUT)
+    await asyncio.sleep(Config.QUEUE_JOIN_TIMEOUT)
     queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0] #would probably break if the channel was deleted after the player joined
     queue["player"] = None
     DB.upsert_lobby(queue)
-    await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_TIMEOUT//60) + " minutes")
-
-
+    await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
 #leave queue

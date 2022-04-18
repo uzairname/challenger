@@ -3,11 +3,9 @@ import tanjun
 import pandas as pd
 import numpy as np
 
-from hikari.interactions.base_interactions import ResponseType
-
 from Challenger.utils import *
 from Challenger.database import Session
-from Challenger.config import Config
+from Challenger.config import *
 
 
 
@@ -145,7 +143,7 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
     player_matches = player_matches.loc[player_matches.index <= latest_match_id]\
     .loc[np.logical_or(player_matches["outcome"] == Outcome.PLAYER_1, player_matches["outcome"] == Outcome.PLAYER_2, player_matches["outcome"] == Outcome.DRAW)]
 
-    return len(player_matches) >= scoring.NUM_UNRANKED_MATCHES
+    return len(player_matches) >= Elo.NUM_UNRANKED_MATCHES
 
 
 def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=None):

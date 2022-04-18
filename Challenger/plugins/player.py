@@ -1,12 +1,11 @@
 import tanjun
 import hikari
-from hikari.interactions.base_interactions import ResponseType
 
 from datetime import datetime
 
 from Challenger.utils import *
 from Challenger.database import Session
-from Challenger.config import Config
+from Challenger.config import *
 
 component = tanjun.Component(name="player module")
 
@@ -32,7 +31,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["tag"] = tag
         player["time_registered"] = datetime.now()
         player["is_ranked"] = False
-        player["elo"] = scoring.DEFAULT_ELO
+        player["elo"] = Elo.DEFAULT_ELO
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return

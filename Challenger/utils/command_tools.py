@@ -50,7 +50,7 @@ def get_channel_lobby(func) -> typing.Callable:
             await ctx.edit_initial_response("This channel doesn't have a lobby")
             return
 
-        return await func(ctx=ctx, queue=queues.iloc[0], *args, **kwargs)
+        return await func(ctx=ctx, lobby=queues.iloc[0], *args, **kwargs)
 
     return wrapper
 
