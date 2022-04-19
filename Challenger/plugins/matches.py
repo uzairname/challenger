@@ -1,11 +1,11 @@
 import hikari
 import tanjun
-import pandas as pd
-import numpy as np
+import time
 
 from Challenger.utils import *
 from Challenger.database import Session
 from Challenger.config import *
+
 
 from Challenger.utils import Outcome, Declare #dont need
 
@@ -133,8 +133,9 @@ async def update_announce_match_outcome(ctx:tanjun.abc.Context, match_id, new_ou
     if staff_declared:
         matches.loc[match_id, "staff_declared"] = new_outcome
 
+    start_time = time.time()
     updated_matches, updated_players = update_matches(matches, match.name, new_outcome)
-
+    print("Updated " + str(updated_matches.index.size) + " matches in", time.time() - start_time)
     DB.upsert_matches(updated_matches)
 
     players = DB.get_players(user_ids=list(updated_players.index))

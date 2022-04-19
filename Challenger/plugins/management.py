@@ -170,7 +170,7 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
 
 
 
-async def config_staff_instructions(ctx:tanjun.abc.Context, action, role, client=tanjun.injected(type=tanjun.abc.Client)):
+async def config_staff_instructions(ctx:tanjun.abc.Context, action, role:hikari.PartialRole, client=tanjun.injected(type=tanjun.abc.Client)):
 
     DB = Session(ctx.guild_id)
 
@@ -195,7 +195,7 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, action, role, client
     if role is None:
         selection = "No role specified"
     else:
-        selection += "Role: <@&" + str(role) + ">"
+        selection += "Role: " + role.mention + ""
 
     embed = hikari.Embed(title="Add or remove staff members",
                         description="Link a role to bot staff. Staff are able to force match results, and have access to all config commands",
@@ -207,7 +207,7 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, action, role, client
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
-@tanjun.with_role_slash_option("role", "role", default="")
+@tanjun.with_role_slash_option("role", "role", default=None)
 @tanjun.as_slash_command("staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @take_input(input_instructions=config_staff_instructions)
@@ -216,22 +216,19 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
     DB = Session(ctx.guild_id)
 
     def process_response():
-        input_params = InputParser(str(role))
 
-        if len(input_params.roles) != 1:
+        if role is None:
             return "Select one role", Embed_Type.ERROR
 
         config = DB.get_config()
         staff_role = config["staff_role"]
 
         if action == "link role":
-            staff_role = input_params.roles[0]
-            config["staff_role"] = staff_role
+            config["staff_role"] = role.id
             DB.upsert_config(config)
-            return "Linked staff with " + "<@&" + str(staff_role) + ">", Embed_Type.CONFIRM
+            return "Linked staff with " + role.mention, Embed_Type.CONFIRM
         elif action == "unlink role":
-            staff_role = None
-            config["staff_role"] = staff_role
+            config["staff_role"] = None
             DB.upsert_config(config)
             return "Removed staff role", Embed_Type.CONFIRM
 

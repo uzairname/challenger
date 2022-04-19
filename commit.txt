@@ -1,0 +1,3 @@
+fix config staff role
+update help
+remove input parser
