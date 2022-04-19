@@ -44,5 +44,44 @@ async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.i
     await ctx.respond(embed=embed)
 
 
+@tanjun.as_slash_command("refresh-all-matches", "recalculate the elo for every match", default_to_ephemeral=False, always_defer=True)
+@ensure_staff
+async def recalculate_all_matches(ctx: tanjun.abc.SlashContext,
+                                  bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
+    DB = Session(ctx.guild_id)
+    all_matches = DB.get_matches()
+
+    print(all_matches)
+
+    updated_matches, updated_players = update_matches(all_matches, match_id=1, update_all=True)
+    DB.upsert_matches(updated_matches)
+
+    players = DB.get_players(user_ids=list(updated_players.index))
+    players_before = players.loc[updated_players.index, updated_players.columns]
+    players[updated_players.columns] = updated_players
+
+    updated_players_str = ""
+    for id, row in updated_players.iterrows():
+        prior_elo_str = str(round(players_before.loc[id, "elo"]))
+        if not players_before.loc[id, "is_ranked"]:
+            prior_elo_str += "?"
+
+        updated_elo_str = str(round(updated_players.loc[id, "elo"]))
+        if not updated_players.loc[id, "is_ranked"]:
+            updated_elo_str += "?"
+
+        updated_players_str += "<@" + str(id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
+        await update_player_elo_roles(ctx, bot, id)
+
+
+    DB.upsert_players(players)
+    explanation_str = "All matches and elo were updated based on match results and any new elo config settings"
+
+    embed = hikari.Embed(title="REFRESHED ALL MATCHES", description=explanation_str, color=Colors.PRIMARY)
+    embed.add_field(name="Updated players", value=updated_players_str)
+
+    await ctx.edit_initial_response(embed=embed)
+
+
 
 misc = tanjun.Component(name="misc", strict=True).load_from_scope().make_loader()

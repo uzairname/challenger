@@ -97,7 +97,7 @@ def take_input(input_instructions:typing.Callable):
     Calls function with input and lets the user confirm/cancel the command
     params:
         decorated function: slash command function called when confirm button is pressed. function that takes in a hikari.ComponentInteraction event and/or additional kwargs and returns an embed to show when the command is executed.
-        input_instructions: function that takes in a tanjun.abc.Context, Database, and/or additional kwargs and returns an embed to show before user confirms their input
+        input_instructions: function that takes in a tanjun.abc.Context, Database, and optional kwargs and returns an embed to show before user confirms their input
     """
 
     def wrapper_take_input(func):
@@ -192,6 +192,7 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
             await ctx.edit_initial_response(embeds=embeds, component=page_navigator)
 
     await ctx.edit_initial_response(embeds=embeds, components=[])
+
 
 
 __all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error", "create_paginator"]

@@ -15,17 +15,15 @@ config = tanjun.slash_command_group("config", "Change the bot settings", default
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=True, always_defer=True)
-@ensure_staff
 async def config_help(ctx):
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Config Help", description="Staff can use the following commands to change the bot settings type `/config [command name]` to use them")
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Config Help", description="Staff can use the following commands to change the bot settings type `/config [command name]` to use them")
     embed.add_field(name="`view`", value="View the current config settings")
     embed.add_field(name="`lobbies`", value="View, add, or remove lobbies")
     embed.add_field(name="`staff`", value="Link or unlink a role to bot staff")
     embed.add_field(name="`elo-roles`", value="Set or unset roles that are automatically assigned to players based on their elo")
     embed.add_field(name="`match-updates-channel`", value="Set the channel for match updates")
     embed.add_field(name="`reset`", value="Reset the bot to its default settings")
-
 
     await ctx.edit_initial_response(embed=embed)
 
@@ -34,7 +32,6 @@ async def config_help(ctx):
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("view", "View the config settings", default_to_ephemeral=True, always_defer=True)
-@ensure_staff
 async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
 
     DB = Session(ctx.guild_id)
@@ -75,10 +72,6 @@ async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
     embed.add_field(name="Elo Roles", value=elo_roles_list)
 
     await ctx.edit_initial_response(embed=embed)
-
-
-
-
 
 
 
@@ -132,13 +125,11 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @tanjun.with_role_slash_option("role_required", "role required", default=None)
 @tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
 @tanjun.as_slash_command("lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
-@take_input(input_instructions=config_lobby_instructions)
 @ensure_staff
+@take_input(input_instructions=config_lobby_instructions)
 async def config_lobby(ctx, event, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     DB = Session(ctx.guild_id)
-
-    user_input = InputParser(str(name))
 
     def process_response():
 
@@ -179,7 +170,7 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
 
 
 
-async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.injected(type=tanjun.abc.Client), **kwargs):
+async def config_staff_instructions(ctx:tanjun.abc.Context, action, role, client=tanjun.injected(type=tanjun.abc.Client)):
 
     DB = Session(ctx.guild_id)
 
@@ -194,9 +185,6 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
             if staff_role in member.role_ids:
                 staff_list += "\n" + member.username
 
-    action = kwargs.get("action")
-    role = kwargs.get("role")
-
     selection = ""
     if action == "link role":
         selection += "**Linking**\n"
@@ -204,16 +192,16 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
         selection += "**Unlinking**\n"
     else:
         selection += "**No action specified**\n"
-    input_params = InputParser(str(role))
-    selection += input_params.describe()
+    if role is None:
+        selection = "No role specified"
+    else:
+        selection += "Role: <@&" + str(role) + ">"
 
     embed = hikari.Embed(title="Add or remove staff members",
                         description="Link a role to bot staff. Staff are able to force match results, and have access to all config commands",
                         color=Colors.PRIMARY)
-
     embed.add_field(name="Current staff", value=staff_list)
     embed.add_field(name="Selection", value=selection)
-
     return embed
 
 @config.with_command
@@ -221,9 +209,9 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, client=tanjun.inject
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
 @tanjun.with_role_slash_option("role", "role", default="")
 @tanjun.as_slash_command("staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
-@take_input(input_instructions=config_staff_instructions)
 @ensure_staff
-async def config_staff(ctx: tanjun.abc.Context, event, action, role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
+@take_input(input_instructions=config_staff_instructions)
+async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     DB = Session(ctx.guild_id)
 
@@ -284,8 +272,8 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @tanjun.with_str_slash_option("min_elo", "min elo", default=float("-inf"))
 @tanjun.with_role_slash_option("role", "role", default=None)
 @tanjun.as_slash_command("elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
-@take_input(input_instructions=config_elo_roles_instructions)
 @ensure_staff
+@take_input(input_instructions=config_elo_roles_instructions)
 async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     def process_response():
@@ -350,6 +338,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"add/update channel", "remove":"reset to default"}, default="update")
 @tanjun.with_channel_slash_option("channel", "channel", default=None)
 @tanjun.as_slash_command("match-updates-channel", "Set a channel to send match results announcements to", default_to_ephemeral=False, always_defer=True)
+@ensure_staff
 @take_input(input_instructions=config_results_channel_instructions)
 async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
@@ -384,11 +373,11 @@ async def reset_instructions(ctx:tanjun.abc.Context, reset_config, **kwargs):
 
     return embed
 
-
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("reset_config", "also reset config settings", choices={"yes":"yes", "no":"no"}, default="no")
 @tanjun.as_slash_command("reset", "reset the bot's data for this server", default_to_ephemeral=False)
+@ensure_staff
 @take_input(input_instructions=reset_instructions)
 async def reset_data(ctx: tanjun.abc.SlashContext, event, reset_config, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
     raise NotImplementedError()

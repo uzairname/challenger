@@ -7,6 +7,9 @@ from Challenger.utils import *
 from Challenger.database import Session
 from Challenger.config import *
 
+from Challenger.utils import Outcome, Declare #dont need
+
+
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
@@ -50,7 +53,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.Gateway
 
     #check whether both declares match
     if match["p1_declared"] == match["p2_declared"]:
-        return await set_match_outcome(ctx, match.name, new_outcome, bot=bot, client=client)
+        return await update_announce_match_outcome(ctx, match.name, new_outcome, bot=bot, client=client)
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
@@ -108,40 +111,11 @@ async def set_match(ctx: tanjun.abc.Context, match_number, outcome, bot:hikari.G
         return
     match = matches.iloc[0]
 
-    return await set_match_outcome(ctx, match.name, outcome, bot=bot, client=client, staff_declared=True)
-
-
-def get_provisional_game_results(all_matches, player_id, latest_match_id): #TODO: support draws
-
-    player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
-    player_matches = player_matches.loc[player_matches.index <= latest_match_id]
-
-    results = []
-
-    for match_id, match in player_matches.iterrows():
-        if match["outcome"] == Outcome.CANCEL or match["outcome"] == Outcome.DRAW or match["outcome"] == Outcome.UNDECIDED or match["outcome"] is None:
-            continue
-
-        if match["p1_id"] == player_id:
-            winning_outcome = Outcome.PLAYER_1
-            opponent_elo = match["p2_elo"]
-        else:
-            winning_outcome = Outcome.PLAYER_2
-            opponent_elo = match["p1_elo"]
-
-        if match["outcome"] == winning_outcome:
-            results.append(("win", opponent_elo))
-        else:
-            results.append(("loss", opponent_elo))
-
-    return results
-
-
-    # do the same to the next match
+    return await update_announce_match_outcome(ctx, match.name, outcome, bot=bot, client=client, staff_declared=True)
 
 
 
-async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot, client:tanjun.Client, staff_declared=None):
+async def update_announce_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot, client:tanjun.Client, staff_declared=None):
 
     DB = Session(ctx.guild_id)
     matches = DB.get_matches() #TODO dont get all the matches at once
@@ -159,7 +133,7 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:h
     if staff_declared:
         matches.loc[match_id, "staff_declared"] = new_outcome
 
-    updated_matches, updated_players = update_matches(matches.copy(), match.name, new_outcome)
+    updated_matches, updated_players = update_matches(matches, match.name, new_outcome)
 
     DB.upsert_matches(updated_matches)
 

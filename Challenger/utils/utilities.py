@@ -13,7 +13,7 @@ from ..database import Session
 
 
 
-def update_matches(matches, match_id, new_outcome=None, _updated_players=None): #TODO make unit test
+def update_matches(matches, match_id, new_outcome=None, _updated_players=None, update_all=False): #TODO make unit test
     """
     params:
         matches: a DataFrame of matches. must index "match_id", and columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_elo_after", "p2_elo_after", "p1_is_ranked", "p2_is_ranked", "p1_is_ranked_after", "p2_is_ranked_after", "outcome"
@@ -25,6 +25,7 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None): 
         a DataFrame of each player's new elo and ranked status
     """
 
+    matches = matches.copy()
     if _updated_players is None:
         _updated_players = pd.DataFrame([], columns=["user_id", "elo", "is_ranked"]).set_index("user_id")
 
@@ -34,7 +35,7 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None): 
     p2_id = match["p2_id"]
 
     #If this match should be affected in any way, calculate the players' new elos. If not, move on to the next match
-    if p1_id in _updated_players.index or p2_id in _updated_players.index or new_outcome is not None:
+    if p1_id in _updated_players.index or p2_id in _updated_players.index or new_outcome is not None or update_all:
 
         #By default their prior elo is what it is in the database. If it changed, update it
         p1_elo = matches.loc[match_id, "p1_elo"]
@@ -80,10 +81,11 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None): 
         _updated_players.loc[p1_id, "is_ranked"] = matches.loc[match_id, "p1_is_ranked_after"]
         _updated_players.loc[p2_id, "is_ranked"] = matches.loc[match_id, "p2_is_ranked_after"]
 
-        if match_id + 1 in matches.index:
-            return update_matches(matches=matches, match_id=match_id + 1, _updated_players=_updated_players)
-        else:
-            return matches, _updated_players
+
+    if match_id + 1 in matches.index:
+        return update_matches(matches=matches, match_id=match_id + 1, _updated_players=_updated_players)
+    else:
+        return matches, _updated_players
 
 
 
