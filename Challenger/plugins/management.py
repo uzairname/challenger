@@ -12,7 +12,6 @@ config = tanjun.slash_command_group("config", "Change the bot settings", default
 
 
 
-
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=False, always_defer=True)
@@ -85,7 +84,7 @@ async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
 
 
 
-async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel, role_required, **kwargs):
+async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel:hikari.InteractionChannel, role_required, **kwargs):
     """
     Displays all configured lobbies in the guild as a field added onto the embed
     params:
@@ -116,7 +115,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
     else:
         selection += "**No action**\n"
 
-    selection += "In channel: " + channel.mention + "\n"
+    selection += "In channel: <#" + str(channel.id) + ">\n"
     if name:
         selection += "With name: " + name + "\n"
     if role_required:
@@ -150,10 +149,10 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
 
         if action == "delete":
             if existing_queues.empty:
-                return "No lobby in " + channel.mention, Embed_Type.ERROR
+                return "No lobby in <#" + str(channel.id) + ">", Embed_Type.ERROR
 
             DB.remove_lobby(channel.id)
-            return "Deleted lobby from " + channel.mention, Embed_Type.CONFIRM
+            return "Deleted lobby from <#" + str(channel.id) + ">", Embed_Type.CONFIRM
 
         if existing_queues.empty:
             new_queue = DB.get_new_lobby(channel.id)
@@ -337,8 +336,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
         selection += "**Removing channel**\n"
     else:
         selection += "**No action specified**\n"
-    input_params = InputParser(str(channel))
-    selection += input_params.describe()
+    selection += "<#" + str(channel.id) + ">"
 
     embed = hikari.Embed(title="Add or remove results channel",
                         description="Set a channel for match announcements. Results are posted in the channel when a match is initially created, when the result is decided by the players, and when staff updates a match's result",
@@ -351,13 +349,12 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"add/update channel", "remove":"reset to default"}, default="update")
-@tanjun.with_str_slash_option("channel", "channel", default="")
+@tanjun.with_channel_slash_option("channel", "channel", default=None)
 @tanjun.as_slash_command("match-updates-channel", "Set a channel to send match results announcements to", default_to_ephemeral=False, always_defer=True)
 @take_input(input_instructions=config_results_channel_instructions)
 async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     def process_repsonse():
-        input_params = InputParser(str(channel))
 
         DB = Session(ctx.guild_id)
         config = DB.get_config()
@@ -367,10 +364,10 @@ async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel,
             DB.upsert_config(config)
             return "Removed results channel", Embed_Type.CONFIRM
 
-        if len(input_params.channels) != 1:
-            return "Select one channel", Embed_Type.ERROR
+        if channel is None:
+            return "Select a channel", Embed_Type.ERROR
 
-        config["results_channel"] = input_params.channels[0]
+        config["results_channel"] = channel.id
         DB.upsert_config(config)
         return "Updated results channel", Embed_Type.CONFIRM
 

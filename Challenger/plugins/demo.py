@@ -43,6 +43,23 @@ async def set_elo(ctx:tanjun.abc.Context, player:hikari.User, elo, bot=tanjun.in
 
 
 
+
+@tanjun.as_slash_command("perms", "see perms" , always_defer=True)
+async def see_perms(ctx:tanjun.abc.Context, bot=tanjun.injected(type=hikari.GatewayBot)):
+
+    DB = Session(ctx.guild_id)
+    players = DB.get_players(user_id=player.id)
+    if players is None:
+        await ctx.edit_initial_response("Player not found!")
+        return
+    player = players.iloc[0]
+    player["elo"] = elo
+    DB.upsert_player(player)
+
+    await update_player_elo_roles(ctx, bot, player.name)
+    await ctx.edit_initial_response("Done")
+
+
 import string
 import random
 
