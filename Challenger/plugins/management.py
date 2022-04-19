@@ -14,7 +14,7 @@ config = tanjun.slash_command_group("config", "Change the bot settings", default
 
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=True, always_defer=True)
 @ensure_staff
 async def config_help(ctx):
 
@@ -33,7 +33,7 @@ async def config_help(ctx):
 
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("view", "View the config settings", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("view", "View the config settings", default_to_ephemeral=True, always_defer=True)
 @ensure_staff
 async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
 

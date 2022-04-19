@@ -93,23 +93,26 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot. 1v1 other players to climb the leaderboards! You can customize roles, lobbies, and more.", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
-    about_embed.add_field(name="Github", value=f"[View the source code]({Config.GITHUB_LINK})", inline=True)
-    about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
-    about_embed.set_footer("Lilapela#5348")
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
-    print(bot_perms.value)
     missing_perms = Config.REQUIRED_PERMISSIONS & ~bot_perms
     if missing_perms:
         perms_message = f":x: This bot is missing the following required permissions: `{missing_perms}`\n\n Re-invite the bot with the link above"
     else:
         perms_message = f":white_check_mark: This bot has all the required permissions"
     about_embed.add_field(name="Permissions", value=perms_message, inline=True)
+    about_embed.add_field(name="Version", value=f"{Config.VERSION}", inline=True)
+    about_embed.add_field(name="Github", value=f"[View the source code]({Config.GITHUB_LINK})", inline=True)
+    about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
+    about_embed.add_field(name="Discord", value=f"[Join the testing and support server]({Config.DISCORD_INVITE_LINK})", inline=True)
+    about_embed.set_footer("Lilapela#5348")
 
 
     features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
     features_embed.add_field(name=":trophy: Scoring", value="Scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). For everyone's first few games, Challenger uses an advanced provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to accurately score players so that they don't have to grind to match their elo to their skill level.")
     features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
+    features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard unique to your discord server")
+
 
 
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)

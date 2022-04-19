@@ -12,6 +12,7 @@ class Config:
     GITHUB_LINK = "https://github.com/lilapela/competition"
     OWNER_ID = 623257053879861248  # Lilapela's ID
     DEV_GUILD_ID = 907729885726933043 # lilap
+    DISCORD_INVITE_LINK = "https://discord.gg/bunZ3gadBU"
 
 
     COMPONENT_TIMEOUT = 120
