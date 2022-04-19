@@ -1,5 +1,6 @@
 import asyncio
 
+import hikari
 import tanjun
 from datetime import datetime
 
@@ -44,7 +45,8 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
         match = matches.iloc[0]
         if match["outcome"] is None:
             if match["p1_id"] == player_id and match["p1_declared"] is None or match["p2_id"] == player_id and match["p2_declared"] is None:
-                await ctx.edit_initial_response("You need to /declare the results for match " + str(match.name))
+                embed = hikari.Embed(title="You have an ongoing match", description="/declare the results or ask staff to set finalize the match (type /match-history for more details)", color=Colors.ERROR)
+                await ctx.edit_initial_response(embed=embed)
                 return
 
     #add player to queue
@@ -57,7 +59,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
         DB.upsert_lobby(lobby)
 
         await ctx.edit_initial_response(f"You silently joined the queue")
-        await ctx.get_channel().send("A player has joined the queue for **" + str(lobby["lobby_name"]) + "**")
+        await ctx.get_channel().send("A player has joined the queue")
 
     else:
         await ctx.edit_initial_response("You silently joined the queue")
@@ -83,10 +85,9 @@ async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
     player_id = ctx.author.id
 
     if lobby["player"] == player_id:
-
         await remove_from_queue(ctx, DB, lobby)
         await ctx.edit_initial_response("Left the queue")
-
+        await ctx.get_channel().send("A player has left the queue")
     else:
         await ctx.edit_initial_response("You're not in the queue")
 

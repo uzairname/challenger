@@ -44,12 +44,16 @@ async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.i
     await ctx.respond(embed=embed)
 
 
-@tanjun.as_slash_command("refresh-all-matches", "recalculate the elo for every match", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("refresh-all-matches", "recalculate the elo for every match", default_to_ephemeral=False)
 @ensure_staff
-async def recalculate_all_matches(ctx: tanjun.abc.SlashContext,
-                                  bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
+async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
+
+    await ctx.respond("Getting matches...")
+
     DB = Session(ctx.guild_id)
     all_matches = DB.get_matches()
+
+    await ctx.respond("Recalculating matches...")
 
     print(all_matches)
 

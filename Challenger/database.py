@@ -163,13 +163,10 @@ class Session:
         increasing: if true, returns matches from oldest to newest
         """
 
-        print("from guild: " + self.guild_identifier)
-
         cur_filter = {}
         if user_id is not None:
             user_id = int(user_id)
             cur_filter["$or"] = [{"p1_id":user_id}, {"p2_id":user_id}]
-            print(cur_filter)
 
         if match_id is not None:
             match_id = int(match_id)
@@ -293,8 +290,6 @@ class Session:
 
         if not elo_roles_df.empty:
             elo_roles_df.set_index("role_id", inplace=True)
-
-        print(elo_roles_df)
 
         full_elo_roles_df = pd.concat([self.empty_elo_roles, elo_roles_df])[self.empty_elo_roles.columns].replace(np.nan, None)
         return full_elo_roles_df

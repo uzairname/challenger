@@ -133,7 +133,7 @@ def take_input(input_instructions:typing.Callable):
             if confirm_embed is not None:
                 await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])
             else:
-                await ctx.edit_initial_response(embeds=[instructions_embed, hikari.Embed(title="Timed Out", description="timed out", color=Colors.NEUTRAL)], components=[])
+                await ctx.edit_initial_response(embeds=[instructions_embed, hikari.Embed(title="Timed Out", description="timed out", color=Colors.DARK)], components=[])
 
         return wrapper
     return wrapper_take_input

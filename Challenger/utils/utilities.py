@@ -103,51 +103,6 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
 
 
 
-class InputParser():
-
-    def __init__(self, input_string):
-
-        text_pat = r"[a-zA-Z\d\s]+"
-
-        channel_pat = r"<#(\d{17,19})>"
-        role_pat = r"<@&(\d{17,19})>"
-        user_pat = r"<@!?(\d{17,19})>"
-
-        name = re.match(text_pat, input_string)
-        if name:
-            name = name[0].strip()
-
-        self.channels = np.array(re.findall(channel_pat, input_string)).astype("int64")
-        self.roles = np.array(re.findall(role_pat, input_string)).astype("int64")
-        self.users = np.array(re.findall(user_pat, input_string)).astype("int64")
-        self.text = name
-
-    def describe(self):
-
-        description = ""
-        if self.text:
-            description += "\nName:\n> " + str(self.text)
-
-        if self.channels.size > 0:
-            description += "\nSelected channels:"
-            for i in self.channels:
-                description += "\n> <#" + str(i) + ">"
-
-        if self.roles.size > 0:
-            description += "\nSelected roles:"
-            for i in self.roles:
-                description += "\n> <@&" + str(i) + ">"
-
-        if self.users.size > 0:
-            description += "\nSelected users:"
-            for i in self.users:
-                description += "\n> <@" + str(i) + ">"
-
-        description += "\n"
-        return description
-
-
-
 async def remove_after_timeout(ctx: tanjun.abc.Context, DB: Session):
     await asyncio.sleep(Config.QUEUE_JOIN_TIMEOUT)
     queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[
@@ -155,7 +110,7 @@ async def remove_after_timeout(ctx: tanjun.abc.Context, DB: Session):
     queue["player"] = None
     DB.upsert_lobby(queue)
     await ctx.get_channel().send(
-        "The player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
+        "A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
 async def remove_from_queue(ctx: tanjun.abc.Context, DB: Session, lobby):
@@ -212,7 +167,7 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
         result = str(DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]) + " won"
     elif match["outcome"] == Outcome.CANCEL:
         result = "Cancelled"
-        color = Colors.NEUTRAL
+        color = Colors.DARK
     elif match["outcome"] == Outcome.DRAW:
         result = "Draw"
     else:
@@ -286,4 +241,4 @@ async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot,
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
-__all__ = ["InputParser", "describe_match", "announce_as_match_update", "update_player_elo_roles", "remove_after_timeout", "remove_from_queue", "start_new_match", "update_matches", "determine_is_ranked"]
+__all__ = ["describe_match", "announce_as_match_update", "update_player_elo_roles", "remove_after_timeout", "remove_from_queue", "start_new_match", "update_matches", "determine_is_ranked"]

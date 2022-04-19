@@ -11,29 +11,27 @@ component = tanjun.Component(name="hi module")
 
 
 todo_str = """
-This is the beta version. You can help by suggesting features and reporting bugs to me.
-
 **In order of priority**
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Add tournaments support
 • option to show details in match history
+• Extension to store match info like map played, strategy used, etc
+• Ban players from playing
 • presets for elo roles
 • reset data command
 • Automatically register players on commands
 • see distribution of everyone's elo
 • /stats show your percentile
-• Associate each match with a message id in match announcements, so that message can be edited
 • /compare (player) show your expected probability of beating opponent, and your winrate against them. Elo change for winning and losing 
 • shorthand for commands ex. declare match results /d
 """
 
-future_features_str = """
-Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search
-
-Support for tournaments
-
-Support for best of 3 and 5 matches, elo is updated accordingly
+coming_soon_str = """
+Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search.
+Support for tournaments.
+Associating each match with a map played or other game info.
+Support for best of 3 and 5 matches.
 """
 # Changing the result of an old match has a cascading effect on all the subsequent players those players played against, and the players they played against, and so on... since your elo change depends on your and your opponent's prior elo. If the changed match is very old, the calculation might take a while
 
@@ -43,16 +41,32 @@ Support for best of 3 and 5 matches, elo is updated accordingly
 async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
     response = await ctx.fetch_initial_response()
 
-    basics_embed = hikari.Embed(title="Basic Use", description="To get started, type /register. Make sure you're in a channel with a 1v1 lobby. Join the queue to get matched with another player. When the queue is full, a match is created, and you can see its status in whichever channel is set up to record matches", colour=Colors.PRIMARY)
-    basics_embed.add_field(name="Commands", value="`/register` - Register your username and gain access to most features!\n`/join` - Join the queue to be matched with another player\n`/leave` - Leave the queue\n`/declare [win, loss, draw, or cancel]` - declare the results of the match. Both players must agree for result to be decided. Staff can handle disputes", inline=True)
+    basics_embed = hikari.Embed(title="Basic Use", description="To get started, type /register. Make sure you're in a channel with a 1v1 lobby. Join the queue to get matched with another player. When the queue is full, a match is created, and you can see its future updates in whichever channel is set up to record matches", colour=Colors.PRIMARY)
+    basics_embed.add_field(name="Commands", value=
+    "`/about` - Learn about the bot\n"
+    "`/register` - Register your username and gain access to most features!\n"
+    "`/join` - Join the queue to be matched with another player\n"
+    "`/leave` - Leave the queue\n"
+    "`/declare [win, loss, draw, or cancel]` - declare the results of the match. **Both players must declare and agree for result to be decided**. You can change your declared result for your most recent match at any time. Staff can handle disputes", inline=True)
 
     util_embed = hikari.Embed(title="Utility", description="Useful and fun commands", colour=Colors.PRIMARY)
-    util_embed.add_field(name="General", value="`/queue` - View the status of the queue\n`/stats` - View your stats\n`/leaderboard` - View the leaderboard\n", inline=True)
-    util_embed.add_field(name="Bot related", value="`/about` - Get information about the bot\n`/help` - Get help on how to use the bot\n`/uptime` - See how long since the bot's last reset\n`/ping` - Check the bot's response time\n")
+    util_embed.add_field(name="General", value=
+    "`/queue` - Get the status of the queue\n"
+    "`/stats` - View your elo stats\n"
+    "`/lb` - View the leaderboard\n"
+    "`/match-history [player](optional)` - View your or another player's match history, and see the status of your most recent match", inline=True)
+    util_embed.add_field(name="Bot related", value=
+    "`/help` - Get help on how to use the bot\n"
+    "`/uptime` - See how long since the bot's last reset\n"
+    "`/ping` - Check the bot's response time\n")
 
     staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=Colors.PRIMARY)
-    staff_embed.add_field(name="Staff settings", value="`/config-help` - Detailed help on staff config commands, which include:\n`/config-lobby`, `/config-staff`, `/config-eloroles`")
-    staff_embed.add_field(name="Matches", value="/`setmatch` - force a match's result, in the event of a dispute or mistake\n`/reset` Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season")
+    staff_embed.add_field(name="Staff settings", value=
+    "`/config-help` - Detailed help on staff config commands\n"
+    "`/reset` Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season\n")
+    staff_embed.add_field(name="Matches", value=
+    "`/set-match` - Force a match's result in the event of a dispute or mistake\n"
+    "`/refresh-all-matches` - Recalculate every match and everyone's elo and ranked status\n")
 
     pages = {"Basics": basics_embed, "Staff Commands":staff_embed, "Utility":util_embed}
 
@@ -87,7 +101,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     avatar = user.avatar_url
 
     #about
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot. 1v1 other players to climb the leaderboards! You can customize roles, lobbies, and more.", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot. 1v1 other players to climb the leaderboards, and have access to a variety of competitive features entirely within discord! Use the dropdown to explore more, and use /help for usage instructions", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
     about_embed.add_field(name=f"How to use", value=f"Use `/help` for instructions and commands", inline=True)
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
@@ -100,34 +114,37 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed.add_field(name="Version", value=f"{Config.VERSION}", inline=True)
     about_embed.add_field(name="Github", value=f"[View the source code]({Config.GITHUB_LINK})", inline=True)
     about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
-    about_embed.add_field(name="Discord", value=f"[Join the testing and support server]({Config.DISCORD_INVITE_LINK})", inline=True)
-    about_embed.set_footer("Lilapela#5348")
+    about_embed.add_field(name="Discord", value=f"[Bot's server]({Config.DISCORD_INVITE_LINK})", inline=True)
+    about_embed.add_field(name=":blossom:", value=f"Lilapela#5348", inline=True)
 
 
     features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
-    features_embed.add_field(name=":trophy: Scoring", value="Scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). For everyone's first few games, Challenger uses an advanced provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to accurately score players so that they don't have to grind to match their elo to their skill level.")
+    features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). See a visualization of how it works here [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
     features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
     features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard for your discord server")
-
+    features_embed.add_field(name=":scroll: History and stats", value="View everyone's match history and detailed competetive stats")
+    features_embed2 = hikari.Embed(title="Special", description="Features that set Challenger apart from other elo bots", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    features_embed2.add_field(name=":star: Advanced provisional elo (coming soon)", value="For everyone's first few games, Challenger uses a provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to find the players most probable skill level just based on a few matches. This means you don't have to grind at first to reach your appropriate elo.")
+    features_embed2.add_field(name=":star: Ability to change old match results", value="This usually complicates things, because changing a match 100 matches ago can affect almost everyone's elo slightly. Challenger allows you to change any match, and all affected players' elo will be recursively updated. Also, you can customize the elo average and spread after several matches have been played, and all matches will be recalculated.")
 
 
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
     permissions_embed.add_field("View Channels", "Required for the bot to view channels")
 
-    todo_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
-    todo_embed.add_field(name="What I'm working on", value=todo_str[0:1000])
-    todo_embed.add_field(name="Possible Future Features", value=future_features_str)
+    future_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
+    future_embed.add_field(name="What I'm working on", value=todo_str[0:1000])
+    future_embed.add_field(name="Features Coming Soon", value=coming_soon_str)
 
 
-    pages = {"About": about_embed, "Features":features_embed, "Todo": todo_embed}
+    pages = {"About": [about_embed], "Features":[features_embed, features_embed2], "Future Plans": [future_embed]}
 
     page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
     for i in pages:
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i=="About").add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=[about_embed], components=[page_dropdown], user_mentions=True)
+    await ctx.edit_initial_response(embeds=pages["About"], components=[page_dropdown], user_mentions=True)
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
@@ -135,11 +152,11 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
             ("interaction.message.id", response.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
-            page = event.interaction.values[0]
+            page_name = event.interaction.values[0]
             for i in page_dropdown.components[0]._options:
-                i.set_is_default(i._label == page)
+                i.set_is_default(i._label == page_name)
 
-            await ctx.edit_initial_response(embed=pages[page], components=[page_dropdown])
+            await ctx.edit_initial_response(embeds=pages[page_name], components=[page_dropdown])
 
     await ctx.edit_initial_response(embed=about_embed, components=[])
 
