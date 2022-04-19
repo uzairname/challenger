@@ -217,7 +217,7 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
 
     # do the same to the next match
     if match_id+1 in matches.index:
-        return calculate_new_elos(matches=matches, match_id=match_id + 1, _updated_players=_updated_players)
+        return calculate_new_elos(matches=matches, match_id=match_id+1, _updated_players=_updated_players)
     else:
         return matches, _updated_players
 

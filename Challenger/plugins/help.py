@@ -10,13 +10,14 @@ from Challenger.config import Config
 component = tanjun.Component(name="hi module")
 
 
-
+#testing todo
+#TODO
+# db now gets matches in decreasing order of match id. check if this affects matches module
 
 todo_str = """
+This is the beta version. You can help by suggesting features and reporting bugs to me.
 
 **In order of priority**
- 
-in order of priority:
 • Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
  https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
 • Add tournaments support
@@ -81,7 +82,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
 
 @component.with_slash_command
 # @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("about", "About", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("about", "About", default_to_ephemeral=True, always_defer=True)
 async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)) -> None:
     response = await ctx.fetch_initial_response()
 
