@@ -42,13 +42,11 @@ def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> List[float]:
 
 
 
-def calc_bayeselo(game_results, avg_elo=Elo.DEFAULT_ELO, std_elo=150, initial_std=1):
+def calc_bayeselo(game_results):
+    """
+     game_results is a list of tuples of the form (opponent_elo, result(win/lose))
+    """
 
-    for i in game_results:
-        print(game_results[0], game_results[1])
-
-    #game_results is a list of tuples of the form (opponent_elo, result(win/lose))
-    raise NotImplementedError
 
 
 def calc_prov_elo(p1_elo, p2_elo, result):

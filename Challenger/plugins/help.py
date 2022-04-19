@@ -10,10 +10,6 @@ from Challenger.config import Config
 component = tanjun.Component(name="hi module")
 
 
-#testing todo
-#TODO
-# db now gets matches in decreasing order of match id. check if this affects matches module
-
 todo_str = """
 This is the beta version. You can help by suggesting features and reporting bugs to me.
 

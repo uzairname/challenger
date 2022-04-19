@@ -2,17 +2,30 @@ import unittest
 
 import pandas as pd
 
-from Challenger.config import Database_Config
+from Challenger.config import Config
 from Challenger.database import Session
+from Challenger.utils import *
 
 from datetime import datetime, timedelta
 
 
+class Test_Bayeselo(unittest.TestCase):
 
+    def test_bayeselo(self):
+
+        results = [(1200, "win"), (1250, "loss"), (1350, "win"), (1300, "loss")]
+
+        calc_bayeselo(results)
+
+        self.assertEqual(True, True)
+
+
+
+@unittest.skip("skipping")
 class Test(unittest.TestCase):
 
     def test_test(self):
-        DB = Session(Database_Config.TEST_GUILD_ID)
+        DB = Session()
         DB.delete_database()
         DB.create_collections()
 
@@ -24,7 +37,7 @@ class Test(unittest.TestCase):
 class Test_DB(unittest.TestCase):
 
     def setup_db(self):
-        DB = Session(Database_Config.TEST_GUILD_ID)
+        DB = Session(Config.DEV_GUILD_ID)
         DB.delete_database()
         DB.create_collections()
 
@@ -34,7 +47,7 @@ class Test_DB(unittest.TestCase):
         Adds a new match and gets it back. checks if the match is the same
         """
 
-        DB = Session(Database_Config.TEST_GUILD_ID)
+        DB = Session(Config.DEV_GUILD_ID)
         DB.delete_all_matches()
 
         match = DB.get_new_match()
@@ -49,7 +62,7 @@ class Test_DB(unittest.TestCase):
 
     def test_get_matches(self):
 
-        DB = Session(Database_Config.TEST_GUILD_ID)
+        DB = Session(Config.DEV_GUILD_ID)
         DB.delete_all_matches()
         assert DB.get_matches().equals(DB.empty_match_df)
 
@@ -66,8 +79,6 @@ class Test_DB(unittest.TestCase):
         expected_index = pd.Index([17, 15, 13, 11, 9])
         assert matches.index.equals(expected_index)
 
-
-    # unittest.main()
 
 
 

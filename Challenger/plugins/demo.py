@@ -6,6 +6,7 @@ from hikari.messages import ButtonStyle
 
 from Challenger.utils import *
 from Challenger.database import *
+from Challenger.config import *
 
 import asyncio
 import tanjun
@@ -45,6 +46,20 @@ async def set_elo(ctx:tanjun.abc.Context, player:hikari.User, elo, bot=tanjun.in
 @tanjun.with_str_slash_option("input", "input")
 @tanjun.as_slash_command("bayeselo", "bayeselo", always_defer=True)
 async def test_bayeselo(ctx: tanjun.abc.Context, input, bot=tanjun.injected(type=hikari.GatewayBot)):
+
+    DB = Session(ctx.guild_id)
+    match = DB.get_matches(match_id=2).iloc[0]
+
+    embed = describe_match(match, DB)
+
+    all_matches = DB.get_matches()
+    latest_match_id = 2
+    player_id = 623257053879861248
+
+
+
+
+    await ctx.respond(embed=embed)
 
     calc_bayeselo()
 

@@ -12,31 +12,6 @@ from Challenger.config import *
 
 component = tanjun.Component(name="queue module")
 
-
-async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
-    """creates a new match between the 2 players and announces it to the channel"""
-
-    DB = Session(ctx.guild_id)
-
-    p1_ping = "<@" + str(p1_info.name) + ">"
-    p2_ping = "<@" + str(p2_info.name) + ">"
-
-    p1_is_ranked = p1_info["is_ranked"]
-    p2_is_ranked = p2_info["is_ranked"]
-
-    new_match = DB.get_new_match()
-    new_match[["time_started", "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = \
-        [datetime.now(), p1_info.name, p2_info.name, p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
-
-    DB.upsert_match(new_match)
-
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
-
-    await announce_as_match_update(ctx, embed, content=p1_ping+ " " + p2_ping, client=client)
-
-
-
-
 #join the queue
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
@@ -64,7 +39,6 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 
     #Ensure player declared last match
     matches = DB.get_matches(user_id=player_id)
-    print(matches)
 
     if not matches.empty:
         match = matches.iloc[0]
@@ -86,23 +60,15 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
         await ctx.get_channel().send("A player has joined the queue for **" + str(lobby["lobby_name"]) + "**")
 
     else:
-        await ctx.edit_initial_response("Queue is full. Creating match")
+        await ctx.edit_initial_response("You silently joined the queue")
+        await ctx.get_channel().send("Queue is full. Creating match")
 
         p1_info = DB.get_players(user_id=lobby['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
 
-        lobby["player"] = None
-        DB.upsert_lobby(lobby)
+        await remove_from_queue(ctx, DB, lobby)
 
         await start_new_match(ctx, p1_info, p2_info, client=client)
-
-
-async def remove_after_timeout(ctx:tanjun.abc.Context, DB:Session):
-    await asyncio.sleep(Config.QUEUE_JOIN_TIMEOUT)
-    queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0] #would probably break if the channel was deleted after the player joined
-    queue["player"] = None
-    DB.upsert_lobby(queue)
-    await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
 #leave queue
@@ -118,11 +84,7 @@ async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
 
     if lobby["player"] == player_id:
 
-        for i in asyncio.all_tasks():
-            if i.get_name() == str(ctx.author.id) + str(lobby.name) + "_queue_timeout":
-                i.cancel()
-        lobby["player"] = None
-        DB.upsert_lobby(lobby)
+        await remove_from_queue(ctx, DB, lobby)
         await ctx.edit_initial_response("Left the queue")
 
     else:
@@ -141,7 +103,7 @@ def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
+@tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=True)
 @get_channel_lobby
 async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
     if lobby["player"]:
