@@ -307,7 +307,6 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=t
         row = pd.Series([elo_min, elo_max], index=["min_elo", "max_elo"], name=role_id)
         df = pd.concat([df, pd.DataFrame(row).T])
 
-        print("██" +str(df))
 
         DB.upsert_elo_roles(df)
         return "Updated Elo Role", Embed_Type.CONFIRM
