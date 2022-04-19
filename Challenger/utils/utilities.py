@@ -119,7 +119,7 @@ def describe_match(match: pd.Series, DB):
     return embed
 
 
-async def announce_as_match_update(ctx, embed, client):
+async def announce_as_match_update(ctx, embed, client:tanjun.Client, content=None):
     DB = Session(ctx.guild_id)
 
     config = DB.get_config()
@@ -130,7 +130,7 @@ async def announce_as_match_update(ctx, embed, client):
         embed.set_footer(text="ℹ Announcing here because no match announcements channel is set. Type /config match-updates-channel to set one.")
         await ctx.get_channel().send(embed=embed)
         return
-    await client.rest.create_message(channel_id, embed=embed)
+    await client.rest.create_message(channel_id, content=content, embed=embed)
 
 
 async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, user_id):
