@@ -47,13 +47,13 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
     "`/register` - Register your username and gain access to most features!\n"
     "`/join` - Join the queue to be matched with another player\n"
     "`/leave` - Leave the queue\n"
-    "`/declare [win, loss, draw, or cancel]` - declare the results of the match. Both players must agree for result to be decided. Staff can handle disputes", inline=True)
+    "`/declare [win, loss, draw, or cancel]` - declare the results of the match. **Both players must declare and agree for result to be decided**. You can change your declared result for your most recent match at any time. Staff can handle disputes", inline=True)
 
     util_embed = hikari.Embed(title="Utility", description="Useful and fun commands", colour=Colors.PRIMARY)
     util_embed.add_field(name="General", value=
     "`/queue` - Get the status of the queue\n"
     "`/stats` - View your elo stats\n"
-    "`/leaderboard` - View the leaderboard\n"
+    "`/lb` - View the leaderboard\n"
     "`/match-history [player](optional)` - View your or another player's match history, and see the status of your most recent match", inline=True)
     util_embed.add_field(name="Bot related", value=
     "`/help` - Get help on how to use the bot\n"
@@ -61,8 +61,12 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
     "`/ping` - Check the bot's response time\n")
 
     staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=Colors.PRIMARY)
-    staff_embed.add_field(name="Staff settings", value="`/config-help` - Detailed help on staff config commands, which include:\n`/config-lobby`, `/config-staff`, `/config-eloroles`")
-    staff_embed.add_field(name="Matches", value="/`setmatch` - force a match's result, in the event of a dispute or mistake\n`/reset` Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season")
+    staff_embed.add_field(name="Staff settings", value=
+    "`/config-help` - Detailed help on staff config commands\n"
+    "`/reset` Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season\n")
+    staff_embed.add_field(name="Matches", value=
+    "`/set-match` - Force a match's result in the event of a dispute or mistake\n"
+    "`/refresh-all-matches` - Recalculate every match and everyone's elo and ranked status\n")
 
     pages = {"Basics": basics_embed, "Staff Commands":staff_embed, "Utility":util_embed}
 
@@ -116,7 +120,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
 
     features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
-    features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0)")
+    features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). See a visualization of how it works here [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
     features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
     features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard for your discord server")
     features_embed.add_field(name=":scroll: History and stats", value="View everyone's match history and detailed competetive stats")

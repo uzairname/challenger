@@ -110,7 +110,7 @@ async def remove_after_timeout(ctx: tanjun.abc.Context, DB: Session):
     queue["player"] = None
     DB.upsert_lobby(queue)
     await ctx.get_channel().send(
-        "The player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
+        "A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
 async def remove_from_queue(ctx: tanjun.abc.Context, DB: Session, lobby):
@@ -167,7 +167,7 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
         result = str(DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]) + " won"
     elif match["outcome"] == Outcome.CANCEL:
         result = "Cancelled"
-        color = Colors.NEUTRAL
+        color = Colors.DARK
     elif match["outcome"] == Outcome.DRAW:
         result = "Draw"
     else:

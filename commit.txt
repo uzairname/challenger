@@ -1,3 +1,5 @@
-fix config staff role
-update help
-remove input parser
+Update help
+Change queue join error message
+Sends message when player leaves
+
+testing bugs to prepare for first stable release
