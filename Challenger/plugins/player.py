@@ -49,8 +49,6 @@ async def register(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("stats", "view your or someone else's stats", default_to_ephemeral=False, always_defer=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
-    await ctx.respond("...")
-
     DB = Session(ctx.guild_id)
 
     #get the selected player
@@ -109,13 +107,6 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
 
     DB = Session(ctx.guild_id)
 
-    # def prev_page_exists(page_num):
-    #     return page_num > 0
-    #
-    # def next_page_exists(page_num):
-    #     return get_leaderboard_for_page(page_num + 1) is not None
-
-
     def get_leaderboard_for_page(page):
 
         players_per_page = 20
@@ -127,6 +118,8 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         players = DB.get_players(by_elo=True, ranked=True, limit=players_per_page, skip=page * players_per_page)
 
         if players.index.size == 0:
+            if page == 0:
+                return hikari.Embed(type=hikari.EmbedType.INFO, title="Leaderboard", description="No ranked players to show")
             return None
 
         place = page * players_per_page
@@ -140,7 +133,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
 
         lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
         lb_embed.add_field(name="Rank       Username                                                  Score", value=lb_list, inline=False)
-
+        lb_embed.set_footer(text="Don't see yourself? Only players who completed their " + str(Elo.NUM_UNRANKED_MATCHES) + " provisional games are ranked")
         return [lb_embed]
 
     await create_paginator(ctx, bot, response, get_leaderboard_for_page, nextlabel="Lower", prevlabel="Higher")
