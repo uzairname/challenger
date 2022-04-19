@@ -119,7 +119,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
 
         if players.index.size == 0:
             if page == 0:
-                return hikari.Embed(type=hikari.EmbedType.INFO, title="Leaderboard", description="No ranked players to show")
+                return [hikari.Embed(title="Leaderboard", description="No ranked players", color=Colors.PRIMARY)]
             return None
 
         place = page * players_per_page
