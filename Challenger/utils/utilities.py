@@ -137,7 +137,11 @@ async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot,
 
     DB = Session(ctx.guild_id)
 
-    elo = DB.get_players(user_id=user_id).iloc[0]["elo"]
+    player = DB.get_players(user_id=user_id).iloc[0]
+    if not player["is_ranked"]:
+        return
+
+    elo = player["elo"]
     elo_roles = DB.get_elo_roles()
 
     try:
