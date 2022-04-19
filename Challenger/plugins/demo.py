@@ -5,6 +5,7 @@ from hikari.interactions.base_interactions import ResponseType
 from hikari.messages import ButtonStyle
 
 from Challenger.utils import *
+from Challenger.database import *
 
 import asyncio
 import tanjun
@@ -22,6 +23,41 @@ async def enter(ctx:tanjun.abc.Context, person:hikari.User, bot=tanjun.injected(
     await update_player_elo_roles(ctx, bot, person.id)
     await ctx.edit_initial_response("Done")
 
+
+@tanjun.with_str_slash_option("elo", "elo")
+@tanjun.with_user_slash_option("player", "player")
+@tanjun.as_slash_command("set-elo", "set elo", always_defer=True)
+async def set_elo(ctx:tanjun.abc.Context, player:hikari.User, elo, bot=tanjun.injected(type=hikari.GatewayBot)):
+
+    DB = Session(ctx.guild_id)
+    players = DB.get_players(user_id=player.id)
+    if players is None:
+        await ctx.edit_initial_response("Player not found!")
+        return
+    player = players.iloc[0]
+    player["elo"] = elo
+    DB.upsert_player(player)
+
+    await update_player_elo_roles(ctx, bot, player.name)
+    await ctx.edit_initial_response("Done")
+
+
+
+
+@tanjun.as_slash_command("perms", "see perms" , always_defer=True)
+async def see_perms(ctx:tanjun.abc.Context, bot=tanjun.injected(type=hikari.GatewayBot)):
+
+    DB = Session(ctx.guild_id)
+    players = DB.get_players(user_id=player.id)
+    if players is None:
+        await ctx.edit_initial_response("Player not found!")
+        return
+    player = players.iloc[0]
+    player["elo"] = elo
+    DB.upsert_player(player)
+
+    await update_player_elo_roles(ctx, bot, player.name)
+    await ctx.edit_initial_response("Done")
 
 
 import string
@@ -46,9 +82,6 @@ async def long_lb(ctx: tanjun.abc.Context):
             Embed.add_field(name=f"_", value=string_)
 
         await ctx.get_channel().send(embed=Embed)
-
-
-
 
 
 
@@ -106,10 +139,6 @@ async def title(ctx: SlashContext, bot: hikari.GatewayBot, client: tanjun.Client
                 return
     except asyncio.TimeoutError:
         await ctx.edit_initial_response("Waited for 60 seconds... Timeout.", embed=None, components=[])
-
-
-
-
 
 
 

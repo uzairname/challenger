@@ -140,12 +140,14 @@ async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot,
     elo = DB.get_players(user_id=user_id).iloc[0]["elo"]
     elo_roles = DB.get_elo_roles()
 
-    for role_id, role_info in elo_roles.iterrows(): # could sort by ascending min elo and remove all roles every iteration to ensure everyone only gets 1 role
-        if role_info["min_elo"] <= elo <= role_info["max_elo"]:
-            await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
-        else:
-            await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+    try:
+        for role_id, role_info in elo_roles.iterrows(): # could sort by ascending min elo and remove all roles every iteration to ensure everyone only gets 1 role
+            if role_info["min_elo"] <= elo <= role_info["max_elo"]:
+                await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
+            else:
+                await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
 
-
+    except hikari.ForbiddenError:
+        await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
 __all__ = ["InputParser", "describe_match", "announce_as_match_update", "update_player_elo_roles"]
