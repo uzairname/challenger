@@ -23,7 +23,6 @@ class Client(pymongo.MongoClient):
         print("Time taken to connect to mongo client", time.perf_counter()- start)
 
         client.append(self)
-        print(client)
 
 
 
@@ -55,7 +54,6 @@ class Session:
 
     def __init__(self, guild_id):
 
-        print(client)
         if len(client) == 0:
             self.client = Client()
         else:
@@ -75,7 +73,6 @@ class Session:
         self.guildDB = self.client["guild_pela"]
 
         players = self.get_players(by_elo=True, ranked=True, skip=2, limit=2)
-        print(players)
 
         pass
 
