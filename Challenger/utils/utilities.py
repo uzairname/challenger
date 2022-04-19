@@ -119,7 +119,7 @@ def describe_match(match: pd.Series, DB):
     return embed
 
 
-async def announce_as_match_update(ctx, embed, client=tanjun.injected(type=tanjun.abc.Client)):
+async def announce_as_match_update(ctx, embed, client):
     DB = Session(ctx.guild_id)
 
     config = DB.get_config()

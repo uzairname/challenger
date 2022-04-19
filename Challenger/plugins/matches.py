@@ -222,7 +222,7 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
         return matches, _updated_players
 
 
-async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), staff_declared=None):
+async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), staff_declared=None, client=tanjun.injected(type=tanjun.Client)):
 
     DB = Session(ctx.guild_id)
     matches = DB.get_matches() #TODO dont get all the matches at once
@@ -285,7 +285,7 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:h
         embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
 
 
-    await announce_as_match_update(ctx, embed)
+    await announce_as_match_update(ctx, embed, client)
 
 
 
