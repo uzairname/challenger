@@ -201,9 +201,9 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
             p1_elo_after = p1_elo + calc_prov_elo(p1_elo, p2_elo, outcome)[0]
 
         if matches.loc[match_id, "p2_is_ranked"]:
-            p2_elo_after = p2_elo + calc_elo_change(p2_elo, p1_elo, outcome)[1]
+            p2_elo_after = p2_elo + calc_elo_change(p1_elo, p2_elo, outcome)[1]
         else:
-            p2_elo_after = p2_elo + calc_prov_elo(p2_elo, p1_elo, outcome)[1]
+            p2_elo_after = p2_elo + calc_prov_elo(p1_elo, p2_elo, outcome)[1]
 
         matches.loc[match_id, "p1_elo_after"] = p1_elo_after
         matches.loc[match_id, "p2_elo_after"] = p2_elo_after
