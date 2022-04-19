@@ -13,7 +13,7 @@ from Challenger.config import *
 component = tanjun.Component(name="queue module")
 
 
-async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client=tanjun.injected(type=tanjun.abc.Client)):
+async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
     """creates a new match between the 2 players and announces it to the channel"""
 
     DB = Session(ctx.guild_id)
@@ -30,9 +30,9 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client=tanju
 
     DB.upsert_match(new_match)
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_ping + " vs " + p2_ping)
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
 
-    await announce_as_match_update(ctx, embed, client)
+    await announce_as_match_update(ctx, embed, conten=p1_ping+p2_ping, client=client)
 
 
 
@@ -43,7 +43,7 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client=tanju
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 @get_channel_lobby
-async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series) -> None:
+async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=tanjun.injected(type=tanjun.Client)) -> None:
 
     await ctx.respond("please wait")
 
@@ -92,7 +92,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series) -> None:
         lobby["player"] = None
         DB.upsert_lobby(lobby)
 
-        await start_new_match(ctx, p1_info, p2_info)
+        await start_new_match(ctx, p1_info, p2_info, client=client)
 
 
 async def remove_after_timeout(ctx:tanjun.abc.Context, DB:Session):

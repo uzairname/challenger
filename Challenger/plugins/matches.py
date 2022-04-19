@@ -13,7 +13,7 @@ from Challenger.config import *
 @tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False, always_defer=True)
 @ensure_registered
-async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.injected(type=tanjun.abc.Client)) -> None:
+async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot),client=tanjun.injected(type=tanjun.abc.Client)) -> None:
 
     DB = Session(ctx.guild_id)
 
@@ -50,14 +50,14 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, client=tanjun.inje
 
     #check whether both declares match
     if match["p1_declared"] == match["p2_declared"]:
-        return await set_match_outcome(ctx, match.name, new_outcome, client)
+        return await set_match_outcome(ctx, match.name, new_outcome, bot=bot, client=client)
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_user_slash_option("player", "optional: enter whose matches to get", default=None)
 @tanjun.as_slash_command("match-history", "All the match's results", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
-async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected(type=hikari.GatewayBot)) -> None:
+async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
 
     response = await ctx.fetch_initial_response()
 
@@ -98,7 +98,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot=tanjun.injected
 @tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @ensure_registered
-async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanjun.injected(type=tanjun.abc.Client)):
+async def set_match(ctx: tanjun.abc.Context, match_number, outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
 
     DB = Session(ctx.guild_id)
 
@@ -108,7 +108,7 @@ async def set_match(ctx: tanjun.abc.Context, match_number, outcome, client=tanju
         return
     match = matches.iloc[0]
 
-    return await set_match_outcome(ctx, match.name, outcome, client, staff_declared=True)
+    return await set_match_outcome(ctx, match.name, outcome, bot=bot, client=client, staff_declared=True)
 
 
 def get_provisional_game_results(all_matches, player_id, latest_match_id): #TODO: support draws
@@ -222,7 +222,7 @@ def calculate_new_elos(matches, match_id, new_outcome=None, _updated_players=Non
         return matches, _updated_players
 
 
-async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), staff_declared=None, client=tanjun.injected(type=tanjun.Client)):
+async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot, client:tanjun.Client, staff_declared=None):
 
     DB = Session(ctx.guild_id)
     matches = DB.get_matches() #TODO dont get all the matches at once
@@ -283,7 +283,6 @@ async def set_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:h
 
     if staff_declared:
         embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
-
 
     await announce_as_match_update(ctx, embed, client)
 
