@@ -2,8 +2,10 @@ import hikari
 import tanjun
 import re
 import numpy as np
-
+from datetime import datetime
+import asyncio
 import pandas as pd
+from Challenger.config import *
 
 from .scoring import *
 from .style import *
@@ -54,6 +56,45 @@ class InputParser():
         return description
 
 
+
+async def remove_after_timeout(ctx: tanjun.abc.Context, DB: Session):
+    await asyncio.sleep(Config.QUEUE_JOIN_TIMEOUT)
+    queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[
+        0]  # would probably break if the channel was deleted after the player joined
+    queue["player"] = None
+    DB.upsert_lobby(queue)
+    await ctx.get_channel().send(
+        "The player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
+
+
+async def remove_from_queue(ctx: tanjun.abc.Context, DB: Session, lobby):
+    for i in asyncio.all_tasks():
+        if i.get_name() == str(ctx.author.id) + str(lobby.name) + "_queue_timeout":
+            i.cancel()
+    lobby["player"] = None
+    DB.upsert_lobby(lobby)
+
+
+async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
+    """creates a new match between the 2 players and announces it to the channel"""
+
+    DB = Session(ctx.guild_id)
+
+    p1_ping = "<@" + str(p1_info.name) + ">"
+    p2_ping = "<@" + str(p2_info.name) + ">"
+
+    p1_is_ranked = p1_info["is_ranked"]
+    p2_is_ranked = p2_info["is_ranked"]
+
+    new_match = DB.get_new_match()
+    new_match[["time_started", "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = \
+        [datetime.now(), p1_info.name, p2_info.name, p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
+
+    DB.upsert_match(new_match)
+
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
+
+    await announce_as_match_update(ctx, embed, content=p1_ping+ " " + p2_ping, client=client)
 
 def describe_match(match: pd.Series, DB):
 
@@ -154,4 +195,4 @@ async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot,
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
-__all__ = ["InputParser", "describe_match", "announce_as_match_update", "update_player_elo_roles"]
+__all__ = ["InputParser", "describe_match", "announce_as_match_update", "update_player_elo_roles", "remove_after_timeout", "remove_from_queue", "start_new_match"]
