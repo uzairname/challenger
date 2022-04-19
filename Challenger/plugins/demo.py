@@ -16,7 +16,6 @@ from tanjun.abc import SlashContext
 
 embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False)
 
-
 @tanjun.with_user_slash_option("person", "a user")
 @tanjun.as_slash_command("enter", "enter", always_defer=True)
 async def enter(ctx:tanjun.abc.Context, person:hikari.User, bot=tanjun.injected(type=hikari.GatewayBot)):

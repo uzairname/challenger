@@ -41,7 +41,7 @@ class Test_DB(unittest.TestCase):
         DB.delete_database()
         DB.create_collections()
 
-    def test_matches(self):
+    def test_get_upsert_matches(self):
 
         """
         Adds a new match and gets it back. checks if the match is the same

@@ -1,5 +1,2 @@
-Update help
-Change queue join error message
-Sends message when player leaves
-
-testing bugs to prepare for first stable release
+create page dropdown function
+clean some code

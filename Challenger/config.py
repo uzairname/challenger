@@ -6,18 +6,12 @@ from hikari import Permissions
 @final
 class Config:
 
-    # version based on current month
     VERSION = '1.0.0'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
     OWNER_ID = 623257053879861248  # Lilapela's ID
     DEV_GUILD_ID = 907729885726933043 # lilap
     DISCORD_INVITE_LINK = "https://discord.gg/bunZ3gadBU"
-
-
-    COMPONENT_TIMEOUT = 120
-    QUEUE_JOIN_TIMEOUT = 300
-
 
     REQUIRED_PERMISSIONS = Permissions.VIEW_CHANNEL | Permissions.SEND_MESSAGES | Permissions.EMBED_LINKS | Permissions.MANAGE_ROLES
     PERMS_ERR_MSG = f"The bot is missing some required permissions. Type /about to see them"
@@ -26,6 +20,8 @@ class Config:
     elif os.environ.get("ENVIRONMENT") == "production":
         INVITE_LINK =  "https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=" + str(REQUIRED_PERMISSIONS.value) + "&scope=bot%20applications.commands"
 
+    COMPONENT_TIMEOUT = 120
+    QUEUE_JOIN_TIMEOUT = 300
 
 @final
 class Elo:
