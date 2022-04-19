@@ -32,7 +32,7 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
 
     embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
 
-    await announce_as_match_update(ctx, embed, conten=p1_ping+p2_ping, client=client)
+    await announce_as_match_update(ctx, embed, content=p1_ping+ " " + p2_ping, client=client)
 
 
 
@@ -64,6 +64,8 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 
     #Ensure player declared last match
     matches = DB.get_matches(user_id=player_id)
+    print(matches)
+
     if not matches.empty:
         match = matches.iloc[0]
         if match["outcome"] is None:
