@@ -83,7 +83,7 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None, u
 
 
     if match_id + 1 in matches.index:
-        return update_matches(matches=matches, match_id=match_id + 1, _updated_players=_updated_players)
+        return update_matches(matches=matches, match_id=match_id + 1, _updated_players=_updated_players, update_all=update_all)
     else:
         return matches, _updated_players
 
