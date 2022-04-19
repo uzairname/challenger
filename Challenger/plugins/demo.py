@@ -42,6 +42,13 @@ async def set_elo(ctx:tanjun.abc.Context, player:hikari.User, elo, bot=tanjun.in
     await ctx.edit_initial_response("Done")
 
 
+@tanjun.with_str_slash_option("input", "input")
+@tanjun.as_slash_command("bayeselo", "bayeselo", always_defer=True)
+async def test_bayeselo(ctx: tanjun.abc.Context, input, bot=tanjun.injected(type=hikari.GatewayBot)):
+
+    calc_bayeselo()
+
+
 
 
 @tanjun.as_slash_command("perms", "see perms" , always_defer=True)

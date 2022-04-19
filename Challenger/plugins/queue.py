@@ -43,22 +43,22 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client=tanju
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 @get_channel_lobby
-async def join_q(ctx: tanjun.abc.Context, queue:pd.Series) -> None:
+async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series) -> None:
 
     await ctx.respond("please wait")
 
     DB = Session(ctx.guild_id)
 
     #Ensure player has at the required role
-    if queue["required_role"]:
-        if not queue["required_role"] in ctx.member.role_ids:
+    if lobby["required_role"]:
+        if not lobby["required_role"] in ctx.member.role_ids:
             await ctx.respond(f"{ctx.author.mention} You're missing the required role to join this lobby")
             return
 
     player_id=ctx.author.id
 
     #Ensure player isn't already in queue
-    if queue["player"] == player_id:
+    if lobby["player"] == player_id:
         await ctx.respond(f"{ctx.author.mention} you're already in the queue")
         return
 
@@ -72,25 +72,25 @@ async def join_q(ctx: tanjun.abc.Context, queue:pd.Series) -> None:
                 return
 
     #add player to queue
-    if not queue["player"]:
+    if not lobby["player"]:
 
-        asyncio.create_task(remove_after_timeout(ctx, DB), name=str(ctx.author.id)+str(queue.name)+"_queue_timeout")
-        print(str(ctx.author.id)+str(queue.name)+"_queue_timeout")
+        asyncio.create_task(remove_after_timeout(ctx, DB), name=str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
+        print(str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
 
-        queue["player"] = player_id
-        DB.upsert_lobby(queue)
+        lobby["player"] = player_id
+        DB.upsert_lobby(lobby)
 
         await ctx.edit_initial_response(f"You silently joined the queue")
-        await ctx.get_channel().send("A player has joined the queue for **" + str(queue["lobby_name"]) + "**")
+        await ctx.get_channel().send("A player has joined the queue for **" + str(lobby["lobby_name"]) + "**")
 
     else:
         await ctx.edit_initial_response("Queue is full. Creating match")
 
-        p1_info = DB.get_players(user_id=queue['player']).iloc[0]
+        p1_info = DB.get_players(user_id=lobby['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
 
-        queue["player"] = None
-        DB.upsert_lobby(queue)
+        lobby["player"] = None
+        DB.upsert_lobby(lobby)
 
         await start_new_match(ctx, p1_info, p2_info)
 
@@ -141,8 +141,8 @@ def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=False)
 @get_channel_lobby
-async def queue_status(ctx: tanjun.abc.Context, queue) -> None:
-    if queue["player"]:
+async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
+    if lobby["player"]:
         await ctx.edit_initial_response("1 player in queue")
     else:
         await ctx.edit_initial_response("queue is empty")

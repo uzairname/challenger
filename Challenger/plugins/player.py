@@ -45,8 +45,8 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_member_slash_option("player", "their mention", default=None)
-@tanjun.as_slash_command("stats", "view your or someone else's stats", default_to_ephemeral=False, always_defer=True)
+@tanjun.with_member_slash_option("player", "(optional) their mention", default=None)
+@tanjun.as_slash_command("stats", "view your or someone's stats", default_to_ephemeral=False, always_defer=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
     DB = Session(ctx.guild_id)
@@ -92,8 +92,8 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     stats_embed.add_field(name="Elo", value=displayed_elo)
     stats_embed.add_field(name="Total matches", value=f"{total}")
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)
-    stats_embed.add_field(name="Losses", value=f"{total_losses}", inline=True)
     stats_embed.add_field(name="Draws", value=f"{total_draws}", inline=True)
+    stats_embed.add_field(name="Losses", value=f"{total_losses}", inline=True)
 
     await ctx.edit_initial_response(embed=stats_embed)
 
