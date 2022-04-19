@@ -132,7 +132,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         lb_list += "```"
 
         lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
-        lb_embed.add_field(name="Rank       Username                                                  Score", value=lb_list, inline=False)
+        lb_embed.add_field(name="Rank       Username                                                              Score", value=lb_list, inline=False)
         lb_embed.set_footer(text="Don't see yourself? Only players who completed their " + str(Elo.NUM_UNRANKED_MATCHES) + " provisional games are ranked")
         return [lb_embed]
 

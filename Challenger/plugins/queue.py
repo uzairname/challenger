@@ -60,7 +60,8 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
         await ctx.get_channel().send("A player has joined the queue for **" + str(lobby["lobby_name"]) + "**")
 
     else:
-        await ctx.edit_initial_response("Queue is full. Creating match")
+        await ctx.edit_initial_response("You silently joined the queue")
+        await ctx.get_channel().send("Queue is full. Creating match")
 
         p1_info = DB.get_players(user_id=lobby['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
