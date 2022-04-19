@@ -108,7 +108,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
     features_embed.add_field(name=":trophy: Scoring", value="Scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). For everyone's first few games, Challenger uses an advanced provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to accurately score players so that they don't have to grind to match their elo to their skill level.")
     features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
-    features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard unique to your discord server")
+    features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard for your discord server")
 
 
 
