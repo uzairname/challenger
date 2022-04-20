@@ -110,7 +110,10 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
     def get_leaderboard_for_page(page):
 
         players_per_page = 20
-        max_name_len = 30
+
+        place_str_len = 5
+        name_len = 30
+        elo_str_len = 5
 
         if page < 0:
             return None
@@ -127,12 +130,16 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         lb_list = "```\n"
         for index, player, in players.iterrows():
             place += 1
-            tag = str(player["tag"])[:max_name_len]
-            lb_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_name_len-len(tag))  + str(round(player["elo"],1),) + "\n"
+            displayed_name = str(player["username"])[:name_len] + ":"
+            displayed_elo = str(round(player["elo"]))
+            lb_list += (str(place) + ".").ljust(place_str_len)\
+                    + displayed_name.ljust(name_len)  + \
+                    displayed_elo.rjust(elo_str_len) + "\n"
+
         lb_list += "```"
 
         lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
-        lb_embed.add_field(name="Rank       Username                                                              Score", value=lb_list, inline=False)
+        lb_embed.add_field(name="Rank     Username                                                           Score", value=lb_list, inline=False)
         lb_embed.set_footer(text="Don't see yourself? Only players who completed their " + str(Elo.NUM_PLACEMENT_MATCHES) + " placement games are ranked")
         return [lb_embed]
 

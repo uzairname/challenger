@@ -72,7 +72,7 @@ class Test_DB(unittest.TestCase):
             DB.upsert_match(match)
 
         #ensure that filters are applied in this order: increasing, then offset, then number
-        matches = DB.get_matches(user_id=0, limit=5, increasing=False, skip=1) #the 5 matches before the second to last one
+        matches = DB.get_matches(user_id=0, limit=5, chronological=False, skip=1) #the 5 matches before the second to last one
 
         print("matches: \n" + str(matches))
 

@@ -127,6 +127,7 @@ def take_input(input_instructions:typing.Callable):
                         break
                     else:
                         confirm_embed = Custom_Embed(type=Embed_Type.ERROR, description="Invalid action.")
+                        break
 
             if confirm_embed is not None:
                 await ctx.edit_initial_response(embeds=[instructions_embed, confirm_embed], components=[])

@@ -158,7 +158,7 @@ class Session:
 
 
 
-    def get_matches(self, user_id=None, match_id=None, limit=None, skip=0, increasing=False) -> pd.DataFrame:
+    def get_matches(self, user_id=None, match_id=None, limit=None, skip=0, chronological=False) -> pd.DataFrame:
         """
         Params
         ------
@@ -178,7 +178,7 @@ class Session:
             match_id = int(match_id)
             cur_filter["match_id"] = match_id
 
-        sort_order = 1 if increasing else -1
+        sort_order = 1 if chronological else -1
         cur = self.guildDB[self.tbl_names.MATCHES.value].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order).skip(skip)
 
         if limit is not None:
