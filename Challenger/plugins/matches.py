@@ -75,7 +75,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
         if page_number < 0:
             return None
 
-        matches = DB.get_matches(user_id=user_id, limit=matches_per_page, increasing=False, skip=page_number * matches_per_page)
+        matches = DB.get_matches(user_id=user_id, limit=matches_per_page, chronological=False, skip=page_number * matches_per_page)
 
         if matches.index.size == 0:
             if page_number == 0:

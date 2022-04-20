@@ -29,25 +29,42 @@ def player_col_for_match(match, user_id, column): #useful probably
     else:
         raise ValueError("Player not in match")
 
-
+@tanjun.with_user_slash_option("player", "player")
 @tanjun.as_slash_command("lol", "lol", always_defer=True)
-async def lol(ctx: tanjun.abc.Context):
+async def lol(ctx: tanjun.abc.Context, player):
 
     DB = Session(ctx.guild_id)
 
-    matches = DB.get_matches(user_id=ctx.author.id)
+    matches = DB.get_matches(user_id=ctx.author.id, chronological=True)
+    matches2 = DB.get_matches(user_id=player.id, chronological=True)
 
-    match_num = range(matches.shape[0])
+    print(matches)
+
+    match_num1 = matches.index
+    match_num2 = matches2.index
 
     elos = []
+    elos2 = []
 
     for id, match in matches.iterrows():
-        elos.append(match["p" + player_col_for_match(match, ctx.author.id, "elo_after")])
+        elos.append(player_col_for_match(match, ctx.author.id, "elo_after"))
+    for id, match in matches2.iterrows():
+        elos2.append(player_col_for_match(match, player.id, "elo_after"))
 
-    plt.figure()
-    plt.plot(match_num, elos)
-    plt.title("Elo history for {}".format(ctx.author.username))
-    plt.savefig("plot.png")
+
+    for i in plt.rcParams:
+        if plt.rcParams[i] == "black":
+            plt.rcParams[i] = "w"
+    # black background
+    params = {"legend.framealpha":0}
+    plt.rcParams.update(params)
+
+    plt.figure(figsize=(6,3))
+    plt.plot(match_num1, elos, label="You")
+    plt.plot(match_num2, elos2, label=player.username)
+    plt.legend()
+    plt.title("Elo History Comparison")
+    plt.savefig("plot.png", transparent=True)
     plt.show()
 
     embed = hikari.Embed(title="test", description="test")
