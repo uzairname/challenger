@@ -172,8 +172,7 @@ async def update_announce_match_outcome(ctx:tanjun.abc.Context, match_id, new_ou
     else:
         displayed_outcome = "Ongoing" #undecided, or ongoing
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Updated: **" + displayed_outcome + "**", description="*_ _*")
-    embed.add_field(name="Updated Elo", value=updated_players_str)
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Updated: **" + displayed_outcome + "**", description=updated_players_str)
 
     if staff_declared:
         embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")

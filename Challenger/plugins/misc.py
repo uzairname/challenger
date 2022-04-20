@@ -11,17 +11,11 @@ from Challenger.config import *
 component = tanjun.Component(name="misc module")
 
 
-def measure_time(func):
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        start_time = time.perf_counter()
-        await func(start_time=start_time, *args, **kwargs)
-    return wrapper
+
 
 @component.with_command
 @tanjun.as_slash_command("ping", "get info about the bot's ping and uptime", always_defer=True)
-@measure_time
-async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client), **kwargs):
+async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
     start_time = time.perf_counter()
 
     start_db = time.perf_counter()
@@ -56,9 +50,10 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
 
     await ctx.edit_initial_response("Recalculating matches...")
 
-    print(all_matches)
+    all_players = DB.get_players()
+    reduced_players_df = all_players[["elo", "is_ranked"]]
 
-    updated_matches, updated_players = update_matches(all_matches, match_id=1, update_all=True, new_starting_elo=Elo.DEFAULT_ELO)
+    updated_matches, updated_players = update_matches(all_matches, match_id=1, updated_players=reduced_players_df, update_all=True)
     DB.upsert_matches(updated_matches)
 
     players = DB.get_players(user_ids=list(updated_players.index))

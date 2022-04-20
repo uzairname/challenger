@@ -1,6 +1,3 @@
-Add reset command
-change elo config values, and refresh_matches now sets a new default elo
-experiment with graphs
-config option to delete elo role
-delete all players and elo roles functions
-player_col_for_match
+fix refresh matches set new starting elo
+Make match update message concise
+ephemeral response when being removed from queue

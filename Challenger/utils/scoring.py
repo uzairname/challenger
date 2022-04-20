@@ -29,8 +29,8 @@ def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> List[float]:
         return [0,0]
     allocated = {Outcome.PLAYER_1:1, Outcome.PLAYER_2:0, Outcome.DRAW:0.5}[result] #what percent of the elo gets allocated to player 1
 
-    k = Elo.DEFAULT_K
-    scale = Elo.DEFAULT_SCALE
+    k = Elo.K
+    scale = Elo.SCALE
 
     def p(A, B): #probability of A beating B
         return 1 / (1 + math.pow(10, -(A - B) / scale))

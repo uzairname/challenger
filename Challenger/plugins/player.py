@@ -31,7 +31,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
         player["tag"] = tag
         player["time_registered"] = datetime.now()
         player["is_ranked"] = False
-        player["elo"] = Elo.DEFAULT_ELO
+        player["elo"] = Elo.STARTING_ELO
         DB.upsert_player(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
         return
@@ -133,7 +133,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
 
         lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
         lb_embed.add_field(name="Rank       Username                                                              Score", value=lb_list, inline=False)
-        lb_embed.set_footer(text="Don't see yourself? Only players who completed their " + str(Elo.NUM_UNRANKED_MATCHES) + " placement games are ranked")
+        lb_embed.set_footer(text="Don't see yourself? Only players who completed their " + str(Elo.NUM_PLACEMENT_MATCHES) + " placement games are ranked")
         return [lb_embed]
 
     await create_paginator(ctx, bot, response, get_leaderboard_for_page, nextlabel="Lower", prevlabel="Higher")

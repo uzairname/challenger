@@ -113,9 +113,9 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
     features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard for your discord server")
     features_embed.add_field(name=":scroll: History and stats", value="View everyone's match history and detailed competetive stats")
-    features_embed2 = hikari.Embed(title="Special", description="Features that set Challenger apart from other elo bots", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    features_embed2 = hikari.Embed(title="Special", description="Features that set Challenger apart from other elo bots", colour=Colors.PRIMARY)
     features_embed2.add_field(name=":star: Advanced provisional elo (coming soon)", value="For everyone's first few games, Challenger uses a provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to find the players most probable skill level just based on a few matches. This means you don't have to grind at first to reach your appropriate elo.")
-    features_embed2.add_field(name=":star: Ability to change old match results", value="This usually complicates things, because changing a match 100 matches ago can affect almost everyone's elo slightly. Challenger allows you to change any match, and all affected players' elo will be recursively updated. Also, you can customize the elo average and spread after several matches have been played, and all matches will be recalculated.")
+    features_embed2.add_field(name=":star: Ability to update old matches", value="Want to customize how elo was calculated, even after several games have been played, want to ban a certain player and undo the effect they had on everyone's elo, or change an old match's result? Challenger makes it easy. Make any change to an old match, player, or elo setting, and all following affected players' and matches' elo will be recalculated.")
 
 
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
