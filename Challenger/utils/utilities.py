@@ -50,9 +50,9 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None, u
             p2_elo = matches.loc[match_id, "p2_elo"]
         else:
             p1_elo = new_starting_elo
-            _updated_players.loc[p1_id, "elo"] = new_starting_elo
+            matches.loc[match_id, "p1_elo"] = new_starting_elo
             p2_elo = new_starting_elo
-            _updated_players.loc[p2_id, "elo"] = new_starting_elo
+            matches.loc[match_id, "p2_elo"] = new_starting_elo
 
         for user_id, player in _updated_players.iterrows():
             if user_id == p1_id:

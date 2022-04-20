@@ -128,7 +128,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         for index, player, in players.iterrows():
             place += 1
             tag = str(player["tag"])[:max_name_len]
-            lb_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_name_len-len(tag))  + str(round(player["elo"])) + "\n"
+            lb_list += str(place) + "." + " "*(5-len(str(place))) + tag + ": "  + " "*(max_name_len-len(tag))  + str(round(player["elo"],1),) + "\n"
         lb_list += "```"
 
         lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
