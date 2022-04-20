@@ -1,5 +1,6 @@
-Update help
-Change queue join error message
-Sends message when player leaves
-
-testing bugs to prepare for first stable release
+Add reset command
+change elo config values, and refresh_matches now sets a new default elo
+experiment with graphs
+config option to delete elo role
+delete all players and elo roles functions
+player_col_for_match

@@ -6,18 +6,12 @@ from hikari import Permissions
 @final
 class Config:
 
-    # version based on current month
     VERSION = '1.0.0'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
     OWNER_ID = 623257053879861248  # Lilapela's ID
     DEV_GUILD_ID = 907729885726933043 # lilap
     DISCORD_INVITE_LINK = "https://discord.gg/bunZ3gadBU"
-
-
-    COMPONENT_TIMEOUT = 120
-    QUEUE_JOIN_TIMEOUT = 300
-
 
     REQUIRED_PERMISSIONS = Permissions.VIEW_CHANNEL | Permissions.SEND_MESSAGES | Permissions.EMBED_LINKS | Permissions.MANAGE_ROLES
     PERMS_ERR_MSG = f"The bot is missing some required permissions. Type /about to see them"
@@ -26,15 +20,18 @@ class Config:
     elif os.environ.get("ENVIRONMENT") == "production":
         INVITE_LINK =  "https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=" + str(REQUIRED_PERMISSIONS.value) + "&scope=bot%20applications.commands"
 
+    COMPONENT_TIMEOUT = 120
+    QUEUE_JOIN_TIMEOUT = 300
 
 @final
 class Elo:
 
-    ELO_STDEV = 150  # estimate of standard deviation of everyone's elo
-    DEFAULT_ELO = 1000  # everyone's starting score
-    DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. 2.7 is an arbitrary scaling factor
-    DEFAULT_K = 30  # maximum change in one game
-    NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
+    ELO_STDEV = 20  # Used in bayesian elo calc. This defines the wanted standard deviation of everyone's elo
+    DEFAULT_ELO = 50  # everyone's starting score
+    DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. In chess the ratio between std and scaling factor is 2.7. Idk where 2.7 came from
+    DEFAULT_K = 12  # maximum change in one game
+
+    NUM_UNRANKED_MATCHES = 4  # number of matches to play before ranking
 
 
 @final

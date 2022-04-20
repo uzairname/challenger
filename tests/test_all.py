@@ -37,17 +37,17 @@ class Test(unittest.TestCase):
 class Test_DB(unittest.TestCase):
 
     def setup_db(self):
-        DB = Session(Config.DEV_GUILD_ID)
+        DB = Session(1)
         DB.delete_database()
         DB.create_collections()
 
-    def test_matches(self):
+    def test_get_upsert_matches(self):
 
         """
         Adds a new match and gets it back. checks if the match is the same
         """
 
-        DB = Session(Config.DEV_GUILD_ID)
+        DB = Session(1)
         DB.delete_all_matches()
 
         match = DB.get_new_match()
@@ -62,7 +62,7 @@ class Test_DB(unittest.TestCase):
 
     def test_get_matches(self):
 
-        DB = Session(Config.DEV_GUILD_ID)
+        DB = Session(1)
         DB.delete_all_matches()
         assert DB.get_matches().equals(DB.empty_match_df)
 
@@ -78,6 +78,14 @@ class Test_DB(unittest.TestCase):
 
         expected_index = pd.Index([17, 15, 13, 11, 9])
         assert matches.index.equals(expected_index)
+
+    def test_reset(self):
+
+        DB = Session(1)
+
+
+
+
 
 
 

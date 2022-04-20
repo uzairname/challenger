@@ -48,10 +48,8 @@ def calc_bayeselo(game_results):
     """
 
 
-
 def calc_prov_elo(p1_elo, p2_elo, result):
     return np.array(calc_elo_change(p1_elo, p2_elo, result))*3
-
 
 
 

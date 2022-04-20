@@ -7,9 +7,7 @@ from Challenger.config import Config
 from Challenger.database import Session
 
 
-
 config = tanjun.slash_command_group("config", "Change the bot settings", default_to_ephemeral=False)
-
 
 
 @config.with_command
@@ -77,7 +75,7 @@ async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
 
 
 
-async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel:hikari.InteractionChannel, role_required, **kwargs):
+async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel:hikari.InteractionChannel, role_required):
     """
     Displays all configured lobbies in the guild as a field added onto the embed
     params:
@@ -124,10 +122,10 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @tanjun.with_str_slash_option("name", "lobby name", default=None)
 @tanjun.with_role_slash_option("role_required", "role required", default=None)
 @tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
-@tanjun.as_slash_command("lobby", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
+@tanjun.as_slash_command("lobbies", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @take_input(input_instructions=config_lobby_instructions)
-async def config_lobby(ctx, event, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
+async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
 
     DB = Session(ctx.guild_id)
 
@@ -142,7 +140,7 @@ async def config_lobby(ctx, event, action, name, role_required, channel, bot=tan
             if existing_queues.empty:
                 return "No lobby in <#" + str(channel.id) + ">", Embed_Type.ERROR
 
-            DB.remove_lobby(channel.id)
+            DB.delete_lobby(channel.id)
             return "Deleted lobby from <#" + str(channel.id) + ">", Embed_Type.CONFIRM
 
         if existing_queues.empty:
@@ -221,7 +219,6 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
             return "Select one role", Embed_Type.ERROR
 
         config = DB.get_config()
-        staff_role = config["staff_role"]
 
         if action == "link role":
             config["staff_role"] = role.id
@@ -271,7 +268,7 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @tanjun.as_slash_command("elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @take_input(input_instructions=config_elo_roles_instructions)
-async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
+async def config_elo_roles(ctx, min_elo, max_elo, action, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
 
     def process_response():
 
@@ -279,19 +276,23 @@ async def config_elo_roles(ctx, event, min_elo, max_elo, role:hikari.Role, bot=t
             return "Select one role", Embed_Type.ERROR
         role_id = role.id
 
+        DB = Session(ctx.guild_id)
+
+        if action == "unlink role":
+            DB.delete_elo_role(role_id)
+            return "Unlinked role", Embed_Type.CONFIRM
+
         elo_min = float(min_elo)
         elo_max = float(max_elo)
 
         if elo_min > elo_max:
             return "Min elo cannot be greater than max elo", Embed_Type.ERROR
 
-        DB = Session(ctx.guild_id)
         df = DB.get_elo_roles()
 
         df = df.loc[df.index != role]
         row = pd.Series([elo_min, elo_max], index=["min_elo", "max_elo"], name=role_id)
         df = pd.concat([df, pd.DataFrame(row).T])
-
 
         DB.upsert_elo_roles(df)
         return "Updated Elo Role", Embed_Type.CONFIRM
@@ -337,7 +338,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
 @tanjun.as_slash_command("match-updates-channel", "Set a channel to send match results announcements to", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @take_input(input_instructions=config_results_channel_instructions)
-async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
+async def config_results_channel(ctx:tanjun.abc.Context, action, channel, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
     def process_repsonse():
 
@@ -361,23 +362,35 @@ async def config_results_channel(ctx:tanjun.abc.Context, event, action, channel,
     return confirm_embed
 
 
-async def reset_instructions(ctx:tanjun.abc.Context, reset_config, **kwargs):
+async def reset_instructions(ctx:tanjun.abc.Context, **kwargs):
 
-    embed = hikari.Embed(title="Reset all player data",
-                        description="All players will be unregistered. Config settigs will be preserved, unless reset config is selected",
+    embed = hikari.Embed(title="Reset all player and match data",
+                        description="All player and match data will be permanently deleted for this server. Config settigs remain the same, such as elo roles, staff, etc. This is useful when starting a new season. \n\nThis is **irreversible**.",
                         color=Colors.PRIMARY)
-    embed.add_field(name="Resetting config: " + str(reset_config), value="*_ _*")
 
     return embed
 
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_str_slash_option("reset_config", "also reset config settings", choices={"yes":"yes", "no":"no"}, default="no")
-@tanjun.as_slash_command("reset", "reset the bot's data for this server", default_to_ephemeral=False)
+@tanjun.as_slash_command("reset", "reset player and match data for this server", default_to_ephemeral=False)
 @ensure_staff
 @take_input(input_instructions=reset_instructions)
-async def reset_data(ctx: tanjun.abc.SlashContext, event, reset_config, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
-    raise NotImplementedError()
+async def reset_data(ctx: tanjun.abc.SlashContext, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
+
+    def process_response():
+
+        DB = Session(ctx.guild_id)
+
+        DB.delete_all_matches()
+        DB.delete_all_players()
+        DB.upsert_config(config)
+
+        return "Reset all data", Embed_Type.CONFIRM
+
+    confirm_message, embed_type = process_response()
+    confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
+    return confirm_embed
+
 
 
 management = tanjun.Component(name="management", strict=True).load_from_scope().make_loader()

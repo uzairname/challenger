@@ -1,9 +1,6 @@
-# __all__: tuple[str, ...] = ("demo", "help", "management", "matches", "player", "queue")
-
-
-from .help import help
-from .management import management
+from .info import info
+from .queue import queue
 from .matches import matches
 from .player import player
-from .queue import queue
+from .management import management
 from .misc import misc

@@ -6,6 +6,7 @@ import functools
 
 from Challenger.utils import *
 from Challenger.database import Session
+from Challenger.config import *
 
 component = tanjun.Component(name="misc module")
 
@@ -53,11 +54,11 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
     DB = Session(ctx.guild_id)
     all_matches = DB.get_matches()
 
-    await ctx.respond("Recalculating matches...")
+    await ctx.edit_initial_response("Recalculating matches...")
 
     print(all_matches)
 
-    updated_matches, updated_players = update_matches(all_matches, match_id=1, update_all=True)
+    updated_matches, updated_players = update_matches(all_matches, match_id=1, update_all=True, new_starting_elo=Elo.DEFAULT_ELO)
     DB.upsert_matches(updated_matches)
 
     players = DB.get_players(user_ids=list(updated_players.index))

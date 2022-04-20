@@ -76,9 +76,7 @@ def ensure_staff(func):
                     role_mapping[role_id] = guild.get_role(role_id)
 
                 user_perms = tanjun.utilities.calculate_permissions(member=ctx.member, guild=guild, roles=role_mapping)
-                if user_perms & hikari.Permissions.MANAGE_GUILD == user_perms:
-                    return True
-                return False
+                return user_perms & hikari.Permissions.MANAGE_GUILD == user_perms
 
             return bool(staff_role in ctx.member.role_ids)
 
@@ -103,7 +101,7 @@ def take_input(input_instructions:typing.Callable):
     def wrapper_take_input(func):
 
         @functools.wraps(func)
-        async def wrapper(ctx, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs):
+        async def wrapper(ctx, bot, **kwargs):
 
             confirm_cancel_row = ctx.rest.build_action_row()
             confirm_cancel_row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
@@ -122,7 +120,7 @@ def take_input(input_instructions:typing.Callable):
                 async for event in stream:
                     await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
                     if event.interaction.custom_id == "Confirm":
-                        confirm_embed = await func(event=event, ctx=ctx, **kwargs)
+                        confirm_embed = await func(ctx=ctx, **kwargs)
                         break
                     elif event.interaction.custom_id == "Cancel":
                         confirm_embed = Custom_Embed(type=Embed_Type.CANCEL)
@@ -195,5 +193,32 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
 
 
-__all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error", "create_paginator"]
+async def create_page_dropdown(ctx:tanjun.abc.Context, pages: typing.Mapping[str,list[hikari.Embed]], bot):
+    """
+        pages: a mapping of page name to a list of embeds. Can't be more than 25
+    """
+    response = await ctx.fetch_initial_response()
+    page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
 
+    default_page = list(pages)[0]
+
+    for i in pages:
+        page_dropdown = page_dropdown.add_option(i, i).set_is_default(i==default_page).add_to_menu()
+    page_dropdown = page_dropdown.add_to_container()
+
+    await ctx.edit_initial_response(embeds=pages[default_page], components=[page_dropdown])
+
+    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
+            ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
+            ("interaction.user.id", ctx.author.id),
+            ("interaction.message.id", response.id)) as stream:
+        async for event in stream:
+            await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+            page = event.interaction.values[0]
+            for i in page_dropdown.components[0]._options:
+                i.set_is_default(i._label == page)
+
+            await ctx.edit_initial_response(embeds=pages[page], components=[page_dropdown])
+
+
+__all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error", "create_paginator", "create_page_dropdown"]
