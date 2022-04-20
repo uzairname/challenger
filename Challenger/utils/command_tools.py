@@ -76,9 +76,7 @@ def ensure_staff(func):
                     role_mapping[role_id] = guild.get_role(role_id)
 
                 user_perms = tanjun.utilities.calculate_permissions(member=ctx.member, guild=guild, roles=role_mapping)
-                if user_perms & hikari.Permissions.MANAGE_GUILD == user_perms:
-                    return True
-                return False
+                return user_perms & hikari.Permissions.MANAGE_GUILD == user_perms
 
             return bool(staff_role in ctx.member.role_ids)
 
@@ -103,7 +101,7 @@ def take_input(input_instructions:typing.Callable):
     def wrapper_take_input(func):
 
         @functools.wraps(func)
-        async def wrapper(ctx, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs):
+        async def wrapper(ctx, bot, **kwargs):
 
             confirm_cancel_row = ctx.rest.build_action_row()
             confirm_cancel_row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
@@ -122,7 +120,7 @@ def take_input(input_instructions:typing.Callable):
                 async for event in stream:
                     await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
                     if event.interaction.custom_id == "Confirm":
-                        confirm_embed = await func(event=event, ctx=ctx, **kwargs)
+                        confirm_embed = await func(ctx=ctx, **kwargs)
                         break
                     elif event.interaction.custom_id == "Cancel":
                         confirm_embed = Custom_Embed(type=Embed_Type.CANCEL)
@@ -224,4 +222,3 @@ async def create_page_dropdown(ctx:tanjun.abc.Context, pages: typing.Mapping[str
 
 
 __all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error", "create_paginator", "create_page_dropdown"]
-

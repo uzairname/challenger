@@ -53,7 +53,6 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
     if not lobby["player"]:
 
         asyncio.create_task(remove_after_timeout(ctx, DB), name=str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
-        print(str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
 
         lobby["player"] = player_id
         DB.upsert_lobby(lobby)

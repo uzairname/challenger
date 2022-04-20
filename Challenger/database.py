@@ -150,6 +150,12 @@ class Session:
         for i, row in players.iterrows():
             self.upsert_player(row)
 
+    def delete_player(self, user_id):
+        self.guildDB[self.tbl_names.PLAYERS.value].delete_one({"user_id":user_id})
+
+    def delete_all_players(self):
+        self.guildDB[self.tbl_names.PLAYERS.value].delete_many({})
+
 
 
     def get_matches(self, user_id=None, match_id=None, limit=None, skip=0, increasing=False) -> pd.DataFrame:
@@ -251,23 +257,12 @@ class Session:
         queuedict = queue.to_dict()
         self.guildDB[self.tbl_names.LOBBIES.value].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
 
-    def remove_lobby(self, channel_id):
+    def delete_lobby(self, channel_id):
         self.guildDB[self.tbl_names.LOBBIES.value].delete_one({"channel_id":channel_id})
 
+    def delete_all_lobbies(self):
+        self.guildDB[self.tbl_names.LOBBIES.value].delete_many({})
 
-
-    def get_config(self) -> pd.Series:
-        if self.guildDB[self.tbl_names.CONFIG.value].count_documents({}) == 0:
-            self.upsert_config(self.empty_config)
-            return self.get_config()
-
-        cur = self.guildDB[self.tbl_names.CONFIG.value].find({}, projection={"_id":False})
-
-        return pd.Series(cur[0], dtype="object").replace(np.nan, None)
-
-    def upsert_config(self, config:pd.Series): # takes a series returned from get_config
-        configdict = config.to_dict()
-        self.guildDB[self.tbl_names.CONFIG.value].update_one({}, {"$set":configdict}, upsert=True)
 
 
     def upsert_elo_role(self, elo_role:pd.Series):
@@ -293,3 +288,23 @@ class Session:
 
         full_elo_roles_df = pd.concat([self.empty_elo_roles, elo_roles_df])[self.empty_elo_roles.columns].replace(np.nan, None)
         return full_elo_roles_df
+
+    def delete_elo_role(self, role_id):
+        self.guildDB[self.tbl_names.ELO_ROLES.value].delete_one({"role_id":role_id})
+
+
+
+    def get_config(self) -> pd.Series:
+        if self.guildDB[self.tbl_names.CONFIG.value].count_documents({}) == 0:
+            self.upsert_config(self.empty_config)
+            return self.get_config()
+
+        cur = self.guildDB[self.tbl_names.CONFIG.value].find({}, projection={"_id":False})
+
+        return pd.Series(cur[0], dtype="object").replace(np.nan, None)
+
+    def upsert_config(self, config:pd.Series): # takes a series returned from get_config
+        configdict = config.to_dict()
+        self.guildDB[self.tbl_names.CONFIG.value].update_one({}, {"$set":configdict}, upsert=True)
+
+

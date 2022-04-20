@@ -1,3 +1,6 @@
+import os
+import typing
+
 import hikari
 from hikari import Embed
 from hikari import InteractionCreateEvent
@@ -8,9 +11,49 @@ from Challenger.utils import *
 from Challenger.database import *
 from Challenger.config import *
 
+import functools
 import asyncio
 import tanjun
 from tanjun.abc import SlashContext
+
+
+import matplotlib.pyplot as plt
+
+
+
+def player_col_for_match(match, user_id, column): #useful probably
+    if match["p1_id"] == user_id:
+        return match["p1_" + column]
+    elif match["p2_id"] == user_id:
+        return match["p2_" + column]
+    else:
+        raise ValueError("Player not in match")
+
+
+@tanjun.as_slash_command("lol", "lol", always_defer=True)
+async def lol(ctx: tanjun.abc.Context):
+
+    DB = Session(ctx.guild_id)
+
+    matches = DB.get_matches(user_id=ctx.author.id)
+
+    match_num = range(matches.shape[0])
+
+    elos = []
+
+    for id, match in matches.iterrows():
+        elos.append(match["p" + player_col_for_match(match, ctx.author.id, "elo_after")])
+
+    plt.figure()
+    plt.plot(match_num, elos)
+    plt.title("Elo history for {}".format(ctx.author.username))
+    plt.savefig("plot.png")
+    plt.show()
+
+    embed = hikari.Embed(title="test", description="test")
+    embed.set_image("plot.png")
+    await ctx.edit_initial_response(embed=embed)
+    os.remove("plot.png")
 
 
 
@@ -56,34 +99,73 @@ async def test_bayeselo(ctx: tanjun.abc.Context, input, bot=tanjun.injected(type
     player_id = 623257053879861248
 
 
-
-
     await ctx.respond(embed=embed)
-
     calc_bayeselo()
 
 
 
+#-----------------------------------------------------------------------------------------------------------------------doesn't work
+def decorator2(func):
+    @functools.wraps(func)
+    async def wrapper(ctx: tanjun.abc.Context, bot=tanjun.injected(type=hikari.GatewayBot)):
+        await bot.rest.fetch_my_user()
+        return func(ctx)
+    return wrapper
 
-@tanjun.as_slash_command("perms", "see perms" , always_defer=True)
-async def see_perms(ctx:tanjun.abc.Context, bot=tanjun.injected(type=hikari.GatewayBot)):
+@tanjun.as_slash_command("test2", "test2", always_defer=True)
+@decorator2
+async def test2(ctx):
+    await ctx.respond("done")
 
-    DB = Session(ctx.guild_id)
-    players = DB.get_players(user_id=player.id)
-    if players is None:
-        await ctx.edit_initial_response("Player not found!")
-        return
-    player = players.iloc[0]
-    player["elo"] = elo
-    DB.upsert_player(player)
 
-    await update_player_elo_roles(ctx, bot, player.name)
-    await ctx.edit_initial_response("Done")
+# -----------------------------------------------------------------------------------------------------------------------doesnt work
+def decorator3(func):
+    @functools.wraps(func)
+    async def wrapper(ctx: tanjun.abc.Context, bot=tanjun.injected(type=hikari.GatewayBot)):
+        await bot.rest.fetch_my_user() # 'InjectedDescriptor' object has no attribute 'rest'
+        return func(ctx)
+    return wrapper
+
+@tanjun.as_slash_command("test3", "test3", always_defer=True)
+@decorator3
+async def test3(ctx:tanjun.abc.Context):
+    await ctx.respond("done")
+
+
+#-----------------------------------------------------------------------------------------------------------------------works
+def decorator1(func):
+    @functools.wraps(func)
+    async def wrapper(ctx:tanjun.abc.Context, bot):
+        await bot.rest.fetch_my_user()
+        await func(ctx, bot)
+    return wrapper
+
+@tanjun.as_slash_command("test1", "test1", always_defer=True)
+@decorator1
+async def test1(ctx: tanjun.abc.Context, bot=tanjun.injected(type=hikari.GatewayBot)):
+    await ctx.respond("done")
+
+
+#-----------------------------------------------------------------------------------------------------------------------works
+def decorator4(func):
+    @functools.wraps(func)
+    async def wrapper(ctx: tanjun.abc.Context, bot=tanjun.injected(type=hikari.GatewayBot)):
+        return func(ctx, bot)
+    return wrapper
+
+@tanjun.as_slash_command("test4", "test4", always_defer=True)
+@decorator4
+async def test4(bot):
+    await bot.rest.fetch_my_user()
+
+
+
+
+
 
 
 import string
 import random
-
 
 @tanjun.as_slash_command("long-lb", "very big sample lb", always_defer=True)
 async def long_lb(ctx: tanjun.abc.Context):

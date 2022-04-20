@@ -12,8 +12,14 @@ from .style import *
 from ..database import Session
 
 
+def transform(old_value, old_avg, old_std, new_avg, new_std):
+    """
+    Given a value on a normal distribution, transform it to a new normal distribution
+    """
+    return ((old_value-old_avg)/old_std)*new_std+new_avg
 
-def update_matches(matches, match_id, new_outcome=None, _updated_players=None, update_all=False): #TODO make unit test
+
+def update_matches(matches, match_id, new_outcome=None, _updated_players=None, update_all=False, new_starting_elo=None): #TODO make unit test
     """
     params:
         matches: a DataFrame of matches. must index "match_id", and columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_elo_after", "p2_elo_after", "p1_is_ranked", "p2_is_ranked", "p1_is_ranked_after", "p2_is_ranked_after", "outcome"
@@ -38,8 +44,16 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None, u
     if p1_id in _updated_players.index or p2_id in _updated_players.index or new_outcome is not None or update_all:
 
         #By default their prior elo is what it is in the database. If it changed, update it
-        p1_elo = matches.loc[match_id, "p1_elo"]
-        p2_elo = matches.loc[match_id, "p2_elo"]
+
+        if new_starting_elo is None:
+            p1_elo = matches.loc[match_id, "p1_elo"]
+            p2_elo = matches.loc[match_id, "p2_elo"]
+        else:
+            p1_elo = new_starting_elo
+            _updated_players.loc[p1_id, "elo"] = new_starting_elo
+            p2_elo = new_starting_elo
+            _updated_players.loc[p2_id, "elo"] = new_starting_elo
+
         for user_id, player in _updated_players.iterrows():
             if user_id == p1_id:
                 p1_elo = _updated_players.loc[user_id, "elo"]
@@ -83,7 +97,7 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None, u
 
 
     if match_id + 1 in matches.index:
-        return update_matches(matches=matches, match_id=match_id + 1, _updated_players=_updated_players, update_all=update_all)
+        return update_matches(matches=matches, match_id=match_id + 1, _updated_players=_updated_players, update_all=update_all, new_starting_elo=new_starting_elo)
     else:
         return matches, _updated_players
 

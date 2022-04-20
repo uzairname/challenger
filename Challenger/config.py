@@ -26,11 +26,12 @@ class Config:
 @final
 class Elo:
 
-    ELO_STDEV = 150  # estimate of standard deviation of everyone's elo
-    DEFAULT_ELO = 1000  # everyone's starting score
-    DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. 2.7 is an arbitrary scaling factor
-    DEFAULT_K = 30  # maximum change in one game
-    NUM_UNRANKED_MATCHES = 2  # number of matches to play before ranking
+    ELO_STDEV = 20  # Used in bayesian elo calc. This defines the wanted standard deviation of everyone's elo
+    DEFAULT_ELO = 50  # everyone's starting score
+    DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. In chess the ratio between std and scaling factor is 2.7. Idk where 2.7 came from
+    DEFAULT_K = 12  # maximum change in one game
+
+    NUM_UNRANKED_MATCHES = 4  # number of matches to play before ranking
 
 
 @final
