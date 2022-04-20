@@ -1,3 +1,4 @@
+import alluka
 import hikari
 import tanjun
 import re
@@ -19,12 +20,16 @@ def transform(old_value, old_avg, old_std, new_avg, new_std):
     return ((old_value-old_avg)/old_std)*new_std+new_avg
 
 
-def update_matches(matches, match_id, new_outcome=None, _updated_players=None, update_all=False, new_starting_elo=None): #TODO make unit test
+def calculate_matches(matches, match_id, new_outcome=None, updated_players=None, update_all=False): #TODO make unit test
     """
+    starts from match_id and recalculates all matches after it.
+    if new_starting_elo is set, it will update everyone's elo before any matches were played
+
     params:
         matches: a DataFrame of matches. must index "match_id", and columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_elo_after", "p2_elo_after", "p1_is_ranked", "p2_is_ranked", "p1_is_ranked_after", "p2_is_ranked_after", "outcome"
         match_id: the match id of the match to be updated
         new_outcome: the new outcome of the match
+        updated_players: pd.DataFrame of updated players. index is user id, columns are "elo", "is_ranked"
 
     returns:
         a DataFrame of the matches with updated prior and after elos and ranked status for each match affected by the outcome change.
@@ -32,8 +37,8 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None, u
     """
 
     matches = matches.copy()
-    if _updated_players is None:
-        _updated_players = pd.DataFrame([], columns=["user_id", "elo", "is_ranked"]).set_index("user_id")
+    if updated_players is None:
+        updated_players = pd.DataFrame([], columns=["user_id", "elo", "is_ranked"]).set_index("user_id")
 
     match = matches.loc[match_id]
 
@@ -41,26 +46,20 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None, u
     p2_id = match["p2_id"]
 
     #If this match should be affected in any way, calculate the players' new elos. If not, move on to the next match
-    if p1_id in _updated_players.index or p2_id in _updated_players.index or new_outcome is not None or update_all:
+    if p1_id in updated_players.index or p2_id in updated_players.index or new_outcome is not None or update_all:
 
         #By default their prior elo is what it is in the database. If it changed, update it
 
-        if new_starting_elo is None:
-            p1_elo = matches.loc[match_id, "p1_elo"]
-            p2_elo = matches.loc[match_id, "p2_elo"]
-        else:
-            p1_elo = new_starting_elo
-            matches.loc[match_id, "p1_elo"] = new_starting_elo
-            p2_elo = new_starting_elo
-            matches.loc[match_id, "p2_elo"] = new_starting_elo
+        p1_elo = matches.loc[match_id, "p1_elo"]
+        p2_elo = matches.loc[match_id, "p2_elo"]
 
-        for user_id, player in _updated_players.iterrows():
+        for user_id, player in updated_players.iterrows():
             if user_id == p1_id:
-                p1_elo = _updated_players.loc[user_id, "elo"]
+                p1_elo = updated_players.loc[user_id, "elo"]
                 matches.loc[match_id, "p1_elo"] = p1_elo
 
             if user_id == p2_id:
-                p2_elo = _updated_players.loc[user_id, "elo"]
+                p2_elo = updated_players.loc[user_id, "elo"]
                 matches.loc[match_id, "p2_elo"] = p2_elo
 
         #New outcome
@@ -90,16 +89,15 @@ def update_matches(matches, match_id, new_outcome=None, _updated_players=None, u
         matches.loc[match_id, "p2_elo_after"] = p2_elo_after
 
 
-        _updated_players.loc[p1_id, "elo"] = p1_elo_after
-        _updated_players.loc[p2_id, "elo"] = p2_elo_after
-        _updated_players.loc[p1_id, "is_ranked"] = matches.loc[match_id, "p1_is_ranked_after"]
-        _updated_players.loc[p2_id, "is_ranked"] = matches.loc[match_id, "p2_is_ranked_after"]
-
+        updated_players.loc[p1_id, "elo"] = p1_elo_after
+        updated_players.loc[p2_id, "elo"] = p2_elo_after
+        updated_players.loc[p1_id, "is_ranked"] = matches.loc[match_id, "p1_is_ranked_after"]
+        updated_players.loc[p2_id, "is_ranked"] = matches.loc[match_id, "p2_is_ranked_after"]
 
     if match_id + 1 in matches.index:
-        return update_matches(matches=matches, match_id=match_id + 1, _updated_players=_updated_players, update_all=update_all, new_starting_elo=new_starting_elo)
+        return calculate_matches(matches=matches, match_id=match_id + 1, updated_players=updated_players, update_all=update_all)
     else:
-        return matches, _updated_players
+        return matches, updated_players
 
 
 
@@ -113,23 +111,24 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
     player_matches = player_matches.loc[player_matches.index <= latest_match_id]\
     .loc[np.logical_or(player_matches["outcome"] == Outcome.PLAYER_1, player_matches["outcome"] == Outcome.PLAYER_2, player_matches["outcome"] == Outcome.DRAW)]
 
-    return len(player_matches) >= Elo.NUM_UNRANKED_MATCHES
+    return len(player_matches) >= Elo.NUM_PLACEMENT_MATCHES
 
 
 
-async def remove_after_timeout(ctx: tanjun.abc.Context, DB: Session):
+async def remove_from_q_timeout(ctx: tanjun.abc.Context, DB: Session):
     await asyncio.sleep(Config.QUEUE_JOIN_TIMEOUT)
-    queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[
-        0]  # would probably break if the channel was deleted after the player joined
+    queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0]  # would probably break if the channel was deleted after the player joined
     queue["player"] = None
     DB.upsert_lobby(queue)
-    await ctx.get_channel().send(
-        "A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
+    await ctx.respond("You have been removed from the queue")
+    await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
-async def remove_from_queue(ctx: tanjun.abc.Context, DB: Session, lobby):
+async def remove_from_queue(DB:Session, lobby):
+    if lobby["player"] is None:
+        return
     for i in asyncio.all_tasks():
-        if i.get_name() == str(ctx.author.id) + str(lobby.name) + "_queue_timeout":
+        if i.get_name() == str(lobby["player"]) + str(lobby.name) + "_queue_timeout":
             i.cancel()
     lobby["player"] = None
     DB.upsert_lobby(lobby)
@@ -234,25 +233,31 @@ async def announce_as_match_update(ctx, embed, client:tanjun.Client, content=Non
     await client.rest.create_message(channel_id, content=content, embed=embed, user_mentions=True)
 
 
-async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, user_id):
+async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, players:pd.DataFrame):
+    """
+    Needs a message context to send an error message if the bot doesn't have role perms.
+    players: dataframe with index user id and columns elo and is_ranked
+    """
 
     DB = Session(ctx.guild_id)
-
-    player = DB.get_players(user_id=user_id).iloc[0]
-    if not player["is_ranked"]:
-        return
-
-    elo = player["elo"]
     elo_roles = DB.get_elo_roles()
 
     try:
-        for role_id, role_info in elo_roles.iterrows(): # could sort by ascending min elo and remove all roles every iteration to ensure everyone only gets 1 role
-            if role_info["min_elo"] <= elo <= role_info["max_elo"]:
-                await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
-            else:
-                await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+        for user_id, player in players.iterrows():
+
+            for role_id, role_info in elo_roles.iterrows():
+
+                if not player["is_ranked"]:
+                    await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+                    continue
+
+                if role_info["min_elo"] <= player["elo"] <= role_info["max_elo"]:
+                    await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
+                else:
+                    await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
 
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
-__all__ = ["describe_match", "announce_as_match_update", "update_player_elo_roles", "remove_after_timeout", "remove_from_queue", "start_new_match", "update_matches", "determine_is_ranked"]
+__all__ = ["describe_match", "announce_as_match_update", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue", "start_new_match",
+           "calculate_matches", "determine_is_ranked"]

@@ -21,21 +21,31 @@ class Config:
         INVITE_LINK =  "https://discord.com/api/oauth2/authorize?client_id=908432840566374450&permissions=" + str(REQUIRED_PERMISSIONS.value) + "&scope=bot%20applications.commands"
 
     COMPONENT_TIMEOUT = 120
-    QUEUE_JOIN_TIMEOUT = 300
+    QUEUE_JOIN_TIMEOUT = 600
+
 
 @final
 class Elo:
 
-    ELO_STDEV = 20  # Used in bayesian elo calc. This defines the wanted standard deviation of everyone's elo
-    DEFAULT_ELO = 50  # everyone's starting score
-    DEFAULT_SCALE = ELO_STDEV * 2.7  # Used in elo calculation. In chess the ratio between std and scaling factor is 2.7. Idk where 2.7 came from
-    DEFAULT_K = 6  # maximum change in one game
+    STARTING_ELO = 100
+    # Everyone's starting elo, also everyone's average elo
 
-    NUM_UNRANKED_MATCHES = 4  # number of matches to play before ranking
+    STD = 20
+    # The wanted standard deviation of everyone's elo
+
+    SCALE = STD * 3.461
+    # The elo difference which represents a 10x difference in skill. Used in elo calculation.
+    # The coefficient is a hyperparameter. I think it just tries to ensure that the actual std matches the wanted std
+
+    K = STD * 0.25
+    # Maximum change in one game. The coefficient is a hyperparameter. I think it means something like how volatile elo change is,
+    # while not affecting the overal std.
+
+    NUM_PLACEMENT_MATCHES = 3  # How many of the first games are scored by provisional elo
 
 
 @final
 class Database_Config:
 
-    # known names for some known discord servers, for ease of use. testing is for unit testing
+    # database names for some known discord servers, for ease of use. "testing" is for unit testing
     KNOWN_GUILDS = {1: "testing", Config.DEV_GUILD_ID: "development", 947184983120957452: "PX", 921447683154145331:"B2T"}

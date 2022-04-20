@@ -248,8 +248,9 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
             selection += "**Unlinking**\n"
 
         selection += role.mention
-
-    selection += "\nElo range:\n> **" + str(min_elo) + " to " + str(max_elo) + "**"
+        selection += "\nElo range:\n> **" + str(min_elo) + " to " + str(max_elo) + "**"
+    else:
+        selection = "No role specified. Confirming will refresh everyone's roles"
 
     embed = hikari.Embed(title="Add or remove elo roles",
                         description="Link a role to an elo rank. Elo roles are displayed in the lobby and can be used to force match results",
@@ -270,7 +271,7 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @take_input(input_instructions=config_elo_roles_instructions)
 async def config_elo_roles(ctx, min_elo, max_elo, action, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
 
-    def process_response():
+    async def process_response(bot):
 
         if role is None:
             return "Select one role", Embed_Type.ERROR
@@ -295,9 +296,12 @@ async def config_elo_roles(ctx, min_elo, max_elo, action, role:hikari.Role, bot=
         df = pd.concat([df, pd.DataFrame(row).T])
 
         DB.upsert_elo_roles(df)
+
+        players = DB.get_players()
+        await update_players_elo_roles(ctx, bot, players)
         return "Updated Elo Role", Embed_Type.CONFIRM
 
-    confirm_message, embed_type = process_response()
+    confirm_message, embed_type = await process_response(bot)
     confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
     return confirm_embed
 
@@ -383,7 +387,6 @@ async def reset_data(ctx: tanjun.abc.SlashContext, bot=tanjun.injected(type=hika
 
         DB.delete_all_matches()
         DB.delete_all_players()
-        DB.upsert_config(config)
 
         return "Reset all data", Embed_Type.CONFIRM
 

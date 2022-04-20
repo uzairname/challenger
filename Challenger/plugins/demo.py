@@ -59,29 +59,22 @@ async def lol(ctx: tanjun.abc.Context):
 
 embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephemeral=False)
 
-@tanjun.with_user_slash_option("person", "a user")
-@tanjun.as_slash_command("enter", "enter", always_defer=True)
-async def enter(ctx:tanjun.abc.Context, person:hikari.User, bot=tanjun.injected(type=hikari.GatewayBot)):
-
-    await update_player_elo_roles(ctx, bot, person.id)
-    await ctx.edit_initial_response("Done")
-
 
 @tanjun.with_str_slash_option("elo", "elo")
 @tanjun.with_user_slash_option("player", "player")
 @tanjun.as_slash_command("set-elo", "set elo", always_defer=True)
-async def set_elo(ctx:tanjun.abc.Context, player:hikari.User, elo, bot=tanjun.injected(type=hikari.GatewayBot)):
+async def set_elo(ctx:tanjun.abc.Context, players:hikari.User, elo, bot=tanjun.injected(type=hikari.GatewayBot)):
 
     DB = Session(ctx.guild_id)
-    players = DB.get_players(user_id=player.id)
+    players = DB.get_players(user_id=players.id)
     if players is None:
         await ctx.edit_initial_response("Player not found!")
         return
-    player = players.iloc[0]
-    player["elo"] = elo
-    DB.upsert_player(player)
+    players = players.iloc[0:1]
+    players["elo"] = elo
+    DB.upsert_player(players)
 
-    await update_player_elo_roles(ctx, bot, player.name)
+    await update_players_elo_roles(ctx, bot, )
     await ctx.edit_initial_response("Done")
 
 

@@ -21,7 +21,7 @@ component = tanjun.Component(name="queue module")
 @get_channel_lobby
 async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=tanjun.injected(type=tanjun.Client)) -> None:
 
-    await ctx.respond("please wait")
+    response = await ctx.respond("please wait", ensure_result=True)
 
     DB = Session(ctx.guild_id)
 
@@ -52,7 +52,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
     #add player to queue
     if not lobby["player"]:
 
-        asyncio.create_task(remove_after_timeout(ctx, DB), name=str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
+        asyncio.create_task(remove_from_q_timeout(ctx, DB), name=str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
 
         lobby["player"] = player_id
         DB.upsert_lobby(lobby)
@@ -67,7 +67,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
         p1_info = DB.get_players(user_id=lobby['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
 
-        await remove_from_queue(ctx, DB, lobby)
+        await remove_from_queue(DB, lobby)
 
         await start_new_match(ctx, p1_info, p2_info, client=client)
 
@@ -84,21 +84,11 @@ async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
     player_id = ctx.author.id
 
     if lobby["player"] == player_id:
-        await remove_from_queue(ctx, DB, lobby)
+        await remove_from_queue(DB, lobby)
         await ctx.edit_initial_response("Left the queue")
         await ctx.get_channel().send("A player has left the queue")
     else:
         await ctx.edit_initial_response("You're not in the queue")
-
-
-
-
-def get_first_match_results(ctx:tanjun.abc.Context, DB, num_matches, player_id):
-    matches = DB.get_matches(user_id=player_id, limit=num_matches)
-    if matches.empty:
-        return matches
-    matches = matches.sort_values(by="match_id", ascending=True)
-    return matches.iloc[:num_matches]
 
 
 @component.with_slash_command
@@ -109,7 +99,7 @@ async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
     if lobby["player"]:
         await ctx.edit_initial_response("1 player in queue")
     else:
-        await ctx.edit_initial_response("queue is empty")
+        await ctx.edit_initial_response("Queue is empty")
 
 
 

@@ -120,7 +120,7 @@ def take_input(input_instructions:typing.Callable):
                 async for event in stream:
                     await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
                     if event.interaction.custom_id == "Confirm":
-                        confirm_embed = await func(ctx=ctx, **kwargs)
+                        confirm_embed = await func(ctx=ctx, bot=bot, **kwargs)
                         break
                     elif event.interaction.custom_id == "Cancel":
                         confirm_embed = Custom_Embed(type=Embed_Type.CANCEL)
