@@ -134,7 +134,7 @@ async def update_announce_match_outcome(ctx:tanjun.abc.Context, match_id, new_ou
         matches.loc[match_id, "staff_declared"] = new_outcome
 
     start_time = time.time()
-    updated_matches, updated_players = update_matches(matches, match.name, new_outcome)
+    updated_matches, updated_players = calculate_matches(matches, match.name, new_outcome)
     print("Updated " + str(updated_matches.index.size) + " matches in", time.time() - start_time) #measure time
     DB.upsert_matches(updated_matches)
 
@@ -146,18 +146,19 @@ async def update_announce_match_outcome(ctx:tanjun.abc.Context, match_id, new_ou
 
     # announce the updated match in the match announcements channel
     updated_players_str = ""
+    for user_id, updated_player in updated_players.iterrows():
 
-    for id, row in updated_players.iterrows():
-        prior_elo_str = str(round(players_before.loc[id, "elo"]))
-        if not players_before.loc[id, "is_ranked"]:
+        prior_elo_str = str(round(players_before.loc[user_id, "elo"]))
+        if not players_before.loc[user_id, "is_ranked"]:
             prior_elo_str += "?"
 
-        updated_elo_str = str(round(updated_players.loc[id, "elo"]))
-        if not updated_players.loc[id, "is_ranked"]:
+        updated_elo_str = str(round(updated_player["elo"]))
+        if not updated_player["is_ranked"]:
             updated_elo_str += "?"
 
-        updated_players_str += "<@" + str(id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
-        await update_player_elo_roles(ctx, bot, id)
+        updated_players_str += "<@" + str(user_id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
+
+    await update_players_elo_roles(ctx, bot, updated_players)
 
     if new_outcome == Outcome.PLAYER_1: #refactor this
         winner_id = match["p1_id"]

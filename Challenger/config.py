@@ -27,19 +27,19 @@ class Config:
 @final
 class Elo:
 
-    STD = 20
-    # The wanted standard deviation of everyone's elo
-
     STARTING_ELO = 100
     # Everyone's starting elo, also everyone's average elo
 
-    SCALE = STD * 2.7
-    # Used in elo calculation. 2.7 is a hyperparameter, I think it just tries to ensure that the actual std matches the
-    # wanted std. in standard chess its 2.66
+    STD = 20
+    # The wanted standard deviation of everyone's elo
 
-    K = STD / 4
-    # Maximum change in one game. 4 is a hyperparameter. I think it means something like how volatile elo change is,
-    # while not affecting long term spread. It's 5 for chess
+    SCALE = STD * 3.461
+    # The elo difference which represents a 10x difference in skill. Used in elo calculation.
+    # The coefficient is a hyperparameter. I think it just tries to ensure that the actual std matches the wanted std
+
+    K = STD * 0.25
+    # Maximum change in one game. The coefficient is a hyperparameter. I think it means something like how volatile elo change is,
+    # while not affecting the overal std.
 
     NUM_PLACEMENT_MATCHES = 3  # How many of the first games are scored by provisional elo
 

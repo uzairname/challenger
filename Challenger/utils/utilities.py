@@ -1,3 +1,4 @@
+import alluka
 import hikari
 import tanjun
 import re
@@ -19,7 +20,7 @@ def transform(old_value, old_avg, old_std, new_avg, new_std):
     return ((old_value-old_avg)/old_std)*new_std+new_avg
 
 
-def update_matches(matches, match_id, new_outcome=None, updated_players=None, update_all=False): #TODO make unit test
+def calculate_matches(matches, match_id, new_outcome=None, updated_players=None, update_all=False): #TODO make unit test
     """
     starts from match_id and recalculates all matches after it.
     if new_starting_elo is set, it will update everyone's elo before any matches were played
@@ -34,7 +35,6 @@ def update_matches(matches, match_id, new_outcome=None, updated_players=None, up
         a DataFrame of the matches with updated prior and after elos and ranked status for each match affected by the outcome change.
         a DataFrame of each player's new elo and ranked status
     """
-
 
     matches = matches.copy()
     if updated_players is None:
@@ -94,9 +94,8 @@ def update_matches(matches, match_id, new_outcome=None, updated_players=None, up
         updated_players.loc[p1_id, "is_ranked"] = matches.loc[match_id, "p1_is_ranked_after"]
         updated_players.loc[p2_id, "is_ranked"] = matches.loc[match_id, "p2_is_ranked_after"]
 
-
     if match_id + 1 in matches.index:
-        return update_matches(matches=matches, match_id=match_id + 1, updated_players=updated_players, update_all=update_all)
+        return calculate_matches(matches=matches, match_id=match_id + 1, updated_players=updated_players, update_all=update_all)
     else:
         return matches, updated_players
 
@@ -234,25 +233,31 @@ async def announce_as_match_update(ctx, embed, client:tanjun.Client, content=Non
     await client.rest.create_message(channel_id, content=content, embed=embed, user_mentions=True)
 
 
-async def update_player_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, user_id):
+async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, players:pd.DataFrame):
+    """
+    Needs a message context to send an error message if the bot doesn't have role perms.
+    players: dataframe with index user id and columns elo and is_ranked
+    """
 
     DB = Session(ctx.guild_id)
-
-    player = DB.get_players(user_id=user_id).iloc[0]
-    if not player["is_ranked"]:
-        return
-
-    elo = player["elo"]
     elo_roles = DB.get_elo_roles()
 
     try:
-        for role_id, role_info in elo_roles.iterrows(): # could sort by ascending min elo and remove all roles every iteration to ensure everyone only gets 1 role
-            if role_info["min_elo"] <= elo <= role_info["max_elo"]:
-                await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
-            else:
-                await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+        for user_id, player in players.iterrows():
+
+            for role_id, role_info in elo_roles.iterrows():
+
+                if not player["is_ranked"]:
+                    await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+                    continue
+
+                if role_info["min_elo"] <= player["elo"] <= role_info["max_elo"]:
+                    await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
+                else:
+                    await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
 
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
-__all__ = ["describe_match", "announce_as_match_update", "update_player_elo_roles", "remove_from_q_timeout", "remove_from_queue", "start_new_match", "update_matches", "determine_is_ranked"]
+__all__ = ["describe_match", "announce_as_match_update", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue", "start_new_match",
+           "calculate_matches", "determine_is_ranked"]
