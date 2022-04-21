@@ -45,10 +45,10 @@ async def elo_stats(ctx):
 
     all_players = DB.get_players()
 
-    avg_elo = all_players.mean()["elo"]
-    std_elo = all_players.std()["elo"]
+    avg_elo = all_players[all_players["is_ranked"]].mean()["elo"]
+    std_elo = all_players[all_players["is_ranked"]].std()["elo"]
 
-    embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.0f}\n Std elo:{std_elo:.0f}", color=Colors.PRIMARY)
+    embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n Std elo:{std_elo:.2f}", color=Colors.PRIMARY)
     embed.add_field("Params", f"Starting elo: {Elo.STARTING_ELO}\n"
                               f"Scale: {Elo.SCALE}\n"
                               f"target std: {Elo.STD}\n"

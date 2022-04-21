@@ -2,8 +2,8 @@
 
 import hikari
 import os
-import pandas as pd
 from Challenger.bot import build_bot
+import pandas as pd
 
 if __name__ == "__main__":
 

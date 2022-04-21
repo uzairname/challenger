@@ -13,9 +13,9 @@ component = tanjun.Component(name="hi module")
 
 todo_str = """
 **In order of priority**
-• Provisional Bayesian Elo for your first 5 games. https://www.remi-coulom.fr/Bayesian-Elo/
- https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo
-• Add tournaments support
+• Provisional Bayesian Elo for your first 5 games. [read more](https://www.remi-coulom.fr/Bayesian-Elo/
+ https://www.warzone.com/Forum/362170-bayesian-elo-versus-regular-elo)
+• Implement a variable confidence factor in elo calculation [read more](http://www.glicko.net/glicko/glicko.pdf)
 • option to show details in match history
 • Extension to store match info like map played, strategy used, etc
 • Ban players from playing
@@ -31,6 +31,8 @@ todo_str = """
 coming_soon_str = """
 Actual Matchmaking. When you join the queue, you get matched with people of similar elo, and the longer you wait, the broader the search.
 Support for tournaments.
+In-discord charts and graphs to visualize key trends and stats.
+
 Associating each match with a map played or other game info.
 Support for best of 3 and 5 matches.
 """
@@ -81,7 +83,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
 
 
 @component.with_slash_command
-@tanjun.as_slash_command("about", "About", default_to_ephemeral=True, always_defer=True)
+@tanjun.as_slash_command("about", "About", default_to_ephemeral=False, always_defer=True)
 async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)) -> None:
     response = await ctx.fetch_initial_response()
 
@@ -104,18 +106,18 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed.add_field(name="Github", value=f"[View the source code]({Config.GITHUB_LINK})", inline=True)
     about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
     about_embed.add_field(name="Discord", value=f"[Bot's server]({Config.DISCORD_INVITE_LINK})", inline=True)
-    about_embed.add_field(name=":blossom:", value=f"Lilapela#5348", inline=True)
+    about_embed.set_footer(text="Lilapela#5348")
 
 
     features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
-    features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
+    features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="<:reply:966765324013801532>Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
     features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). See a visualization of how it works here [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
     features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
     features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard for your discord server")
     features_embed.add_field(name=":scroll: History and stats", value="View everyone's match history and detailed competetive stats")
     features_embed2 = hikari.Embed(title="Special", description="Features that set Challenger apart from other elo bots", colour=Colors.PRIMARY)
     features_embed2.add_field(name=":star: Advanced provisional elo (coming soon)", value="For everyone's first few games, Challenger uses a provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to find the players most probable skill level just based on a few matches. This means you don't have to grind at first to reach your appropriate elo.")
-    features_embed2.add_field(name=":star: Ability to update old matches", value="Want to customize how elo was calculated, even after several games have been played, want to ban a certain player and undo the effect they had on everyone's elo, or change an old match's result? Challenger makes it easy. Make any change to an old match, player, or elo setting, and all following affected players' and matches' elo will be recalculated.")
+    features_embed2.add_field(name=":star: Independent and flexible match calculation", value="The way elo is calculated allows for much greater control. Want to customize the elo parameters, even after several games have been played, want to ban a certain player and undo the effect they had on everyone's elo, or change an old match's result? Challenger makes it easy. Make any change to an old match, player, or elo setting, and all following affected players' and matches' elo will be recalculated.")
 
 
     permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)

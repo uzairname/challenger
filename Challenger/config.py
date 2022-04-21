@@ -24,22 +24,24 @@ class Config:
     QUEUE_JOIN_TIMEOUT = 600
 
 
-@final
 class Elo:
 
     STARTING_ELO = 100
     # Everyone's starting elo, also everyone's average elo
 
-    STD = 20
-    # The wanted standard deviation of everyone's elo
 
-    SCALE = STD * 3.461
+    SCALE = 40
     # The elo difference which represents a 10x difference in skill. Used in elo calculation.
     # The coefficient is a hyperparameter. I think it just tries to ensure that the actual std matches the wanted std
 
-    K = STD * 0.25
-    # Maximum change in one game. The coefficient is a hyperparameter. I think it means something like how volatile elo change is,
-    # while not affecting the overal std.
+
+    K_COEF = 0.15
+    K = SCALE * K_COEF
+    # Maximum change in one game
+
+    STD = SCALE*0.69 #estimated standard deviation
+
+    #maybe k can be dependent on scale and wanted std. f(scale, wanted_std ) = k so that actual std is the wanted std
 
     NUM_PLACEMENT_MATCHES = 3  # How many of the first games are scored by provisional elo
 
@@ -47,5 +49,7 @@ class Elo:
 @final
 class Database_Config:
 
+    B2T_GUILD_ID = 921447683154145331
+
     # database names for some known discord servers, for ease of use. "testing" is for unit testing
-    KNOWN_GUILDS = {1: "testing", Config.DEV_GUILD_ID: "development", 947184983120957452: "PX", 921447683154145331:"B2T"}
+    KNOWN_GUILDS = {1: "testing", Config.DEV_GUILD_ID: "development", 947184983120957452: "PX", B2T_GUILD_ID:"B2T"}

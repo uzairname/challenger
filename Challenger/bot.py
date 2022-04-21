@@ -1,9 +1,6 @@
-import asyncio
-
 import hikari
 import tanjun
 import os
-import logging
 from datetime import datetime
 
 from Challenger.database import Session
@@ -13,11 +10,9 @@ from Challenger.utils.command_tools import on_error
 
 def build_bot(token):
     bot = hikari.GatewayBot(token)
-
     bot.subscribe(hikari.GuildAvailableEvent, on_guild_available)
 
     client = build_client(bot)
-
     client.load_modules("Challenger.plugins")
 
     return bot
@@ -28,7 +23,6 @@ def build_client(bot:hikari.GatewayBot):
 
     client.add_client_callback(tanjun.abc.ClientCallbackNames.STARTED, on_started)
     client.set_hooks(tanjun.Hooks().set_on_error(on_error))
-
     client.metadata["start_time"] = datetime.now()
 
     return client
@@ -50,6 +44,6 @@ async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.Gate
         await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.COMPETING, name="everything"))
 
     elif os.environ.get("ENVIRONMENT") == "development":
-        client.load_modules("Challenger.plugins.demo")
+        client.load_modules("Challenger.plugins.experimental")
         await client.declare_global_commands(guild=Config.DEV_GUILD_ID)
         await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name=Config.VERSION))
