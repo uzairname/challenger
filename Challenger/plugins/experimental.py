@@ -18,6 +18,21 @@ from tanjun.abc import SlashContext
 
 
 import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+
+@tanjun.as_slash_command("temp-test", "something", default_to_ephemeral=False)
+@ensure_staff
+async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
+
+
+    guild = bot.cache.get_guilds_view()[Database_Config.B2T_GUILD_ID]
+
+    id = guild.owner_id
+
+    await ctx.edit_initial_response("<@"+str(id)+">")
+
 
 
 
@@ -40,8 +55,8 @@ async def lol(ctx: tanjun.abc.Context, player):
 
     print(matches)
 
-    match_num1 = matches.index
-    match_num2 = matches2.index
+    times1 = matches["time_started"]
+    times2 = matches2["time_started"]
 
     elos = []
     elos2 = []
@@ -60,8 +75,8 @@ async def lol(ctx: tanjun.abc.Context, player):
     plt.rcParams.update(params)
 
     plt.figure(figsize=(6,3))
-    plt.plot(match_num1, elos, label="You")
-    plt.plot(match_num2, elos2, label=player.username)
+    plt.plot(times1, elos, label="You")
+    plt.plot(times2, elos2, label=player.username)
     plt.legend()
     plt.title("Elo History Comparison")
     plt.savefig("plot.png", transparent=True)
@@ -71,6 +86,43 @@ async def lol(ctx: tanjun.abc.Context, player):
     embed.set_image("plot.png")
     await ctx.edit_initial_response(embed=embed)
     os.remove("plot.png")
+
+
+
+
+
+@tanjun.as_slash_command("histogram", "lol matches", always_defer=True)
+async def histogram(ctx: tanjun.abc.Context):
+
+    DB = Session(921447683154145331)
+
+    matches = DB.get_matches(chronological=True)
+
+
+    times = matches["time_started"].dropna()
+
+
+
+
+    for i in plt.rcParams:
+        if plt.rcParams[i] == "black":
+            plt.rcParams[i] = "w"
+    # black background
+    params = {"legend.framealpha":0}
+    plt.rcParams.update(params)
+
+    plt.figure(figsize=(6,3))
+    plt.hist(times, bins=20)
+    plt.xticks(rotation=45)
+    plt.title("activity")
+    plt.savefig("plot.png", transparent=True, bbox_inches="tight")
+    plt.show()
+
+    embed = hikari.Embed(title="test", description="test")
+    embed.set_image("plot.png")
+    await ctx.edit_initial_response(embed=embed)
+    os.remove("plot.png")
+
 
 
 

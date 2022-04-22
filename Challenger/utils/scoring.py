@@ -47,6 +47,8 @@ def calc_bayeselo(game_results):
      game_results is a list of tuples of the form (opponent_elo, result(win/lose))
     """
 
+    est_STD = Elo.K
+
 
 def calc_prov_elo(p1_elo, p2_elo, result):
     return np.array(calc_elo_change(p1_elo, p2_elo, result))*3

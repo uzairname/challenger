@@ -1,3 +1,8 @@
-add elo stats cmd
-enhance output for refresh all matches
-modify lb display
+change match update announce logic
+Doesn't announce. returns an embed and the number of players updated
+setmatch and declare functions decide how to announce it
+
+Update elo config
+Send new match update in lobby channel
+change display for matches
+
