@@ -26,6 +26,11 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.Gateway
         return
     match = matches.iloc[0]
 
+
+    if match["outcome"] == result:
+        await ctx.edit_initial_response("Outcome is already " + str(result))
+        return
+
     #check if result was declared by staf
     if match["staff_declared"]:
         await ctx.edit_initial_response("Staff already finalized this match's result")
@@ -49,11 +54,18 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.Gateway
     DB.upsert_match(match)
 
     await ctx.respond("Declared " + str(result) + " for match " + str(match.name))
-    #TODO: edit match results message for declares
 
     #check whether both declares match
     if match["p1_declared"] == match["p2_declared"]:
-        return await update_announce_match_outcome(ctx, match.name, new_outcome, bot=bot, client=client)
+        updated_players_embed, num_updated = await update_match_result(ctx, match.name, new_outcome, bot=bot)
+
+        if num_updated > 2:
+            await announce_in_updates_channel(ctx, updated_players_embed, client)
+        else:
+            match = DB.get_matches(match_id=match.name).iloc[0]
+            match_embed = describe_match(match, DB)
+            await announce_in_updates_channel(ctx, match_embed, client=client)
+
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
@@ -111,24 +123,28 @@ async def set_match(ctx: tanjun.abc.Context, match_number, outcome, bot:hikari.G
         return
     match = matches.iloc[0]
 
-    return await update_announce_match_outcome(ctx, match.name, outcome, bot=bot, client=client, staff_declared=True)
+    if match["outcome"] == outcome:
+        return await ctx.edit_initial_response("Outcome is already " + str(outcome))
+
+    updated_players_embed, num_updated = await update_match_result(ctx, match.name, outcome, bot=bot, staff_declared=True)
+
+    if num_updated > 2:
+        await announce_in_updates_channel(ctx, updated_players_embed, client)
+    else:
+        match = DB.get_matches(match_id=match.name).iloc[0]
+        match_embed = describe_match(match, DB)
+        await announce_in_updates_channel(ctx, match_embed, client=client)
 
 
 
-async def update_announce_match_outcome(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot, client:tanjun.Client, staff_declared=None):
+async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot, staff_declared=None):
+    """
+    updates a match's result, and returns an embed listing all players whose elo was updated and the number of players updated
+    """
 
     DB = Session(ctx.guild_id)
     matches = DB.get_matches() #TODO dont get all the matches at once
     match = matches.loc[match_id]
-
-    try:
-        p1 = DB.get_players(user_id=match["p1_id"]).iloc[0]
-        p2 = DB.get_players(user_id=match["p2_id"]).iloc[0]
-    except IndexError:
-        return await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, description="One of the players in this match doesn't exist anymore"))
-
-    if match["outcome"] == new_outcome:
-        return await ctx.edit_initial_response("Outcome is already " + str(new_outcome))
 
     if staff_declared:
         matches.loc[match_id, "staff_declared"] = new_outcome
@@ -178,7 +194,7 @@ async def update_announce_match_outcome(ctx:tanjun.abc.Context, match_id, new_ou
     if staff_declared:
         embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
 
-    await announce_as_match_update(ctx, embed, client)
+    return embed, len(updated_players.index)
 
 
 

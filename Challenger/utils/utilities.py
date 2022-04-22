@@ -146,6 +146,7 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
     p2_is_ranked = p2_info["is_ranked"]
 
     new_match = DB.get_new_match()
+
     new_match[["time_started", "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = \
         [datetime.now(), p1_info.name, p2_info.name, p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
 
@@ -153,12 +154,13 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
 
     embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
 
-    await announce_as_match_update(ctx, embed, content=p1_ping+ " " + p2_ping, client=client)
+    await ctx.get_channel().send(content=p1_ping+ " " + p2_ping, embed=embed)
+    # await announce_as_match_update(ctx, embed, content=p1_ping+ " " + p2_ping, client=client)
 
 def describe_match(match: pd.Series, DB): # TODO take the match id
 
-    p1_tag = DB.get_players(user_id=match["p1_id"]).iloc[0]["tag"]
-    p2_tag = DB.get_players(user_id=match["p2_id"]).iloc[0]["tag"]
+    p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["username"]
+    p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]
 
     def displayed_elo(elo, is_ranked):
         if elo is None:
@@ -172,6 +174,15 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
     p2_prior_elo_displayed = displayed_elo(match["p2_elo"], match["p2_is_ranked"])
     p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
     p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
+    p1_elo_change = match["p1_elo_after"] -match["p1_elo"]
+    p2_elo_change = match["p2_elo_after"] - match["p2_elo"]
+    p1_elo_indicator = "▲" if p1_elo_change > 0 else "▼" if p1_elo_change < 0 else ""
+    p2_elo_indicator = "▲" if p2_elo_change > 0 else "▼" if p2_elo_change < 0 else ""
+    p1_elo_diff_str = str(round(abs(p1_elo_change)))
+    p2_elo_diff_str = str(round(abs(p2_elo_change)))
+
+    p1_elo_change_str = str(p1_prior_elo_displayed) + " -> " + str(p1_after_elo_displayed) + " (" + p1_elo_indicator + p1_elo_diff_str + ")"
+    p2_elo_change_str = str(p2_prior_elo_displayed) + " -> " + str(p2_after_elo_displayed) + " (" + p2_elo_indicator + p2_elo_diff_str + ")"
 
     color = Colors.SUCCESS
     if match["outcome"] == Outcome.PLAYER_1:
@@ -210,16 +221,17 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
 
     embed.add_field(name=result, value="*_ _*")
 
-    embed.add_field(name=str(p1_tag), value=str(p1_prior_elo_displayed) + " -> " + str(p1_after_elo_displayed) + "\n " + p1_declared, inline=True)
+
+    embed.add_field(name=str(p1_name), value=p1_elo_change_str + "\n " + p1_declared, inline=True)
     embed.add_field(name="vs", value="*_ _*", inline=True)
-    embed.add_field(name=str(p2_tag), value=str(p2_prior_elo_displayed) + " -> " + str(p2_after_elo_displayed) + "\n " + p2_declared, inline=True)
+    embed.add_field(name=str(p2_name), value=p2_elo_change_str + "\n " + p2_declared, inline=True)
 
     embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")
 
     return embed
 
 
-async def announce_as_match_update(ctx, embed, client:tanjun.Client, content=None):
+async def announce_in_updates_channel(ctx, embed, client:tanjun.Client, content=None):
     DB = Session(ctx.guild_id)
 
     config = DB.get_config()
@@ -259,5 +271,5 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
-__all__ = ["describe_match", "announce_as_match_update", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue", "start_new_match",
+__all__ = ["describe_match", "announce_in_updates_channel", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue", "start_new_match",
            "calculate_matches", "determine_is_ranked"]

@@ -51,7 +51,7 @@ async def elo_stats(ctx):
     embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n Std elo:{std_elo:.2f}", color=Colors.PRIMARY)
     embed.add_field("Params", f"Starting elo: {Elo.STARTING_ELO}\n"
                               f"Scale: {Elo.SCALE}\n"
-                              f"target std: {Elo.STD}\n"
+                              f"Predicted std: {Elo.STD}\n"
                               f"k: {Elo.K}")
 
     await ctx.respond(embed=embed)
@@ -123,7 +123,6 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
 
         embed = hikari.Embed(title="REFRESHED ALL MATCHES", description=explanation_str, color=Colors.PRIMARY)
         embed.add_field(name="updated elo", value=''.join(updated_players_strs[start_index:end_index]))
-
         return [embed]
 
     await ctx.edit_initial_response("Done")

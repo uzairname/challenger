@@ -26,22 +26,18 @@ class Config:
 
 class Elo:
 
-    STARTING_ELO = 100
+    STARTING_ELO = 1000
     # Everyone's starting elo, also everyone's average elo
 
-
-    SCALE = 40
+    SCALE = 400
     # The elo difference which represents a 10x difference in skill. Used in elo calculation.
     # The coefficient is a hyperparameter. I think it just tries to ensure that the actual std matches the wanted std
 
+    STD = SCALE*0.69 # Estimated standard deviation, used only in bayeselo calculation. Not sure if this is right. should probably take into account k
 
-    K_COEF = 0.15
+    K_COEF = 0.1
     K = SCALE * K_COEF
     # Maximum change in one game
-
-    STD = SCALE*0.69 #estimated standard deviation
-
-    #maybe k can be dependent on scale and wanted std. f(scale, wanted_std ) = k so that actual std is the wanted std
 
     NUM_PLACEMENT_MATCHES = 3  # How many of the first games are scored by provisional elo
 

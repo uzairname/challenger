@@ -22,38 +22,16 @@ import seaborn as sns
 
 
 
-@tanjun.as_slash_command("temp-recalc", "recalculate the elo for every match", default_to_ephemeral=False)
+@tanjun.as_slash_command("temp-test", "something", default_to_ephemeral=False)
 @ensure_staff
-async def temp_recalc_matches(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
+async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
 
-    message = await ctx.respond("Getting matches...", ensure_result=True)
 
-    DB = Session(Database_Config.B2T_GUILD_ID)
-    all_matches = DB.get_matches()
-    all_players = DB.get_players()
-    reduced_players_df = all_players[["elo", "is_ranked"]]
-    reduced_players_df["elo"] = Elo.STARTING_ELO
+    guild = bot.cache.get_guilds_view()[Database_Config.B2T_GUILD_ID]
 
-    ks = [0.05, 0.1, 0.15, 0.2]
-    ss = [0.1, 0.2, 0.5, 1, 2, 3, 4]
+    id = guild.owner_id
 
-    stds = [[] for _ in range(len(ks))] #each row is fixed k, each column is fixed s
-
-    for k in ks:
-        for s in ss:
-
-            Elo.K_COEF = k
-            Elo.SCALE = s
-            await ctx.edit_initial_response("Recalculating matches...")
-            start_time = time.perf_counter()
-            updated_matches, updated_players = calculate_matches(all_matches, match_id=1, updated_players=reduced_players_df, update_all=True)
-            print("calculate matches time taken:" + str(time.perf_counter() - start_time))
-            start_time = time.perf_counter()
-
-            std = updated_players["elo"].std()
-            stds[ks.index(k)].append(std)
-
-    await ctx.edit_initial_response(f"Recalculated matches.\nStandard deviation: {stds}")
+    await ctx.edit_initial_response("<@"+str(id)+">")
 
 
 
