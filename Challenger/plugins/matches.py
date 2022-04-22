@@ -3,11 +3,11 @@ import tanjun
 import time
 
 from Challenger.utils import *
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.config import *
 
 
-from Challenger.utils import Outcome, Declare #dont need
+# from Challenger.utils import Outcome, Declare #dont need
 
 
 
@@ -18,7 +18,7 @@ from Challenger.utils import Outcome, Declare #dont need
 @ensure_registered
 async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot),client=tanjun.injected(type=tanjun.abc.Client)) -> None:
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     matches = DB.get_matches(user_id=ctx.author.id)
     if matches.empty:
@@ -76,7 +76,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
 
     response = await ctx.fetch_initial_response()
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     user_id = player.id if player else None
 
@@ -115,7 +115,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
 @ensure_registered
 async def set_match(ctx: tanjun.abc.Context, match_number, outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     matches = DB.get_matches(match_id=match_number)
     if matches.empty:
@@ -135,6 +135,8 @@ async def set_match(ctx: tanjun.abc.Context, match_number, outcome, bot:hikari.G
         match_embed = describe_match(match, DB)
         await announce_in_updates_channel(ctx, match_embed, client=client)
 
+    await ctx.respond("Match updated")
+
 
 
 async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot:hikari.GatewayBot, staff_declared=None):
@@ -142,7 +144,7 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
     updates a match's result, and returns an embed listing all players whose elo was updated and the number of players updated
     """
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     matches = DB.get_matches() #TODO dont get all the matches at once
     match = matches.loc[match_id]
 
@@ -150,19 +152,26 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
         matches.loc[match_id, "staff_declared"] = new_outcome
 
     start_time = time.time()
-    updated_matches, updated_players = calculate_matches(matches, match.name, new_outcome)
-    print("Updated " + str(updated_matches.index.size) + " matches in", time.time() - start_time) #measure time
-    DB.upsert_matches(updated_matches)
+    matches_updated, players_after = calculate_matches(matches, match.name, new_outcome)
+    print("Updated " + str(matches_updated.index.size) + " matches in", time.time() - start_time) #measure time
+    DB.upsert_matches(matches_updated)
 
-    players = DB.get_players(user_ids=list(updated_players.index))
-    players_before = players.loc[updated_players.index, updated_players.columns]
-    players[updated_players.columns] = updated_players
+    players = DB.get_players(user_ids=list(players_after.index))
+    players_before = players.loc[players_after.index, players_after.columns]
+    players[players_after.columns] = players_after
     DB.upsert_players(players)
 
+    print(players_after, "\n", players_before)
+
+    # filter out players whose elo hasn't changed much
+    eq_threshhold = Elo.K/100
+    mask = abs(players_before["elo"]-players_after["elo"]).gt(eq_threshhold)
+    players_before = players_before.loc[mask]
+    players_after = players.loc[mask]
 
     # announce the updated match in the match announcements channel
     updated_players_str = ""
-    for user_id, updated_player in updated_players.iterrows():
+    for user_id, updated_player in players_after.iterrows():
 
         prior_elo_str = str(round(players_before.loc[user_id, "elo"]))
         if not players_before.loc[user_id, "is_ranked"]:
@@ -174,7 +183,7 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
 
         updated_players_str += "<@" + str(user_id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
 
-    await update_players_elo_roles(ctx, bot, updated_players)
+    await update_players_elo_roles(ctx, bot, players_after)
 
     if new_outcome == Outcome.PLAYER_1: #refactor this
         winner_id = match["p1_id"]
@@ -189,12 +198,12 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
     else:
         displayed_outcome = "Ongoing" #undecided, or ongoing
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(match_id) + " Updated: **" + displayed_outcome + "**", description=updated_players_str)
+    embed = hikari.Embed(title="Match " + str(match_id) + " Updated: **" + displayed_outcome + "**", description=updated_players_str, color=Colors.PRIMARY)
 
     if staff_declared:
         embed.add_field(name="Result overriden by staff", value=f"(Set by {ctx.author.username}#{ctx.author.discriminator})")
 
-    return embed, len(updated_players.index)
+    return embed, len(players_after.index)
 
 
 

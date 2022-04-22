@@ -6,7 +6,7 @@ import typing
 import hikari
 from hikari.interactions.base_interactions import ResponseType
 from .style import *
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.config import Config
 
 
@@ -25,7 +25,7 @@ async def on_error(ctx: tanjun.abc.Context, exception: BaseException) -> None:
 def ensure_registered(func):
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
-        DB = Session(ctx.guild_id)
+        DB = Guild_DB(ctx.guild_id)
 
         player = DB.get_players(user_id=ctx.author.id)
         if player.empty:
@@ -43,7 +43,7 @@ def get_channel_lobby(func) -> typing.Callable:
 
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
-        DB = Session(ctx.guild_id)
+        DB = Guild_DB(ctx.guild_id)
 
         queues = DB.get_lobbies(ctx.channel_id)
         if queues.empty:
@@ -63,7 +63,7 @@ def ensure_staff(func):
             if ctx.author.id == Config.OWNER_ID:
                 return True
 
-            DB = Session(ctx.guild_id)
+            DB = Guild_DB(ctx.guild_id)
 
             staff_role = DB.get_config()["staff_role"]
 
@@ -114,11 +114,13 @@ def take_input(input_instructions:typing.Callable):
 
             with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
-                ("interaction.user.id", ctx.author.id),
                 ("interaction.message.id", response.id)
             ) as stream:
                 async for event in stream:
                     await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
+                    if event.interaction.user.id != ctx.author.id:
+                        continue
+
                     if event.interaction.custom_id == "Confirm":
                         confirm_embed = await func(ctx=ctx, bot=bot, **kwargs)
                         break
@@ -168,10 +170,11 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
-            ("interaction.user.id", ctx.author.id),
             ("interaction.message.id", message.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+            if event.interaction.user.id != ctx.author.id:
+                continue
 
             if event.interaction.custom_id == nextlabel and not is_last_page(cur_page):
                 print("Lower")

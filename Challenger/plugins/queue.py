@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 
 from Challenger.utils import *
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.config import *
 
 
@@ -23,7 +23,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 
     response = await ctx.respond("please wait", ensure_result=True)
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     #Ensure player has at the required role
     if lobby["required_role"]:
@@ -80,7 +80,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 @get_channel_lobby
 async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     player_id = ctx.author.id
 
     if lobby["player"] == player_id:

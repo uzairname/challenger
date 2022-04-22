@@ -10,7 +10,7 @@ from Challenger.config import *
 
 from .scoring import *
 from .style import *
-from ..database import Session
+from ..database import Guild_DB
 
 
 def transform(old_value, old_avg, old_std, new_avg, new_std):
@@ -115,7 +115,7 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
 
 
 
-async def remove_from_q_timeout(ctx: tanjun.abc.Context, DB: Session):
+async def remove_from_q_timeout(ctx: tanjun.abc.Context, DB: Guild_DB):
     await asyncio.sleep(Config.QUEUE_JOIN_TIMEOUT)
     queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0]  # would probably break if the channel was deleted after the player joined
     queue["player"] = None
@@ -124,7 +124,7 @@ async def remove_from_q_timeout(ctx: tanjun.abc.Context, DB: Session):
     await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
-async def remove_from_queue(DB:Session, lobby):
+async def remove_from_queue(DB:Guild_DB, lobby):
     if lobby["player"] is None:
         return
     for i in asyncio.all_tasks():
@@ -137,7 +137,7 @@ async def remove_from_queue(DB:Session, lobby):
 async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
     """creates a new match between the 2 players and announces it to the channel"""
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     p1_ping = "<@" + str(p1_info.name) + ">"
     p2_ping = "<@" + str(p2_info.name) + ">"
@@ -154,10 +154,10 @@ async def start_new_match(ctx:tanjun.abc.Context, p1_info, p2_info, client):
 
     embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
 
-    await ctx.get_channel().send(content=p1_ping+ " " + p2_ping, embed=embed)
+    await ctx.get_channel().send(content=p1_ping+ " " + p2_ping, embed=embed, user_mentions=True)
     # await announce_as_match_update(ctx, embed, content=p1_ping+ " " + p2_ping, client=client)
 
-def describe_match(match: pd.Series, DB): # TODO take the match id
+def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match id
 
     p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["username"]
     p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]
@@ -174,21 +174,28 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
     p2_prior_elo_displayed = displayed_elo(match["p2_elo"], match["p2_is_ranked"])
     p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
     p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
-    p1_elo_change = match["p1_elo_after"] -match["p1_elo"]
-    p2_elo_change = match["p2_elo_after"] - match["p2_elo"]
-    p1_elo_indicator = "▲" if p1_elo_change > 0 else "▼" if p1_elo_change < 0 else ""
-    p2_elo_indicator = "▲" if p2_elo_change > 0 else "▼" if p2_elo_change < 0 else ""
-    p1_elo_diff_str = str(round(abs(p1_elo_change)))
-    p2_elo_diff_str = str(round(abs(p2_elo_change)))
 
-    p1_elo_change_str = str(p1_prior_elo_displayed) + " -> " + str(p1_after_elo_displayed) + " (" + p1_elo_indicator + p1_elo_diff_str + ")"
-    p2_elo_change_str = str(p2_prior_elo_displayed) + " -> " + str(p2_after_elo_displayed) + " (" + p2_elo_indicator + p2_elo_diff_str + ")"
+    if match["p1_elo_after"] and match["p2_elo_after"]:
+
+        p1_elo_change = match["p1_elo_after"] - match["p1_elo"]
+        p2_elo_change = match["p2_elo_after"] - match["p2_elo"]
+        p1_elo_indicator = "▲" if p1_elo_change > 0 else "▼" if p1_elo_change < 0 else ""
+        p2_elo_indicator = "▲" if p2_elo_change > 0 else "▼" if p2_elo_change < 0 else ""
+        p1_elo_diff_str = str(round(abs(p1_elo_change)))
+        p2_elo_diff_str = str(round(abs(p2_elo_change)))
+        p1_elo_change_str = str(p1_prior_elo_displayed) + " -> **" + str(p1_after_elo_displayed) \
+                            + "** *(" + p1_elo_indicator + p1_elo_diff_str + ")*\n"
+        p2_elo_change_str = str(p2_prior_elo_displayed) + " -> **" + str(p2_after_elo_displayed) \
+                            + "** *(" + p2_elo_indicator + p2_elo_diff_str + ")*\n"
+    else:
+        p1_elo_change_str = ""
+        p2_elo_change_str = ""
 
     color = Colors.SUCCESS
     if match["outcome"] == Outcome.PLAYER_1:
-        result = str(DB.get_players(user_id=match["p1_id"]).iloc[0]["username"]) + " won"
+        result = p1_name + " won"
     elif match["outcome"] == Outcome.PLAYER_2:
-        result = str(DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]) + " won"
+        result = p2_name + " won"
     elif match["outcome"] == Outcome.CANCEL:
         result = "Cancelled"
         color = Colors.DARK
@@ -197,7 +204,6 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
     else:
         result = "Undecided"
         color = Colors.WARNING
-
 
     if match["p1_declared"] == Outcome.PLAYER_1:
         p1_declared = "Declared win"
@@ -221,10 +227,9 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
 
     embed.add_field(name=result, value="*_ _*")
 
-
-    embed.add_field(name=str(p1_name), value=p1_elo_change_str + "\n " + p1_declared, inline=True)
+    embed.add_field(name=str(p1_name), value=p1_elo_change_str + p1_declared, inline=True)
     embed.add_field(name="vs", value="*_ _*", inline=True)
-    embed.add_field(name=str(p2_name), value=p2_elo_change_str + "\n " + p2_declared, inline=True)
+    embed.add_field(name=str(p2_name), value=p2_elo_change_str + p2_declared, inline=True)
 
     embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")
 
@@ -232,7 +237,7 @@ def describe_match(match: pd.Series, DB): # TODO take the match id
 
 
 async def announce_in_updates_channel(ctx, embed, client:tanjun.Client, content=None):
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     config = DB.get_config()
     channel_id = config["results_channel"]
@@ -251,7 +256,7 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
     players: dataframe with index user id and columns elo and is_ranked
     """
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     elo_roles = DB.get_elo_roles()
 
     try:
@@ -271,5 +276,15 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
-__all__ = ["describe_match", "announce_in_updates_channel", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue", "start_new_match",
-           "calculate_matches", "determine_is_ranked"]
+
+def player_col_for_match(match, user_id, column, opponent=False): #useful probably
+
+    if (match["p1_id"] == user_id) == (not opponent):
+
+        return match["p1_" + column]
+    elif (match["p2_id"] == user_id) == (not opponent):
+        return match["p2_" + column]
+    else:
+        raise ValueError("Player not in match")
+
+__all__ = ["describe_match", "announce_in_updates_channel", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue", "start_new_match", "calculate_matches", "determine_is_ranked", "player_col_for_match"]

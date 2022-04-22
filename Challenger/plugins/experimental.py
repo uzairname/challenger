@@ -2,6 +2,7 @@ import os
 import typing
 
 import hikari
+import pandas as pd
 from hikari import Embed
 from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
@@ -35,7 +36,6 @@ async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanju
 
 
 
-
 def player_col_for_match(match, user_id, column): #useful probably
     if match["p1_id"] == user_id:
         return match["p1_" + column]
@@ -48,7 +48,7 @@ def player_col_for_match(match, user_id, column): #useful probably
 @tanjun.as_slash_command("lol", "lol", always_defer=True)
 async def lol(ctx: tanjun.abc.Context, player):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     matches = DB.get_matches(user_id=ctx.author.id, chronological=True)
     matches2 = DB.get_matches(user_id=player.id, chronological=True)
@@ -94,14 +94,12 @@ async def lol(ctx: tanjun.abc.Context, player):
 @tanjun.as_slash_command("histogram", "lol matches", always_defer=True)
 async def histogram(ctx: tanjun.abc.Context):
 
-    DB = Session(921447683154145331)
+    DB = Guild_DB(Database_Config.B2T_GUILD_ID)
 
     matches = DB.get_matches(chronological=True)
 
 
     times = matches["time_started"].dropna()
-
-
 
 
     for i in plt.rcParams:
@@ -112,9 +110,16 @@ async def histogram(ctx: tanjun.abc.Context):
     plt.rcParams.update(params)
 
     plt.figure(figsize=(6,3))
-    plt.hist(times, bins=20)
-    plt.xticks(rotation=45)
-    plt.title("activity")
+
+    times = pd.to_datetime(times)
+
+    sns.distplot(times, hist=False, kde=True, color = 'w',
+             hist_kws={'edgecolor':'black'},
+             kde_kws={'linewidth': 4})
+
+
+    plt.xlabel("Hour of Day (UTC)")
+
     plt.savefig("plot.png", transparent=True, bbox_inches="tight")
     plt.show()
 
@@ -134,7 +139,7 @@ embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephe
 @tanjun.as_slash_command("set-elo", "set elo", always_defer=True)
 async def set_elo(ctx:tanjun.abc.Context, players:hikari.User, elo, bot=tanjun.injected(type=hikari.GatewayBot)):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     players = DB.get_players(user_id=players.id)
     if players is None:
         await ctx.edit_initial_response("Player not found!")
@@ -151,7 +156,7 @@ async def set_elo(ctx:tanjun.abc.Context, players:hikari.User, elo, bot=tanjun.i
 @tanjun.as_slash_command("bayeselo", "bayeselo", always_defer=True)
 async def test_bayeselo(ctx: tanjun.abc.Context, input, bot=tanjun.injected(type=hikari.GatewayBot)):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     match = DB.get_matches(match_id=2).iloc[0]
 
     embed = describe_match(match, DB)

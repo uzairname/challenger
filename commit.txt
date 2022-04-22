@@ -1,8 +1,5 @@
-change match update announce logic
-Doesn't announce. returns an embed and the number of players updated
-setmatch and declare functions decide how to announce it
-
-Update elo config
-Send new match update in lobby channel
-change display for matches
-
+Finalizing for stable release
+stats shows average opponent's elo
+fix match history can display ongoing matches
+updated matches only shows players whose elo changed
+fix lb buttons give error when someone other than the message user clicks them

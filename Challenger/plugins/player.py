@@ -1,10 +1,11 @@
+import numpy as np
 import tanjun
 import hikari
 
 from datetime import datetime
 
 from Challenger.utils import *
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.config import *
 
 component = tanjun.Component(name="player module")
@@ -18,7 +19,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
     await ctx.respond("please wait")
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     player_id = ctx.author.id
     players = DB.get_players(user_id=player_id)
 
@@ -49,7 +50,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 @tanjun.as_slash_command("stats", "view your or someone's stats", default_to_ephemeral=False, always_defer=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     #get the selected player
     if player:
@@ -66,6 +67,13 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         return
 
     matches = DB.get_matches(user_id=player.name)
+
+    opponent_elos = []
+
+    for id, match in matches.iterrows():
+        opponent_elos.append(player_col_for_match(match, player.name, "elo", opponent=True))
+
+    avg_opponent_elo_str = str(round(np.average(opponent_elos)))
 
     total_draws = 0
     total_wins = 0
@@ -88,12 +96,15 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     if not player["is_ranked"]:
         displayed_elo += "? (unranked)"
 
-    stats_embed = Custom_Embed(type=Embed_Type.INFO, title=f"{player['tag']}'s Stats", description="*_ _*", color=member.accent_color).set_thumbnail(member.avatar_url)
+    print(member.accent_color)
+
+    stats_embed = hikari.Embed(title=f"{player['tag']}'s Stats", description="*_ _*", color=member.accent_color).set_thumbnail(member.avatar_url)
     stats_embed.add_field(name="Elo", value=displayed_elo)
     stats_embed.add_field(name="Total matches", value=f"{total}")
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)
     stats_embed.add_field(name="Draws", value=f"{total_draws}", inline=True)
     stats_embed.add_field(name="Losses", value=f"{total_losses}", inline=True)
+    stats_embed.add_field(name="Average Opponent's elo", value=avg_opponent_elo_str)
 
     await ctx.edit_initial_response(embed=stats_embed)
 
@@ -105,7 +116,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
 
     response = await ctx.fetch_initial_response()
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     def get_leaderboard_for_page(page):
 
