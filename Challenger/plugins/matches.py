@@ -183,7 +183,8 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
 
         updated_players_str += "<@" + str(user_id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n"
 
-    await update_players_elo_roles(ctx, bot, players_after)
+    async for message in update_players_elo_roles(ctx, bot, players_after):
+        pass
 
     if new_outcome == Outcome.PLAYER_1: #refactor this
         winner_id = match["p1_id"]

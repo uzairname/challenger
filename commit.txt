@@ -1,5 +1,2 @@
-optimize update elo roles
-and add progress info
-set k back to 0.1
-remove component from info
-increase component timeout to 20 mins from 2
+bugfix: update elo roles after declaring match
+fix update elo roles breaks if member left

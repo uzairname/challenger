@@ -70,7 +70,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     response = await ctx.fetch_initial_response()
 
     user = await bot.rest.fetch_my_user()
-    member = bot.cache.get_member(ctx.guild_id, user.id)
+    member = await ctx.rest.fetch_member(ctx.guild_id, user.id)
     avatar = user.avatar_url
 
     #about
