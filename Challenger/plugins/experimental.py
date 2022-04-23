@@ -43,9 +43,6 @@ async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanju
     #     stds_1.append(initial_players.loc[initial_players["is_ranked"] == True]["elo"].std())
 
 
-
-
-
     for i in plt.rcParams:
         if plt.rcParams[i] == "black":
             plt.rcParams[i] = "w"

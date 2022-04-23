@@ -2,7 +2,7 @@ import hikari
 
 
 
-class Colors: #TODO move to utils
+class Colors:
     PRIMARY = "#ffc07d"
     SECONDARY = "#46bd76"
     DARK = "#656565"

@@ -126,10 +126,7 @@ def take_input(input_instructions:typing.Callable):
                         confirm_embed = await func(ctx=ctx, bot=bot, **kwargs)
                         break
                     elif event.interaction.custom_id == "Cancel":
-                        confirm_embed = Custom_Embed(type=Embed_Type.CANCEL)
-                        break
-                    else:
-                        confirm_embed = Custom_Embed(type=Embed_Type.ERROR, description="Invalid action.")
+                        confirm_embed = hikari.Embed(title="Cancelled", description="Command cancelled", color=Colors.DARK)
                         break
 
             if confirm_embed is not None:
@@ -143,7 +140,7 @@ def take_input(input_instructions:typing.Callable):
 
 
 
-async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, message:hikari.Message, get_page:typing.Callable, nextlabel="Next", prevlabel="Previous", nextemoji="➡️", prevemoji="⬅️", reversed=False, **kwargs):
+async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, message:hikari.Message, get_page:typing.Callable, nextlabel="Next", prevlabel="Previous", nextemoji="➡️", prevemoji="⬅️", **kwargs):
     """
     params:
         ctx: context of the command
@@ -178,10 +175,8 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
                 continue
 
             if event.interaction.custom_id == nextlabel and not is_last_page(cur_page):
-                print("Lower")
                 cur_page += 1
             elif event.interaction.custom_id == prevlabel and not is_first_page(cur_page):
-                print("Higher")
                 cur_page -= 1
 
             for i in page_navigator.components:
@@ -200,7 +195,7 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
 async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.Mapping[str, list[hikari.Embed]], page_components=None):
     """
-        pages: a mapping of page name to a list of embeds. Can't be more than 25
+        pages: a mapping of page name to a list of embeds. Length can't be more than 25
     """
 
     if page_components is None:

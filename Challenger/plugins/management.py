@@ -129,7 +129,7 @@ async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.inj
 
     DB = Guild_DB(ctx.guild_id)
 
-    def process_response():
+    def confirm():
 
         if channel is None:
             return "Please enter a channel", Embed_Type.ERROR
@@ -161,8 +161,8 @@ async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.inj
         DB.upsert_lobby(existing_queue)
         return "Updated existing lobby", Embed_Type.CONFIRM
 
-    confirm_message, embed_type = process_response()
-    confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
+    confirm_message, confirm_embed_type = confirm()
+    confirm_embed = Custom_Embed(type=confirm_embed_type, description=confirm_message)
 
     return confirm_embed
 
@@ -214,7 +214,7 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
 
     DB = Guild_DB(ctx.guild_id)
 
-    def process_response():
+    def confirm():
 
         if role is None:
             return "Select one role", Embed_Type.ERROR
@@ -230,7 +230,7 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
             DB.upsert_config(config)
             return "Removed staff role", Embed_Type.CONFIRM
 
-    confirm_message, embed_type = process_response()
+    confirm_message, embed_type = confirm()
     confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
     return confirm_embed
 
@@ -270,7 +270,7 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 @tanjun.as_slash_command("elo-roles", "link a role to an elo range", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @take_input(input_instructions=config_elo_roles_instructions)
-async def config_elo_roles(ctx, min_elo, max_elo, action, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
+async def config_elo_roles(ctx:tanjun.abc.Context, min_elo, max_elo, action, role:hikari.Role, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
 
     async def process_response(bot):
 
@@ -299,7 +299,12 @@ async def config_elo_roles(ctx, min_elo, max_elo, action, role:hikari.Role, bot=
         DB.upsert_elo_roles(df)
 
         players = DB.get_players()
-        await update_players_elo_roles(ctx, bot, players)
+        progress_message = await ctx.respond("Updating roles...", ensure_result=True)
+        async for message in update_players_elo_roles(ctx, bot, players):
+            await ctx.edit_last_response(message)
+
+
+
         return "Updated Elo Role", Embed_Type.CONFIRM
 
     confirm_message, embed_type = await process_response(bot)
