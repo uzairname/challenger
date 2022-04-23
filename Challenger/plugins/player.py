@@ -67,18 +67,23 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         return
 
     matches = DB.get_matches(user_id=player.name)
+    finished_matches = matches.loc[np.isin(matches["outcome"], Outcome.FINISHED)]
 
     opponent_elos = []
 
-    for id, match in matches.iterrows():
+    for id, match in finished_matches.iterrows():
         opponent_elos.append(player_col_for_match(match, player.name, "elo", opponent=True))
 
-    avg_opponent_elo_str = str(round(np.average(opponent_elos)))
+    if len(opponent_elos) == 0:
+        avg_opponent_elo_str = "No matches played yet"
+    else:
+        avg_opponent_elo_str = str(np.mean(opponent_elos).round(2))
+
 
     total_draws = 0
     total_wins = 0
     total_losses = 0
-    for index, match in matches.iterrows():
+    for index, match in finished_matches.iterrows():
         if match["outcome"] == Outcome.DRAW:
             total_draws += 1
 
@@ -90,21 +95,32 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         elif match["outcome"] == losing_result:
             total_losses += 1
 
-    total = total_wins + total_losses + total_draws
+    total = finished_matches.shape[0]
 
-    displayed_elo = str(round((player["elo"]),2))
+    displayed_elo = str(round((player["elo"]),1))
     if not player["is_ranked"]:
-        displayed_elo += "? (unranked)"
+        displayed_elo += "?"
+        displayed_elo_desc = "Unranked"
+    else:
+        all_players = DB.get_players()
+        all_ranked_players = all_players.loc[all_players["is_ranked"] == True]
+        place = np.sum(all_ranked_players["elo"] > player["elo"]) + 1
+        place_str = convert_to_ordinal(place)
+        displayed_elo_desc = place_str + " place"
 
-    print(member.accent_color)
+        percentile = np.sum(all_ranked_players["elo"] < player["elo"])/len(all_ranked_players.index) # "less than" percentile
+        top_percent = round((1 - percentile)*100)
+        displayed_elo_desc += " (top " + str(top_percent) + "%)"
+
+
 
     stats_embed = hikari.Embed(title=f"{player['tag']}'s Stats", description="*_ _*", color=member.accent_color).set_thumbnail(member.avatar_url)
-    stats_embed.add_field(name="Elo", value=displayed_elo)
-    stats_embed.add_field(name="Total matches", value=f"{total}")
+    stats_embed.add_field(name="Score: " + displayed_elo, value=displayed_elo_desc)
+    stats_embed.add_field(name="Average Opponent's elo", value=avg_opponent_elo_str)
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)
     stats_embed.add_field(name="Draws", value=f"{total_draws}", inline=True)
     stats_embed.add_field(name="Losses", value=f"{total_losses}", inline=True)
-    stats_embed.add_field(name="Average Opponent's elo", value=avg_opponent_elo_str)
+    stats_embed.add_field(name="Total matches", value=f"{total}")
 
     await ctx.edit_initial_response(embed=stats_embed)
 

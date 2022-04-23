@@ -8,6 +8,8 @@ from Challenger.utils import *
 from Challenger.database import Guild_DB
 from Challenger.config import *
 
+import numpy as np
+
 component = tanjun.Component(name="misc module")
 
 
@@ -20,6 +22,7 @@ async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.i
 
     start_db = time.perf_counter()
     DB = Guild_DB(ctx.guild_id)
+    DB.get_config()
     DB_time = (time.perf_counter() - start_db) * 1000
 
     heartbeat_latency = ctx.shards.heartbeat_latency * 1_000 if ctx.shards else float("NAN")
@@ -32,7 +35,7 @@ async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.i
 
     time_diff = datetime.now() - client.metadata["start_time"]
     response = f"> Database: {DB_time:.0f}ms\n> Rest: {rest_time:.0f}ms\n> Gateway: {heartbeat_latency:.0f}ms\n"
-    response += "Bot has been online for: " + str(timedelta(seconds=time_diff.total_seconds())) + "\n"
+    response += "Time since last startup: " + str(timedelta(seconds=time_diff.total_seconds())) + "\n"
 
     embed = hikari.Embed(title="PONG!", description=response, color=Colors.PRIMARY)
 
@@ -50,8 +53,8 @@ async def elo_stats(ctx):
     median_elo = all_players[all_players["is_ranked"]].median()["elo"]
 
     embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n"
-                                                                   f"Std elo:{std_elo:.2f}\n"
-                                                                   f"Median elo:{median_elo:.2f}", color=Colors.PRIMARY)
+                                                                   f"Std elo: {std_elo:.2f}\n"
+                                                                   f"Median elo: {median_elo:.2f}", color=Colors.PRIMARY)
     embed.add_field("Params", f"Starting elo: {Elo.STARTING_ELO}\n"
                               f"Scale: {Elo.SCALE}\n"
                               f"k: {Elo.K}")
@@ -109,8 +112,8 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
 
 
     explanation_str = "All matches and elo were updated based on match results and any new elo config settings"
-    def get_updated_players_for_page(page_num) -> list[hikari.Embed]:
-        page_size = 10
+    def get_updated_players_for_page(page_num):
+        page_size = 2
         start_index = page_size * page_num
         end_index = start_index + page_size
 
@@ -123,12 +126,22 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
         if start_index >= end_index:
             return None
 
-        embed = hikari.Embed(title="REFRESHED ALL MATCHES", description=explanation_str, color=Colors.PRIMARY)
-        embed.add_field(name="updated elo", value=''.join(updated_players_strs[start_index:end_index]))
-        return [embed]
+        embed = hikari.Embed(title="updated elo", description=''.join(updated_players_strs[start_index:end_index]), color=Colors.PRIMARY)
+        return embed
 
-    await ctx.edit_initial_response("Done")
-    await create_paginator(ctx, bot, message, get_updated_players_for_page)
+    def is_last_page(page_num):
+        return get_updated_players_for_page(page_num + 1) is None
+
+    await ctx.edit_initial_response(explanation_str)
+
+    cur_page = 0
+    while True:
+        await ctx.get_channel().send(embed=get_updated_players_for_page(cur_page))
+        if is_last_page(cur_page):
+            break
+        cur_page += 1
+
+
 
 
 
