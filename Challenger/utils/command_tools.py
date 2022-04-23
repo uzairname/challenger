@@ -38,7 +38,6 @@ def ensure_registered(func):
 
 
 def get_channel_lobby(func) -> typing.Callable:
-
     #checks if there's a lobby in the channel and if so, passes it to the function
 
     @functools.wraps(func)
@@ -53,6 +52,7 @@ def get_channel_lobby(func) -> typing.Callable:
         return await func(ctx=ctx, lobby=queues.iloc[0], *args, **kwargs)
 
     return wrapper
+
 
 
 def ensure_staff(func):
@@ -87,6 +87,7 @@ def ensure_staff(func):
         return await func(ctx=ctx, *args, **kwargs)
 
     return wrapper
+
 
 
 def take_input(input_instructions:typing.Callable):
@@ -214,7 +215,7 @@ async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i==default_page).add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=page_embeds[default_page], components=page_components[default_page]+[page_dropdown])
+    await ctx.edit_initial_response(embeds=page_embeds[default_page], components=page_components.get(default_page, [])+[page_dropdown])
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),

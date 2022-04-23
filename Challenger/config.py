@@ -6,7 +6,7 @@ from hikari import Permissions
 @final
 class Config:
 
-    VERSION = '1.0.0'
+    VERSION = '1.0.0 dev1'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
     OWNER_ID = 623257053879861248  # Lilapela's ID
@@ -32,7 +32,7 @@ class Elo:
     SCALE = 400
     # The elo difference which represents a 10x difference in skill. Used in elo calculation.
 
-    K_COEF = 0.1
+    K_COEF = 0.05
     K = SCALE * K_COEF
     # Maximum change in one game
 

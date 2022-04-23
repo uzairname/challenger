@@ -11,11 +11,10 @@ import sympy as sp
 class Outcome:
     PLAYER_1 = "player 1"
     PLAYER_2 = "player 2"
-    WIN = "win"
-    LOSS = "loss"
     DRAW = "draw"
     CANCEL = "cancelled"
-    UNDECIDED = "undecided"
+
+    FINISHED = [PLAYER_1, PLAYER_2, DRAW]
 
 class Declare:
     WIN = "win"
