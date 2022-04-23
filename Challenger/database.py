@@ -6,12 +6,11 @@ import time
 import numpy as np
 import pandas as pd
 import pymongo
-import alluka
 
 from Challenger.config import Database_Config
 
 
-from .temp import client
+from .temp import client #tf?
 
 class Client(pymongo.MongoClient):
 
@@ -26,7 +25,7 @@ class Client(pymongo.MongoClient):
 
 
 
-class Session:
+class Guild_DB:
 
     empty_player_df = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked"]).set_index("user_id")
 

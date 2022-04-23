@@ -6,7 +6,7 @@ import typing
 import hikari
 from hikari.interactions.base_interactions import ResponseType
 from .style import *
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.config import Config
 
 
@@ -25,7 +25,7 @@ async def on_error(ctx: tanjun.abc.Context, exception: BaseException) -> None:
 def ensure_registered(func):
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
-        DB = Session(ctx.guild_id)
+        DB = Guild_DB(ctx.guild_id)
 
         player = DB.get_players(user_id=ctx.author.id)
         if player.empty:
@@ -43,7 +43,7 @@ def get_channel_lobby(func) -> typing.Callable:
 
     @functools.wraps(func)
     async def wrapper(ctx, *args, **kwargs):
-        DB = Session(ctx.guild_id)
+        DB = Guild_DB(ctx.guild_id)
 
         queues = DB.get_lobbies(ctx.channel_id)
         if queues.empty:
@@ -63,7 +63,7 @@ def ensure_staff(func):
             if ctx.author.id == Config.OWNER_ID:
                 return True
 
-            DB = Session(ctx.guild_id)
+            DB = Guild_DB(ctx.guild_id)
 
             staff_role = DB.get_config()["staff_role"]
 
@@ -114,11 +114,13 @@ def take_input(input_instructions:typing.Callable):
 
             with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
-                ("interaction.user.id", ctx.author.id),
                 ("interaction.message.id", response.id)
             ) as stream:
                 async for event in stream:
                     await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
+                    if event.interaction.user.id != ctx.author.id:
+                        continue
+
                     if event.interaction.custom_id == "Confirm":
                         confirm_embed = await func(ctx=ctx, bot=bot, **kwargs)
                         break
@@ -168,10 +170,11 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
-            ("interaction.user.id", ctx.author.id),
             ("interaction.message.id", message.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
+            if event.interaction.user.id != ctx.author.id:
+                continue
 
             if event.interaction.custom_id == nextlabel and not is_last_page(cur_page):
                 print("Lower")
@@ -194,20 +197,24 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
 
 
-async def create_page_dropdown(ctx:tanjun.abc.Context, pages: typing.Mapping[str,list[hikari.Embed]], bot):
+async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.Mapping[str, list[hikari.Embed]], page_components=None):
     """
         pages: a mapping of page name to a list of embeds. Can't be more than 25
     """
+
+    if page_components is None:
+        page_components = {}
+
     response = await ctx.fetch_initial_response()
     page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
 
-    default_page = list(pages)[0]
+    default_page = list(page_embeds)[0]
 
-    for i in pages:
+    for i in page_embeds:
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i==default_page).add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=pages[default_page], components=[page_dropdown])
+    await ctx.edit_initial_response(embeds=page_embeds[default_page], components=page_components[default_page]+[page_dropdown])
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
@@ -219,7 +226,7 @@ async def create_page_dropdown(ctx:tanjun.abc.Context, pages: typing.Mapping[str
             for i in page_dropdown.components[0]._options:
                 i.set_is_default(i._label == page)
 
-            await ctx.edit_initial_response(embeds=pages[page], components=[page_dropdown])
+            await ctx.edit_initial_response(embeds=page_embeds[page], components=page_components.get(page, []) + [page_dropdown])
 
 
 __all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error", "create_paginator", "create_page_dropdown"]

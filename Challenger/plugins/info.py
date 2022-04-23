@@ -78,7 +78,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
 
     pages = {"Basics": [basics_embed], "Staff Commands":[staff_embed], "Utility":[util_embed]}
 
-    await create_page_dropdown(ctx, pages, bot)
+    await create_page_dropdown(ctx, bot, pages)
 
 
 
@@ -103,16 +103,18 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
         perms_message = f":white_check_mark: This bot has all the required permissions"
     about_embed.add_field(name="Permissions", value=perms_message, inline=True)
     about_embed.add_field(name="Version", value=f"{Config.VERSION}", inline=True)
-    about_embed.add_field(name="Github", value=f"[View the source code]({Config.GITHUB_LINK})", inline=True)
-    about_embed.add_field(name=f"Invite link", value=f"[Invite]({Config.INVITE_LINK})", inline=True)
-    about_embed.add_field(name="Discord", value=f"[Bot's server]({Config.DISCORD_INVITE_LINK})", inline=True)
     about_embed.set_footer(text="Lilapela#5348")
+
+    about_btn_row = ctx.rest.build_action_row()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_INVITE_LINK).set_label("Support Server").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.INVITE_LINK).set_label("Bot Invite").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.GITHUB_LINK).set_label("Github").add_to_container()
 
 
     features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="<:reply:966765324013801532>Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
     features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). See a visualization of how it works here [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
-    features_embed.add_field(name=":large_orange_diamond: Elo Roles", value="You can specify roles to be automatically assigned to players of a certain elo")
+    features_embed.add_field(name=":large_orange_diamond: Elo Ranks", value="You can specify roles to be automatically assigned to players of a certain elo")
     features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard for your discord server")
     features_embed.add_field(name=":scroll: History and stats", value="View everyone's match history and detailed competetive stats")
     features_embed2 = hikari.Embed(title="Special", description="Features that set Challenger apart from other elo bots", colour=Colors.PRIMARY)
@@ -129,8 +131,9 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
 
 
     pages = {"About": [about_embed], "Features":[features_embed, features_embed2], "Future Plans": [future_embed]}
+    components = {"About": [about_btn_row]}
 
-    await create_page_dropdown(ctx, pages, bot)
+    await create_page_dropdown(ctx, bot, pages, page_components=components)
 
 
 info = tanjun.Component(name="info", strict=True).load_from_scope().make_loader()

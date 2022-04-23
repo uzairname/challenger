@@ -4,7 +4,7 @@ import pandas as pd
 
 from Challenger.utils import *
 from Challenger.config import Config
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 
 
 config = tanjun.slash_command_group("config", "Change the bot settings", default_to_ephemeral=False)
@@ -15,7 +15,7 @@ config = tanjun.slash_command_group("config", "Change the bot settings", default
 @tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=True, always_defer=True)
 async def config_help(ctx):
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Config Help", description="Staff can use the following commands to change the bot settings type `/config [command name]` to use them")
+    embed = hikari.Embed(title="Config Help", description="Staff can use the following commands to change the bot settings type `/config [command name]` to use them", color=Colors.PRIMARY)
     embed.add_field(name="`view`", value="View the current config settings")
     embed.add_field(name="`lobbies`", value="View, add, or remove lobbies")
     embed.add_field(name="`staff`", value="Link or unlink a role to bot staff")
@@ -32,7 +32,7 @@ async def config_help(ctx):
 @tanjun.as_slash_command("view", "View the config settings", default_to_ephemeral=True, always_defer=True)
 async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     lobbies_list = ""
     all_lobbies = DB.get_lobbies()
@@ -64,7 +64,7 @@ async def config_view(ctx, client=tanjun.injected(type=tanjun.abc.Client)):
         elo_roles_list += "\n<@&" + str(index) + ">: " + str(role["min_elo"]) + " to " + str(role["max_elo"])
 
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Config", description="Current config settings")
+    embed = hikari.Embed(title="Config", description="Current config settings", color=Colors.PRIMARY)
     embed.add_field(name="Lobbies", value=lobbies_list)
     embed.add_field(name="Staff", value=staff_list)
     embed.add_field(name="Elo Roles", value=elo_roles_list)
@@ -82,11 +82,11 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
         DB: Database object
         embed: hikari.Embed to add to
     """
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
-    embed = Custom_Embed(type=Embed_Type.INFO,
+    embed = hikari.Embed(
         title="Setup 1v1 lobbies",
-        description="Each lobby has its own separate 1v1 queue, and is assigned to a channel. Enter the lobby name and the channel id. To delete a lobby, select the delete option. Required roles are optional. If specified, only players with those roles can join the queue in the lobby. To remove required roles from a lobby, enter no roles.")
+        description="Each lobby has its own separate 1v1 queue, and is assigned to a channel. Enter the lobby name and the channel id. To delete a lobby, select the delete option. Required roles are optional. If specified, only players with those roles can join the queue in the lobby. To remove required roles from a lobby, enter no roles.", color=Colors.PRIMARY)
 
     lobbies_list = ""
     all_lobbies = DB.get_lobbies()
@@ -127,7 +127,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @take_input(input_instructions=config_lobby_instructions)
 async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     def process_response():
 
@@ -162,7 +162,7 @@ async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.inj
         return "Updated existing lobby", Embed_Type.CONFIRM
 
     confirm_message, embed_type = process_response()
-    confirm_embed = Custom_Embed(type=embed_type, title="", description=confirm_message)
+    confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
 
     return confirm_embed
 
@@ -170,7 +170,7 @@ async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.inj
 
 async def config_staff_instructions(ctx:tanjun.abc.Context, action, role:hikari.PartialRole, client=tanjun.injected(type=tanjun.abc.Client)):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     staff_role = DB.get_config()["staff_role"]
 
@@ -190,6 +190,7 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, action, role:hikari.
         selection += "**Unlinking**\n"
     else:
         selection += "**No action specified**\n"
+
     if role is None:
         selection = "No role specified"
     else:
@@ -204,14 +205,14 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, action, role:hikari.
 
 @config.with_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="Nothing")
+@tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="link role")
 @tanjun.with_role_slash_option("role", "role", default=None)
 @tanjun.as_slash_command("staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @take_input(input_instructions=config_staff_instructions)
 async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injected(type=hikari.GatewayBot), **kwargs) -> hikari.Embed:
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     def process_response():
 
@@ -223,7 +224,7 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
         if action == "link role":
             config["staff_role"] = role.id
             DB.upsert_config(config)
-            return "Linked staff with " + role.mention, Embed_Type.CONFIRM
+            return "Bot staff is now " + role.mention, Embed_Type.CONFIRM
         elif action == "unlink role":
             config["staff_role"] = None
             DB.upsert_config(config)
@@ -237,7 +238,7 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
 #config elo roles
 async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, min_elo, max_elo, **kwargs):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     selection = ""
 
@@ -277,7 +278,7 @@ async def config_elo_roles(ctx, min_elo, max_elo, action, role:hikari.Role, bot=
             return "Select one role", Embed_Type.ERROR
         role_id = role.id
 
-        DB = Session(ctx.guild_id)
+        DB = Guild_DB(ctx.guild_id)
 
         if action == "unlink role":
             DB.delete_elo_role(role_id)
@@ -309,7 +310,7 @@ async def config_elo_roles(ctx, min_elo, max_elo, action, role:hikari.Role, bot=
 
 async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, channel, **kwargs):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     results_channel = DB.get_config()["results_channel"]
 
@@ -346,7 +347,7 @@ async def config_results_channel(ctx:tanjun.abc.Context, action, channel, bot=ta
 
     def process_repsonse():
 
-        DB = Session(ctx.guild_id)
+        DB = Guild_DB(ctx.guild_id)
         config = DB.get_config()
 
         if action == "remove":
@@ -383,7 +384,7 @@ async def reset_data(ctx: tanjun.abc.SlashContext, bot=tanjun.injected(type=hika
 
     def process_response():
 
-        DB = Session(ctx.guild_id)
+        DB = Guild_DB(ctx.guild_id)
 
         DB.delete_all_matches()
         DB.delete_all_players()

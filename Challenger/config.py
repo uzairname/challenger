@@ -10,7 +10,7 @@ class Config:
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
     OWNER_ID = 623257053879861248  # Lilapela's ID
-    DEV_GUILD_ID = 907729885726933043 # lilap
+    DEV_GUILD_ID = 907729885726933043 # Testing discord server
     DISCORD_INVITE_LINK = "https://discord.gg/bunZ3gadBU"
 
     REQUIRED_PERMISSIONS = Permissions.VIEW_CHANNEL | Permissions.SEND_MESSAGES | Permissions.EMBED_LINKS | Permissions.MANAGE_ROLES
@@ -31,9 +31,6 @@ class Elo:
 
     SCALE = 400
     # The elo difference which represents a 10x difference in skill. Used in elo calculation.
-    # The coefficient is a hyperparameter. I think it just tries to ensure that the actual std matches the wanted std
-
-    STD = SCALE*0.69 # Estimated standard deviation, used only in bayeselo calculation. Not sure if this is right. should probably take into account k
 
     K_COEF = 0.1
     K = SCALE * K_COEF

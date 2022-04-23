@@ -3,7 +3,7 @@ import tanjun
 import os
 from datetime import datetime
 
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.config import Config
 from Challenger.utils.command_tools import on_error
 
@@ -31,7 +31,7 @@ def build_client(bot:hikari.GatewayBot):
 async def on_guild_available(event:hikari.GuildAvailableEvent):
 
     print(event.guild.name)
-    DB = Session(event.guild.id)
+    DB = Guild_DB(event.guild.id)
     DB.create_collections()
     config = DB.get_config()
     config["guild_name"] = event.guild.name

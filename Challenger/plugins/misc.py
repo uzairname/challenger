@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import functools
 
 from Challenger.utils import *
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.config import *
 
 component = tanjun.Component(name="misc module")
@@ -19,7 +19,7 @@ async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.i
     start_time = time.perf_counter()
 
     start_db = time.perf_counter()
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     DB_time = (time.perf_counter() - start_db) * 1000
 
     heartbeat_latency = ctx.shards.heartbeat_latency * 1_000 if ctx.shards else float("NAN")
@@ -41,17 +41,19 @@ async def ping_command(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.i
 
 @tanjun.as_slash_command("elo-stats", "the server's elo stats", always_defer=True)
 async def elo_stats(ctx):
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     all_players = DB.get_players()
 
     avg_elo = all_players[all_players["is_ranked"]].mean()["elo"]
     std_elo = all_players[all_players["is_ranked"]].std()["elo"]
+    median_elo = all_players[all_players["is_ranked"]].median()["elo"]
 
-    embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n Std elo:{std_elo:.2f}", color=Colors.PRIMARY)
+    embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n"
+                                                                   f"Std elo:{std_elo:.2f}\n"
+                                                                   f"Median elo:{median_elo:.2f}", color=Colors.PRIMARY)
     embed.add_field("Params", f"Starting elo: {Elo.STARTING_ELO}\n"
                               f"Scale: {Elo.SCALE}\n"
-                              f"Predicted std: {Elo.STD}\n"
                               f"k: {Elo.K}")
 
     await ctx.respond(embed=embed)
@@ -63,7 +65,7 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
 
     message = await ctx.respond("Getting matches...", ensure_result=True)
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     all_matches = DB.get_matches()
 
     await ctx.edit_initial_response("Recalculating matches...")
@@ -74,7 +76,7 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
     reduced_players_df["elo"] = Elo.STARTING_ELO
 
     start_time = time.perf_counter()
-    updated_matches, updated_players = calculate_matches(all_matches, match_id=1, updated_players=reduced_players_df, update_all=True)
+    updated_matches, updated_players = recalculate_matches(all_matches, match_id=1, updated_players=reduced_players_df, update_all=True)
     print("calculate matches time taken:" + str(time.perf_counter() - start_time))
 
     start_time = time.perf_counter()

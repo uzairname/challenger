@@ -2,6 +2,7 @@ import os
 import typing
 
 import hikari
+import pandas as pd
 from hikari import Embed
 from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
@@ -22,16 +23,51 @@ import seaborn as sns
 
 
 
-@tanjun.as_slash_command("temp-test", "something", default_to_ephemeral=False)
+@tanjun.as_slash_command("temp-test", "something", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
 
 
-    guild = bot.cache.get_guilds_view()[Database_Config.B2T_GUILD_ID]
+    DB = Guild_DB(Database_Config.B2T_GUILD_ID)
 
-    id = guild.owner_id
+    initial_players = DB.get_players()
+    # all_matches = DB.get_matches(chronological=True)
+    #
+    # initial_players["elo"] = 1000
+    #
+    # stds_1 = []
+    #
+    # for id, match in all_matches.iterrows():
+    #     initial_players.loc[match["p1_id"], "elo"] = match["p1_elo_after"]
+    #     initial_players.loc[match["p2_id"], "elo"] = match["p2_elo_after"]
+    #     stds_1.append(initial_players.loc[initial_players["is_ranked"] == True]["elo"].std())
 
-    await ctx.edit_initial_response("<@"+str(id)+">")
+
+
+
+
+    for i in plt.rcParams:
+        if plt.rcParams[i] == "black":
+            plt.rcParams[i] = "w"
+    # black background
+    params = {"legend.framealpha":0}
+    plt.rcParams.update(params)
+    plt.figure(figsize=(6,3))
+    plt.hist(initial_players.loc[initial_players["is_ranked"] == True]["elo"])
+
+    plt.legend()
+
+    plt.savefig("plot.png", transparent=True)
+    plt.show()
+
+
+    embed = hikari.Embed(title="test", description="test")
+    embed.set_image("plot.png")
+    await ctx.edit_initial_response(embed=embed)
+    os.remove("plot.png")
+
+
+
 
 
 
@@ -48,7 +84,7 @@ def player_col_for_match(match, user_id, column): #useful probably
 @tanjun.as_slash_command("lol", "lol", always_defer=True)
 async def lol(ctx: tanjun.abc.Context, player):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
 
     matches = DB.get_matches(user_id=ctx.author.id, chronological=True)
     matches2 = DB.get_matches(user_id=player.id, chronological=True)
@@ -94,14 +130,12 @@ async def lol(ctx: tanjun.abc.Context, player):
 @tanjun.as_slash_command("histogram", "lol matches", always_defer=True)
 async def histogram(ctx: tanjun.abc.Context):
 
-    DB = Session(921447683154145331)
+    DB = Guild_DB(Database_Config.B2T_GUILD_ID)
 
     matches = DB.get_matches(chronological=True)
 
 
     times = matches["time_started"].dropna()
-
-
 
 
     for i in plt.rcParams:
@@ -112,9 +146,16 @@ async def histogram(ctx: tanjun.abc.Context):
     plt.rcParams.update(params)
 
     plt.figure(figsize=(6,3))
-    plt.hist(times, bins=20)
-    plt.xticks(rotation=45)
-    plt.title("activity")
+
+    times = pd.to_datetime(times)
+
+    sns.distplot(times, hist=False, kde=True, color = 'w',
+             hist_kws={'edgecolor':'black'},
+             kde_kws={'linewidth': 4})
+
+
+    plt.xlabel("Hour of Day (UTC)")
+
     plt.savefig("plot.png", transparent=True, bbox_inches="tight")
     plt.show()
 
@@ -134,7 +175,7 @@ embed = tanjun.slash_command_group("embed", "Work with Embeds!", default_to_ephe
 @tanjun.as_slash_command("set-elo", "set elo", always_defer=True)
 async def set_elo(ctx:tanjun.abc.Context, players:hikari.User, elo, bot=tanjun.injected(type=hikari.GatewayBot)):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     players = DB.get_players(user_id=players.id)
     if players is None:
         await ctx.edit_initial_response("Player not found!")
@@ -151,7 +192,7 @@ async def set_elo(ctx:tanjun.abc.Context, players:hikari.User, elo, bot=tanjun.i
 @tanjun.as_slash_command("bayeselo", "bayeselo", always_defer=True)
 async def test_bayeselo(ctx: tanjun.abc.Context, input, bot=tanjun.injected(type=hikari.GatewayBot)):
 
-    DB = Session(ctx.guild_id)
+    DB = Guild_DB(ctx.guild_id)
     match = DB.get_matches(match_id=2).iloc[0]
 
     embed = describe_match(match, DB)

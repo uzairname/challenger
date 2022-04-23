@@ -3,7 +3,7 @@ import unittest
 import pandas as pd
 
 from Challenger.config import Config
-from Challenger.database import Session
+from Challenger.database import Guild_DB
 from Challenger.utils import *
 
 from datetime import datetime, timedelta
@@ -25,7 +25,7 @@ class Test_Bayeselo(unittest.TestCase):
 class Test(unittest.TestCase):
 
     def test_test(self):
-        DB = Session()
+        DB = Guild_DB()
         DB.delete_database()
         DB.create_collections()
 
@@ -37,7 +37,7 @@ class Test(unittest.TestCase):
 class Test_DB(unittest.TestCase):
 
     def setup_db(self):
-        DB = Session(1)
+        DB = Guild_DB(1)
         DB.delete_database()
         DB.create_collections()
 
@@ -47,7 +47,7 @@ class Test_DB(unittest.TestCase):
         Adds a new match and gets it back. checks if the match is the same
         """
 
-        DB = Session(1)
+        DB = Guild_DB(1)
         DB.delete_all_matches()
 
         match = DB.get_new_match()
@@ -62,7 +62,7 @@ class Test_DB(unittest.TestCase):
 
     def test_get_matches(self):
 
-        DB = Session(1)
+        DB = Guild_DB(1)
         DB.delete_all_matches()
         assert DB.get_matches().equals(DB.empty_match_df)
 
@@ -81,7 +81,7 @@ class Test_DB(unittest.TestCase):
 
     def test_reset(self):
 
-        DB = Session(1)
+        DB = Guild_DB(1)
 
 
 
