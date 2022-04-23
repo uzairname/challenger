@@ -90,7 +90,7 @@ async def start_announce_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
 
     DB.upsert_match(new_match)
 
-    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
+    embed = hikari.Embed(title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"], color=Colors.PRIMARY)
 
     await ctx.get_channel().send(content=p1_ping+ " " + p2_ping, embed=embed, user_mentions=True)
 

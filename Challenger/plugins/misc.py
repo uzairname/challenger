@@ -8,7 +8,7 @@ from Challenger.utils import *
 from Challenger.database import Guild_DB
 from Challenger.config import *
 
-import numpy as np
+
 
 component = tanjun.Component(name="misc module")
 
@@ -51,6 +51,12 @@ async def elo_stats(ctx):
     avg_elo = all_players[all_players["is_ranked"]].mean()["elo"]
     std_elo = all_players[all_players["is_ranked"]].std()["elo"]
     median_elo = all_players[all_players["is_ranked"]].median()["elo"]
+
+
+
+
+
+
 
     embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n"
                                                                    f"Std elo: {std_elo:.2f}\n"
@@ -107,13 +113,14 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
 
     start_time = time.perf_counter()
     await ctx.edit_initial_response("Updating elo roles...")
-    await update_players_elo_roles(ctx, bot, updated_players)
+    async for message in update_players_elo_roles(ctx, bot, updated_players):
+        await ctx.edit_last_response(message)
     print("update players elo roles time taken:" + str(time.perf_counter() - start_time))
 
 
     explanation_str = "All matches and elo were updated based on match results and any new elo config settings"
     def get_updated_players_for_page(page_num):
-        page_size = 2
+        page_size = 10
         start_index = page_size * page_num
         end_index = start_index + page_size
 

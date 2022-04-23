@@ -8,8 +8,6 @@ import typing
 from Challenger.utils import *
 from Challenger.config import Config
 
-component = tanjun.Component(name="hi module")
-
 
 
 future_features_str = """
@@ -26,9 +24,8 @@ future_features_str = """
 """
 
 
-@component.with_slash_command
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.as_slash_command("challenger-help", "how to use", default_to_ephemeral=True, always_defer=True)
+@tanjun.as_slash_command("help-challenger", "how to use", default_to_ephemeral=True, always_defer=True)
 async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
 
     basics_embed = hikari.Embed(title="Basic Use",
@@ -50,7 +47,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
                          inline=True)
     util_embed.add_field(name="Bot related", value=
     "`/about` - Learn about the bot\n"
-    "`/challenger-help` - Get help on how to use the bot\n"
+    "`/help-challenger` - Get help on how to use the bot\n"
     "`/ping` - Check the bot's response time\n")
 
     staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=Colors.PRIMARY)
@@ -67,7 +64,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
 
 
 
-@component.with_slash_command
+
 @tanjun.as_slash_command("about", "About", default_to_ephemeral=False, always_defer=True)
 async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)) -> None:
     response = await ctx.fetch_initial_response()
@@ -79,7 +76,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     #about
     about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot. 1v1 other players to climb the leaderboards, and have access to a variety of competitive features entirely within discord! Use the dropdown to explore more", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
-    about_embed.add_field(name=f"How to use", value=f"Use `/challenger-help` for instructions and commands", inline=True)
+    about_embed.add_field(name=f"How to use", value=f"Use `/help-challenger` for instructions and commands", inline=True)
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
     missing_perms = Config.REQUIRED_PERMISSIONS & ~bot_perms
     if missing_perms:

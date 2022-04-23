@@ -1,8 +1,5 @@
-bugfix: help components display
-stats shows percentile and place
-bugfix: ping shows database time correctly
-rename help to challenger-help because so many bots have help
-show prior elo in describe match
-refresh all matches shows everyone at once
-fix k factor
-update about
+optimize update elo roles
+and add progress info
+set k back to 0.1
+remove component from info
+increase component timeout to 20 mins from 2

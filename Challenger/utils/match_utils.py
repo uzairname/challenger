@@ -3,7 +3,9 @@ import hikari
 import tanjun
 import re
 import numpy as np
-from datetime import datetime
+
+
+import time
 import asyncio
 import pandas as pd
 from Challenger.config import *
@@ -12,12 +14,6 @@ from .scoring import *
 from .style import *
 from ..database import Guild_DB
 
-
-def transform(old_value, old_avg, old_std, new_avg, new_std):
-    """
-    Given a value on a normal distribution, transform it to a new normal distribution
-    """
-    return ((old_value-old_avg)/old_std)*new_std+new_avg
 
 
 def recalculate_matches(matches, match_id, new_outcome=None, updated_players=None, update_all=False) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -235,25 +231,97 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
     players: dataframe with index user id and columns elo and is_ranked
     """
 
+
     DB = Guild_DB(ctx.guild_id)
     elo_roles = DB.get_elo_roles()
 
+    total_get_roles = 0
+    total_set_roles = 0
+    total_other = 0
+    total_this = 0
+
+    roles_gotten = 0
+    roles_set = 0
+
+
+    players_updated = 0
+
+    start_start_time = time.time()
     try:
         for user_id, player in players.iterrows():
 
+            players_updated += 1
+            yield  "updating elo roles (" + str(round(100 * players_updated / players.shape[0])) + "%)"
+
+            start_time = time.time()
+            current_roles = (await ctx.rest.fetch_member(ctx.guild_id, user_id)).get_roles()
+            current_roles = [role.id for role in current_roles]
+
+
+            print("current roles:", current_roles)
+            roles_gotten += 1
+            total_get_roles += time.time() - start_time
+
             for role_id, role_info in elo_roles.iterrows():
 
+                start_time = time.time()
                 if not player["is_ranked"]:
-                    await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+                    total_other += time.time() - start_time
+
+                    if role_id in current_roles:
+
+                        print("Removing role " + str(role_id) + " from " + str(user_id))
+
+                        start_time = time.time()
+                        await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+                        roles_set += 1
+                        total_set_roles += time.time() - start_time
                     continue
 
+                start_this = time.time()
                 if role_info["min_elo"] <= player["elo"] <= role_info["max_elo"]:
-                    await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
+                    total_other += time.time() - start_time
+
+                    if not role_id in current_roles:
+                        print("Adding role " + str(role_id) + " to " + str(user_id))
+
+                        start_time = time.time()
+                        await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
+                        roles_set += 1
+                        total_set_roles += time.time() - start_time
+                    else:
+                        print("Already has role " + str(role_id) + " on " + str(user_id))
                 else:
-                    await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+                    total_other += time.time() - start_time
+
+                    start_time = time.time()
+                    if role_id in current_roles:
+                        print("Removing role " + str(role_id) + " from " + str(user_id))
+                        total_other += time.time() - start_time
+
+                        start_time = time.time()
+                        await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
+                        roles_set += 1
+                        total_set_roles += time.time() - start_time
+
+
+            # start_time = time.time()
+            # yield "Updated elo roles for " + str(user_id)
+            # total_this += time.time() - start_time
 
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
+
+
+    print("Updated elo roles in " + str(time.time() - start_start_time) + " seconds")
+    print("Total time to get roles: " + str(total_get_roles))
+    print("Roles gotten: " + str(roles_gotten))
+    print("Total time to set roles: " + str(total_set_roles))
+    print("Roles set: " + str(roles_set))
+    print("Total time to do other stuff: " + str(total_other))
+    print("THIS time: " + str(total_this))
+
+    yield "done"
 
 
 def player_col_for_match(match, user_id, column, opponent=False): #useful probably
