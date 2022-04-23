@@ -254,7 +254,11 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
             yield  "updating elo roles (" + str(round(100 * players_updated / players.shape[0])) + "%)"
 
             start_time = time.time()
-            current_roles = (await ctx.rest.fetch_member(ctx.guild_id, user_id)).get_roles()
+            try:
+                current_roles = (await ctx.rest.fetch_member(ctx.guild_id, user_id)).get_roles()
+            except hikari.NotFoundError:
+                continue
+
             current_roles = [role.id for role in current_roles]
 
 
