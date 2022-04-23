@@ -197,20 +197,24 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
 
 
-async def create_page_dropdown(ctx:tanjun.abc.Context, pages: typing.Mapping[str,list[hikari.Embed]], bot):
+async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.Mapping[str, list[hikari.Embed]], page_components=None):
     """
         pages: a mapping of page name to a list of embeds. Can't be more than 25
     """
+
+    if page_components is None:
+        page_components = {}
+
     response = await ctx.fetch_initial_response()
     page_dropdown = ctx.rest.build_action_row().add_select_menu("page select").set_min_values(1).set_max_values(1)
 
-    default_page = list(pages)[0]
+    default_page = list(page_embeds)[0]
 
-    for i in pages:
+    for i in page_embeds:
         page_dropdown = page_dropdown.add_option(i, i).set_is_default(i==default_page).add_to_menu()
     page_dropdown = page_dropdown.add_to_container()
 
-    await ctx.edit_initial_response(embeds=pages[default_page], components=[page_dropdown])
+    await ctx.edit_initial_response(embeds=page_embeds[default_page], components=page_components[default_page]+[page_dropdown])
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
@@ -222,7 +226,7 @@ async def create_page_dropdown(ctx:tanjun.abc.Context, pages: typing.Mapping[str
             for i in page_dropdown.components[0]._options:
                 i.set_is_default(i._label == page)
 
-            await ctx.edit_initial_response(embeds=pages[page], components=[page_dropdown])
+            await ctx.edit_initial_response(embeds=page_embeds[page], components=page_components.get(page, []) + [page_dropdown])
 
 
 __all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error", "create_paginator", "create_page_dropdown"]

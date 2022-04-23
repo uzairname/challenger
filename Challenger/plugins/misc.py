@@ -47,11 +47,13 @@ async def elo_stats(ctx):
 
     avg_elo = all_players[all_players["is_ranked"]].mean()["elo"]
     std_elo = all_players[all_players["is_ranked"]].std()["elo"]
+    median_elo = all_players[all_players["is_ranked"]].median()["elo"]
 
-    embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n Std elo:{std_elo:.2f}", color=Colors.PRIMARY)
+    embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n"
+                                                                   f"Std elo:{std_elo:.2f}\n"
+                                                                   f"Median elo:{median_elo:.2f}", color=Colors.PRIMARY)
     embed.add_field("Params", f"Starting elo: {Elo.STARTING_ELO}\n"
                               f"Scale: {Elo.SCALE}\n"
-                              f"Predicted std: {Elo.STD}\n"
                               f"k: {Elo.K}")
 
     await ctx.respond(embed=embed)
@@ -74,7 +76,7 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
     reduced_players_df["elo"] = Elo.STARTING_ELO
 
     start_time = time.perf_counter()
-    updated_matches, updated_players = calculate_matches(all_matches, match_id=1, updated_players=reduced_players_df, update_all=True)
+    updated_matches, updated_players = recalculate_matches(all_matches, match_id=1, updated_players=reduced_players_df, update_all=True)
     print("calculate matches time taken:" + str(time.perf_counter() - start_time))
 
     start_time = time.perf_counter()

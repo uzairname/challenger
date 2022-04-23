@@ -152,7 +152,7 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
         matches.loc[match_id, "staff_declared"] = new_outcome
 
     start_time = time.time()
-    matches_updated, players_after = calculate_matches(matches, match.name, new_outcome)
+    matches_updated, players_after = recalculate_matches(matches, match.name, new_outcome)
     print("Updated " + str(matches_updated.index.size) + " matches in", time.time() - start_time) #measure time
     DB.upsert_matches(matches_updated)
 

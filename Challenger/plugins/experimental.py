@@ -23,16 +23,52 @@ import seaborn as sns
 
 
 
-@tanjun.as_slash_command("temp-test", "something", default_to_ephemeral=False)
+@tanjun.as_slash_command("temp-test", "something", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
 
 
-    guild = bot.cache.get_guilds_view()[Database_Config.B2T_GUILD_ID]
+    DB = Guild_DB(Database_Config.B2T_GUILD_ID)
 
-    id = guild.owner_id
+    initial_players = DB.get_players()
+    # all_matches = DB.get_matches(chronological=True)
+    #
+    # initial_players["elo"] = 1000
+    #
+    # stds_1 = []
+    #
+    # for id, match in all_matches.iterrows():
+    #     initial_players.loc[match["p1_id"], "elo"] = match["p1_elo_after"]
+    #     initial_players.loc[match["p2_id"], "elo"] = match["p2_elo_after"]
+    #     stds_1.append(initial_players.loc[initial_players["is_ranked"] == True]["elo"].std())
 
-    await ctx.edit_initial_response("<@"+str(id)+">")
+
+
+
+
+    for i in plt.rcParams:
+        if plt.rcParams[i] == "black":
+            plt.rcParams[i] = "w"
+    # black background
+    params = {"legend.framealpha":0}
+    plt.rcParams.update(params)
+    plt.figure(figsize=(6,3))
+    plt.hist(initial_players.loc[initial_players["is_ranked"] == True]["elo"])
+
+    plt.legend()
+
+    plt.savefig("plot.png", transparent=True)
+    plt.show()
+
+
+    embed = hikari.Embed(title="test", description="test")
+    embed.set_image("plot.png")
+    await ctx.edit_initial_response(embed=embed)
+    os.remove("plot.png")
+
+
+
+
 
 
 

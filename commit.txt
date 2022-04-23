@@ -1,5 +1,2 @@
-Finalizing for stable release
-stats shows average opponent's elo
-fix match history can display ongoing matches
-updated matches only shows players whose elo changed
-fix lb buttons give error when someone other than the message user clicks them
+Button links on about
+show median elo

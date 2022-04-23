@@ -69,7 +69,30 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 
         await remove_from_queue(DB, lobby)
 
-        await start_new_match(ctx, p1_info, p2_info, client=client)
+        await start_announce_new_match(ctx, p1_info, p2_info)
+
+
+async def start_announce_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
+    """creates a new match between the 2 players and announces it to the channel"""
+
+    DB = Guild_DB(ctx.guild_id)
+
+    p1_ping = "<@" + str(p1_info.name) + ">"
+    p2_ping = "<@" + str(p2_info.name) + ">"
+
+    p1_is_ranked = p1_info["is_ranked"]
+    p2_is_ranked = p2_info["is_ranked"]
+
+    new_match = DB.get_new_match()
+
+    new_match[["time_started", "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = \
+        [datetime.now(), p1_info.name, p2_info.name, p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
+
+    DB.upsert_match(new_match)
+
+    embed = Custom_Embed(type=Embed_Type.INFO, title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"])
+
+    await ctx.get_channel().send(content=p1_ping+ " " + p2_ping, embed=embed, user_mentions=True)
 
 
 #leave queue
