@@ -1,2 +1,4 @@
-setmatch option to specify player
-add blank constant
+Improve config ui and fix some bugs
+fix config staff dependency injection
+config lobby input displayed well
+improve wording

@@ -15,11 +15,11 @@ config = tanjun.slash_command_group("config", "Change the bot settings", default
 @tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=True, always_defer=True)
 async def config_help(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
 
-    help_embed = hikari.Embed(title="Config Help", description="Staff can use the following commands to change the bot settings. Type `/config [command name]` to use them", color=Colors.PRIMARY)
+    help_embed = hikari.Embed(title="Config Help", description="Staff can use the following commands to change the bot settings. Type `/config [command name]` to use them. Enter the command without any parameters too view the command instructions.", color=Colors.PRIMARY)
     help_embed.add_field(name="`lobbies`", value="View, add, or remove lobbies")
-    help_embed.add_field(name="`staff`", value="Link or unlink a role to bot staff")
+    help_embed.add_field(name="`staff`", value="Specify a role to link to bot staff. To reset this to the default, set the option \"action\" to \"unlink role\"")
     help_embed.add_field(name="`elo-roles`", value="Set or unset roles that are automatically assigned to players based on their elo")
-    help_embed.add_field(name="`match-updates-channel`", value="Set the channel for match updates")
+    help_embed.add_field(name="`match-updates-channel`", value="Set the channel where results of 1v1s are announced. By default, announcements are made in the channel where players declare the results of their 1v1s")
     help_embed.add_field(name="`reset`", value="Reset all player and match data. Other settings will be preserved.")
 
 
@@ -39,15 +39,10 @@ async def config_help(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.in
     if staff_role is None:
         staff_list = "No staff role specified. Anyone with the \"manage server\" permission is considered staff"
     else:
-        staff_list = "Current staff role: <@&" + str(staff_role) + ">\nStaff:"
-    members = client.rest.fetch_members(ctx.guild_id)
-    async for member in members:
-        if staff_role in member.role_ids:
-            staff_list += "\n" + member.username
+        staff_list = "Current staff role: <@&" + str(staff_role) + ">"
 
 
     elo_roles_list = ""
-
     elo_roles = DB.get_elo_roles()
     if elo_roles.empty:
         elo_roles_list = "No elo roles"
@@ -84,8 +79,8 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
     for index, lobby in all_lobbies.iterrows():
         lobbies_list += "\nLobby \"**" + str(lobby["lobby_name"]) + "**\" in channel <#" + str(
             lobby["channel_id"]) + ">"
-        if lobby["role_required"]:
-            lobbies_list += "\nWith required role <#" + lobby["role_required"] + ">"
+        if lobby["required_role"]:
+            lobbies_list += "\nWith required role <#" + lobby["required_role"] + ">"
 
     selection = ""
     if action == "delete":
@@ -95,14 +90,18 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
     else:
         selection += "**No action**\n"
 
-    selection += "In channel: <#" + str(channel.id) + ">\n"
-    if name:
-        selection += "With name: " + name + "\n"
-    if role_required:
-        selection += "With required role: " + role_required.mention + "\n"
+    if channel:
+        selection += "In channel: <#" + str(channel.id) + ">\n"
+        if name:
+            selection += "With name: " + name + "\n"
+        if role_required:
+            selection += "With required role: " + role_required.mention + "\n"
+    else:
+        selection = ""
 
     embed.add_field(name="Current lobbies", value=lobbies_list)
-    embed.add_field(name="Your selection", value=selection)
+    if selection:
+        embed.add_field(name="Your selection", value=selection)
     return embed
 
 @config.with_command
@@ -114,7 +113,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @tanjun.as_slash_command("lobbies", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @confirm_cancel_input(input_instructions=config_lobby_instructions)
-async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
+async def config_lobby(ctx:tanjun.abc.Context, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
 
     DB = Guild_DB(ctx.guild_id)
 
@@ -137,7 +136,7 @@ async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.inj
             if name is None:
                 return "Please enter a name", Embed_Type.ERROR
             new_queue["lobby_name"] = name
-            new_queue["role_required"] = role_required
+            new_queue["required_role"] = role_required
             DB.upsert_lobby(new_queue)
             return "Added new lobby", Embed_Type.CONFIRM
 
@@ -146,7 +145,7 @@ async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.inj
         if name:
             existing_queue["lobby_name"] = name
 
-        existing_queue["role_required"] = role_required
+        existing_queue["required_role"] = role_required
         DB.upsert_lobby(existing_queue)
         return "Updated existing lobby", Embed_Type.CONFIRM
 
@@ -157,38 +156,27 @@ async def config_lobby(ctx, action, name, role_required, channel, bot=tanjun.inj
 
 
 
-async def config_staff_instructions(ctx:tanjun.abc.Context, action, role:hikari.PartialRole, client=tanjun.injected(type=tanjun.abc.Client)):
+async def config_staff_instructions(ctx:tanjun.abc.Context, action, role:hikari.PartialRole):
 
     DB = Guild_DB(ctx.guild_id)
-
-    staff_role = DB.get_config()["staff_role"]
-
-    if staff_role is None:
-        staff_list = "No staff role specified. Anyone with the \"manage server\" permission is considered staff"
-    else:
-        staff_list = "Current staff role: <@&" + str(staff_role) + ">\nStaff:"
-        members = client.rest.fetch_members(ctx.guild_id)
-        async for member in members:
-            if staff_role in member.role_ids:
-                staff_list += "\n" + member.username
 
     selection = ""
     if action == "link role":
         selection += "**Linking**\n"
+        if role is None:
+            selection = "No role specified"
+        else:
+            selection += "Role: " + role.mention + ""
+
     elif action == "unlink role":
-        selection += "**Unlinking**\n"
+        selection += "**Removing staff role. Anyone with the manage server permissions will be considered staff**\n"
     else:
         selection += "**No action specified**\n"
 
-    if role is None:
-        selection = "No role specified"
-    else:
-        selection += "Role: " + role.mention + ""
 
     embed = hikari.Embed(title="Add or remove staff members",
                         description="Link a role to bot staff. Staff are able to force match results, and have access to all config commands",
                         color=Colors.PRIMARY)
-    embed.add_field(name="Current staff", value=staff_list)
     embed.add_field(name="Selection", value=selection)
     return embed
 
@@ -205,19 +193,20 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
 
     def confirm():
 
+        config = DB.get_config()
+
+        if action == "unlink role":
+            config["staff_role"] = None
+            DB.upsert_config(config)
+            return "Removed staff role", Embed_Type.CONFIRM
+
         if role is None:
             return "Select one role", Embed_Type.ERROR
-
-        config = DB.get_config()
 
         if action == "link role":
             config["staff_role"] = role.id
             DB.upsert_config(config)
             return "Bot staff is now " + role.mention, Embed_Type.CONFIRM
-        elif action == "unlink role":
-            config["staff_role"] = None
-            DB.upsert_config(config)
-            return "Removed staff role", Embed_Type.CONFIRM
 
     confirm_message, embed_type = confirm()
     confirm_embed = Custom_Embed(type=embed_type, description=confirm_message)
@@ -229,24 +218,24 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
 
     DB = Guild_DB(ctx.guild_id)
 
-    selection = ""
-
+    selection_str = ""
+    action_str = ""
     if role is not None:
         if action == "link role":
-            selection += "**Connecting role**\n"
-        else:
-            selection += "**Removing**\n"
+            action_str = "**Connecting role**\n"
+        elif action == "unlink role":
+            action_str = "**Removing**\n"
 
-        selection += role.mention
-        selection += "\nTo elo range: **" + str(min_elo) + " to " + str(max_elo) + "**"
+        selection_str += role.mention
+        selection_str += "\nTo elo range: **" + str(min_elo) + " to " + str(max_elo) + "**"
     else:
-        selection = "No role specified. Confirming will refresh everyone's roles"
+        selection_str = "No role specified. Confirming will refresh everyone's roles"
 
     embed = hikari.Embed(title="Add or remove elo roles",
-                        description="Link a role to an elo rank. Roles are automatically updated when a user's elo changes",
+                        description="Link a role to an elo rank. Roles are automatically updated when a user's elo changes. Leave the min or max option blank to set them to infinity",
                         color=Colors.PRIMARY)
-
-    embed.add_field(name="Selection", value=selection)
+    if action_str:
+        embed.add_field(name=action_str, value=selection_str)
 
     return embed
 
@@ -314,19 +303,22 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
         cur_results_channel = "No results channel set"
 
     selection = ""
-    if action == "update":
-        selection += "**Setting channel to**\n"
-    elif action == "remove":
-        selection += "**Removing channel**\n"
-    else:
-        selection += "**No action specified**\n"
-    selection += "<#" + str(channel.id) + ">"
+    action_str = ""
+    if channel is not None:
+        if action == "update":
+            action_str = "**Setting channel to**\n"
+        elif action == "remove":
+            action_str += "**Removing channel**\n"
+
+        selection += "<#" + str(channel.id) + ">"
 
     embed = hikari.Embed(title="Add or remove results channel",
                         description="Set a channel for match announcements. Results are posted in the channel when a match is initially created, when the result is decided by the players, and when staff updates a match's result",
                         color=Colors.PRIMARY)
     embed.add_field(name="Current Results Channel", value=cur_results_channel)
-    embed.add_field(name="Selection", value=selection)
+
+    if action_str:
+        embed.add_field(name=action_str, value=selection)
 
     return embed
 
