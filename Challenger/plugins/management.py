@@ -299,8 +299,8 @@ async def config_elo_roles(ctx:tanjun.abc.Context, min_elo, max_elo, action, rol
         DB.upsert_elo_roles(df)
 
         players = DB.get_players()
-        progress_message = await ctx.respond("Updating roles...", ensure_result=True)
-        async for message in update_players_elo_roles(ctx, bot, players):
+        await ctx.respond("Updating roles...")
+        async for message in update_players_elo_roles(ctx, bot, players, role_ids=[role_id]):
             await ctx.edit_last_response(message)
 
 

@@ -140,13 +140,15 @@ def take_input(input_instructions:typing.Callable):
 
 
 
-async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, message:hikari.Message, get_page:typing.Callable, nextlabel="Next", prevlabel="Previous", nextemoji="➡️", prevemoji="⬅️", **kwargs):
+async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_page:typing.Callable, nextlabel="Next", prevlabel="Previous", nextemoji="➡️", prevemoji="⬅️", **kwargs):
     """
     params:
         ctx: context of the command
         response: message that the page navigator will be attached to
         get_page: function that takes in a page number and returns a list of embeds to show on the page, or None if page is blank
     """
+
+    response = await ctx.fetch_initial_response()
 
     def is_first_page(page_num):
         return get_page(page_num - 1) is None
@@ -168,7 +170,7 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, messag
 
     with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
-            ("interaction.message.id", message.id)) as stream:
+            ("interaction.message.id", response.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
             if event.interaction.user.id != ctx.author.id:

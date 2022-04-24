@@ -139,7 +139,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         players_per_page = 20
 
         place_str_len = 5
-        name_len = 30
+        name_len = 21
         elo_str_len = 5
 
         if page < 0:
@@ -166,11 +166,11 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         lb_list += "```"
 
         lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
-        lb_embed.add_field(name="Rank" + " "*5*2 + "Username" + " "*59*2 + "Score", value=lb_list, inline=False)
+        lb_embed.add_field(name="Rank" + " "*5*2 + "Username" + " "*35*2 + "Score", value=lb_list, inline=False)
         lb_embed.set_footer(text="Don't see yourself? Only players who completed their " + str(Elo.NUM_PLACEMENT_MATCHES) + " placement games are ranked")
         return [lb_embed]
 
-    await create_paginator(ctx, bot, response, get_leaderboard_for_page, nextlabel="Lower", prevlabel="Higher")
+    await create_paginator(ctx, bot, get_leaderboard_for_page, nextlabel="Lower", prevlabel="Higher")
 
 
 player = tanjun.Component(name="player", strict=True).load_from_scope().make_loader()

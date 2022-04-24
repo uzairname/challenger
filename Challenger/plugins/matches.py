@@ -103,7 +103,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
         return embeds
 
 
-    await create_paginator(ctx, bot, response, get_matches_for_page, nextlabel="Older", prevlabel="More recent")
+    await create_paginator(ctx, bot, get_matches_for_page, nextlabel="Older", prevlabel="More recent")
 
 
 
