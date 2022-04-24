@@ -11,6 +11,7 @@ import pandas as pd
 from Challenger.config import *
 
 from .scoring import *
+from .constants import *
 from .style import *
 from ..database import Guild_DB
 
@@ -149,7 +150,7 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match 
     p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
     p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
 
-    if match["outcome"].isin(Outcome.FINISHED):
+    if match["outcome"] in Outcome.FINISHED:
 
         p1_elo_change = match["p1_elo_after"] - match["p1_elo"]
         p2_elo_change = match["p2_elo_after"] - match["p2_elo"]
@@ -200,9 +201,9 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match 
 
     embed = hikari.Embed(title="Match " + str(match.name), color=color)
 
-    embed.add_field(name=outcome_str, value="*_ _*")
+    embed.add_field(name=outcome_str, value=BLANK)
     embed.add_field(name=str(p1_name), value=p1_elo_change_str + "> " + p1_declared, inline=True)
-    embed.add_field(name="vs", value="*_ _*", inline=True)
+    embed.add_field(name="vs", value=BLANK, inline=True)
     embed.add_field(name=str(p2_name), value=p2_elo_change_str + "> " + p2_declared, inline=True)
 
     embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")

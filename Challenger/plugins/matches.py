@@ -61,20 +61,18 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.Gateway
 
         if num_updated > 2:
             await announce_in_updates_channel(ctx, updated_players_embed, client)
-        else:
-            match = DB.get_matches(match_id=match.name).iloc[0]
-            match_embed = describe_match(match, DB)
-            await announce_in_updates_channel(ctx, match_embed, client=client)
+
+        match = DB.get_matches(match_id=match.name).iloc[0]
+        match_embed = describe_match(match, DB)
+        await announce_in_updates_channel(ctx, match_embed, client=client)
 
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_user_slash_option("player", "optional: enter whose matches to get", default=None)
+@tanjun.with_user_slash_option("player", "whose matches to see (optional)", default=None)
 @tanjun.as_slash_command("match-history", "All the match's results", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
-
-    response = await ctx.fetch_initial_response()
 
     DB = Guild_DB(ctx.guild_id)
 
@@ -90,9 +88,8 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
         matches = DB.get_matches(user_id=user_id, limit=matches_per_page, chronological=False, skip=page_number * matches_per_page)
 
         if matches.index.size == 0:
-            if page_number == 0:
-                # no matches at all
-                return [hikari.Embed(title="No matches to show", description="*_ _*", color=Colors.PRIMARY)]
+            if page_number == 0: # no matches at all
+                return [hikari.Embed(title="No matches to show", description=BLANK, color=Colors.PRIMARY)]
             return None
 
         embeds = []
@@ -103,17 +100,19 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
         return embeds
 
 
+
     await create_paginator(ctx, bot, get_matches_for_page, nextlabel="Older", prevlabel="Newer")
 
 
 
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
-@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL})
+@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL}, default=None)
+@tanjun.with_user_slash_option("winner", "set the winner (optional)", default=None)
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
 @tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @ensure_registered
-async def set_match(ctx: tanjun.abc.Context, match_number, outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
+async def set_match(ctx: tanjun.abc.Context, match_number, winner, outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
 
     DB = Guild_DB(ctx.guild_id)
 
@@ -123,17 +122,31 @@ async def set_match(ctx: tanjun.abc.Context, match_number, outcome, bot:hikari.G
         return
     match = matches.iloc[0]
 
-    if match["outcome"] == outcome:
-        return await ctx.edit_initial_response("Outcome is already " + str(outcome))
+    if winner:
+        winner_id = winner.id
+        if winner_id == match["p1_id"]:
+            new_outcome = Outcome.PLAYER_1
+        elif winner_id == match["p2_id"]:
+            new_outcome = Outcome.PLAYER_2
+        else:
+            await ctx.edit_initial_response("This player is not in this match")
+            return
+    elif outcome:
+        if match["outcome"] == outcome:
+            return await ctx.edit_initial_response("Outcome is already " + str(outcome))
+        new_outcome = outcome
+    else:
+        return await ctx.edit_initial_response("Specify an outcome")
 
-    updated_players_embed, num_updated = await update_match_result(ctx, match.name, outcome, bot=bot, staff_declared=True)
+
+    updated_players_embed, num_updated = await update_match_result(ctx, match.name, new_outcome, bot=bot, staff_declared=True)
 
     if num_updated > 2:
         await announce_in_updates_channel(ctx, updated_players_embed, client)
-    else:
-        match = DB.get_matches(match_id=match.name).iloc[0]
-        match_embed = describe_match(match, DB)
-        await announce_in_updates_channel(ctx, match_embed, client=client)
+
+    match = DB.get_matches(match_id=match.name).iloc[0]
+    match_embed = describe_match(match, DB)
+    await announce_in_updates_channel(ctx, match_embed, client=client)
 
     await ctx.respond("Match updated")
 

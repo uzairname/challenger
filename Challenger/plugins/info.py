@@ -94,7 +94,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.TOP_GG_LINK).set_label("Top.gg").add_to_container()
 
 
-    features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    features_embed = hikari.Embed(title="Features", colour=Colors.PRIMARY).set_thumbnail(avatar)
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="<:reply:966765324013801532>Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
     features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on a variation of the [elo](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0) rating system. See a visualization of it [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
     features_embed.add_field(name=":large_orange_diamond: Elo Ranks", value="You can specify roles to be automatically assigned to players of a certain elo range.")

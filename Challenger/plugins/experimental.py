@@ -275,7 +275,7 @@ async def long_lb(ctx: tanjun.abc.Context):
     for i in range(0, 10):
         num_lines = 20
         num_fields = 3
-        Embed = hikari.Embed(title="_", description="*_ _*")
+        Embed = hikari.Embed(title="_", description=BLANK)
         for k in range(num_fields):
             string_ = ""
             for j in range(num_lines):

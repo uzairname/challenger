@@ -361,12 +361,11 @@ async def config_results_channel(ctx:tanjun.abc.Context, action, channel, bot=ta
     return confirm_embed
 
 
-async def reset_instructions(ctx:tanjun.abc.Context, **kwargs):
+async def reset_instructions(**kwargs):
 
     embed = hikari.Embed(title="Reset all player and match data",
                         description="All players will be unregistered and all match history will be deleted for this server. Config settigs will remain the same, such as elo roles, staff, etc. This is useful when starting a new season.\n\n:warning:**WARNING:** This action cannot be undone",
                         color=Colors.PRIMARY)
-
     return embed
 
 @config.with_command

@@ -1,6 +1,2 @@
-improve staff command ui: elo roles, combine help and view
-fix ranked status includes draws
-add top.gg link
-stats shows t1-3 badge
-before/after elo is only shown on finished matches in describe_match
-1.0.0 dev4
+setmatch option to specify player
+add blank constant
