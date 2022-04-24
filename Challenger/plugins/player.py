@@ -107,6 +107,12 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         place = np.sum(all_ranked_players["elo"] > player["elo"]) + 1
         place_str = convert_to_ordinal(place)
         displayed_elo_desc = place_str + " place"
+        if place == 1:
+            displayed_elo_desc = "🥇 " + displayed_elo_desc
+        elif place == 2:
+            displayed_elo_desc = "🥈 " + displayed_elo_desc
+        elif place == 3:
+            displayed_elo_desc = "🥉 " + displayed_elo_desc
 
         percentile = np.sum(all_ranked_players["elo"] < player["elo"])/len(all_ranked_players.index) # "less than" percentile
         top_percent = round((1 - percentile)*100)
@@ -114,7 +120,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
 
 
-    stats_embed = hikari.Embed(title=f"{player['tag']}'s Stats", description="*_ _*", color=member.accent_color).set_thumbnail(member.avatar_url)
+    stats_embed = hikari.Embed(title=f"{player['tag']}'s Stats", color=member.accent_color).set_thumbnail(member.avatar_url)
     stats_embed.add_field(name="Score: " + displayed_elo, value=displayed_elo_desc)
     stats_embed.add_field(name="Average Opponent's elo", value=avg_opponent_elo_str)
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)

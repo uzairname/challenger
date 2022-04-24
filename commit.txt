@@ -1,4 +1,4 @@
-reduce k increase for provisional games
-update info
-reduce width of lb
-remove unnecessary prints
+Improve config ui and fix some bugs
+fix config staff dependency injection
+config lobby input displayed well
+improve wording

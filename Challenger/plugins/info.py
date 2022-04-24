@@ -52,7 +52,7 @@ async def help_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.inj
 
     staff_embed = hikari.Embed(title="Staff Commands", description="People with a staff role can use these commands. Enter the config commands without any parameters to see details", colour=Colors.PRIMARY)
     staff_embed.add_field(name="Staff settings", value=
-    "`/config-help` - Detailed help on staff config commands\n"
+    "`/config-help` - Detailed help on all config commands, and view your current settings\n"
     "`/reset` Reset all match history and everyone's elo in the server. Preserves all other settings. Use this, for example, when starting a new season\n")
     staff_embed.add_field(name="Matches", value=
     "`/set-match` - Force a match's result in the event of a dispute or mistake\n"
@@ -88,12 +88,13 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed.set_footer(text="Lilapela#5348")
 
     about_btn_row = ctx.rest.build_action_row()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_INVITE_LINK).set_label("Support Server").add_to_container()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.INVITE_LINK).set_label("Bot Invite").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_SERVER_LINK).set_label("Support Server").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.INVITE_LINK).set_label("Invite Bot").add_to_container()
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.GITHUB_LINK).set_label("Github").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.TOP_GG_LINK).set_label("Top.gg").add_to_container()
 
 
-    features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    features_embed = hikari.Embed(title="Features", colour=Colors.PRIMARY).set_thumbnail(avatar)
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="<:reply:966765324013801532>Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
     features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on a variation of the [elo](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0) rating system. See a visualization of it [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
     features_embed.add_field(name=":large_orange_diamond: Elo Ranks", value="You can specify roles to be automatically assigned to players of a certain elo range.")
@@ -102,7 +103,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
 
     features_special_embed = hikari.Embed(title="Special", description="Features that set Challenger apart from other elo bots", colour=Colors.PRIMARY)
     features_special_embed.add_field(name=":star: Advanced provisional and ranked elo (coming soon)", value="For everyone's first few games, Challenger uses a provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to find the players most probable skill level just based on a few matches. This means you don't have to grind at first to reach your appropriate elo. After that, Challenger uses a more accurate elo model: the recently developed [Glicko rating system](http://www.glicko.net/glicko/glicko.pdf)")
-    features_special_embed.add_field(name=":star: Independent and flexible match calculation", value="The way matches are stored and calculated allows for much greater control. Want to customize the elo parameters, even after several games have been played, want to ban a certain player and undo the effect they had on everyone's elo, or change an old match's result? Challenger makes it easy. Make any change to an old match, player, or elo setting, and all following affected players' and matches' elo will be recalculated.")
+    features_special_embed.add_field(name=":star: Independent and flexible match calculation", value="The way matches are stored and calculated allows for much greater control. Want to customize the Elo parameters, even after several games have been played, want to ban a player for boosting/cheating and undo the effect they had on everyone else's Elo, or change an old match's result? Challenger makes it easy. Make any change to an old match, player, or Elo setting, and all following affected players' and matches' Elo will be recalculated.")
 
 
 

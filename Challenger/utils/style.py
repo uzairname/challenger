@@ -3,8 +3,8 @@ import hikari
 
 
 class Colors:
-    PRIMARY = "#ffc07d"
-    SECONDARY = "#46bd76"
+    PRIMARY = "#fccb6f"
+    SECONDARY = "#00baab"
     DARK = "#656565"
     SUCCESS = "#49c47b"
     WARNING = "#e6d220"

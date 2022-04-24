@@ -6,15 +6,16 @@ from hikari import Permissions
 @final
 class Config:
 
-    VERSION = '1.0.0 dev3'
+    VERSION = '1.0.0 dev4'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
+    DISCORD_SERVER_LINK = "https://discord.gg/bunZ3gadBU"
+    TOP_GG_LINK = "https://top.gg/bot/908432840566374450"
     OWNER_ID = 623257053879861248  # Lilapela's ID
     DEV_GUILD_ID = 907729885726933043 # Testing discord server
-    DISCORD_INVITE_LINK = "https://discord.gg/bunZ3gadBU"
 
     REQUIRED_PERMISSIONS = Permissions.VIEW_CHANNEL | Permissions.SEND_MESSAGES | Permissions.EMBED_LINKS | Permissions.MANAGE_ROLES
-    PERMS_ERR_MSG = f"The bot is missing some required permissions. Type /about to see them"
+    PERMS_ERR_MSG = f"The bot is missing some required permissions either for this channel or the server"
     if os.environ.get("ENVIRONMENT") == "development":
         INVITE_LINK = "https://discord.com/api/oauth2/authorize?client_id=951132825803964447&permissions=" + str(REQUIRED_PERMISSIONS.value) + "&scope=bot%20applications.commands"
     elif os.environ.get("ENVIRONMENT") == "production":

@@ -90,7 +90,7 @@ def ensure_staff(func):
 
 
 
-def take_input(input_instructions:typing.Callable):
+def confirm_cancel_input(input_instructions:typing.Callable):
 
     """
     Calls function with input and lets the user confirm/cancel the command
@@ -99,14 +99,14 @@ def take_input(input_instructions:typing.Callable):
         input_instructions: function that takes in a tanjun.abc.Context, Database, and optional kwargs and returns an embed to show before user confirms their input
     """
 
-    def wrapper_take_input(func):
+    def wrapper_2(func):
 
         @functools.wraps(func)
         async def wrapper(ctx, bot, **kwargs):
 
             confirm_cancel_row = ctx.rest.build_action_row()
             confirm_cancel_row.add_button(hikari.messages.ButtonStyle.SUCCESS, "Confirm").set_label("Confirm").set_emoji("✔️").add_to_container()
-            confirm_cancel_row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("❌").add_to_container()
+            confirm_cancel_row.add_button(hikari.messages.ButtonStyle.DANGER, "Cancel").set_label("Cancel").set_emoji("✖").add_to_container()
 
             instructions_embed = await input_instructions(ctx=ctx, **kwargs)
             response = await ctx.respond(embeds=[instructions_embed], components=[confirm_cancel_row], ensure_result=True)
@@ -135,12 +135,12 @@ def take_input(input_instructions:typing.Callable):
                 await ctx.edit_initial_response(embeds=[instructions_embed, hikari.Embed(title="Timed Out", description="timed out", color=Colors.DARK)], components=[])
 
         return wrapper
-    return wrapper_take_input
+    return wrapper_2
 
 
 
 
-async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_page:typing.Callable, nextlabel="Next", prevlabel="Previous", nextemoji="➡️", prevemoji="⬅️", **kwargs):
+async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_page:typing.Callable, starting_page=0, nextlabel="Next", prevlabel="Previous", nextemoji="➡️", prevemoji="⬅️"):
     """
     params:
         ctx: context of the command
@@ -156,7 +156,7 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_pa
     def is_last_page(page_num):
         return get_page(page_num + 1) is None
 
-    cur_page = 0
+    cur_page = starting_page
 
     page_navigator = ctx.rest.build_action_row()
     page_navigator.add_button(hikari.messages.ButtonStyle.PRIMARY, prevlabel).set_label(prevlabel).set_emoji(
@@ -191,7 +191,11 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_pa
 
             await ctx.edit_initial_response(embeds=embeds, component=page_navigator)
 
-    await ctx.edit_initial_response(embeds=embeds, components=[])
+    try:
+        await ctx.edit_initial_response(embeds=embeds, components=[])
+    except hikari.UnauthorizedError: # The ephemeral message was deleted
+        pass
+
 
 
 
@@ -227,4 +231,4 @@ async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.
             await ctx.edit_initial_response(embeds=page_embeds[page], components=page_components.get(page, []) + [page_dropdown])
 
 
-__all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "take_input", "on_error", "create_paginator", "create_page_dropdown"]
+__all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "confirm_cancel_input", "on_error", "create_paginator", "create_page_dropdown"]
