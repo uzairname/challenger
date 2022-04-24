@@ -106,10 +106,9 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
     """
 
     player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
-    player_matches = player_matches.loc[player_matches.index <= latest_match_id]\
-    .loc[np.logical_or(player_matches["outcome"] == Outcome.PLAYER_1, player_matches["outcome"] == Outcome.PLAYER_2, player_matches["outcome"] == Outcome.DRAW)]
+    finished_matches = player_matches.loc[player_matches.index <= latest_match_id].loc[player_matches["outcome"].isin(Outcome.FINISHED)]
 
-    return len(player_matches) >= Elo.NUM_PLACEMENT_MATCHES
+    return len(finished_matches) >= Elo.NUM_PLACEMENT_MATCHES
 
 
 
@@ -150,7 +149,7 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match 
     p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
     p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
 
-    if match["p1_elo_after"] and match["p2_elo_after"]:
+    if match["outcome"].isin(Outcome.FINISHED):
 
         p1_elo_change = match["p1_elo_after"] - match["p1_elo"]
         p2_elo_change = match["p2_elo_after"] - match["p2_elo"]
@@ -257,7 +256,6 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
                 if not player["is_ranked"]:
 
                     if role_id in current_roles:
-                        print("Removing role " + str(role_id) + " from " + str(player["username"]))
                         await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
 
                     continue
@@ -265,12 +263,10 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
                 if role_info["min_elo"] <= player["elo"] <= role_info["max_elo"]:
 
                     if not role_id in current_roles:
-                        print("Adding role " + str(role_id) + " to " + str(player["username"]))
                         await bot.rest.add_role_to_member(ctx.guild_id, user_id, role_id)
 
                 else:
                     if role_id in current_roles:
-                        print("Removing role " + str(role_id) + " from " + str(player["username"]))
                         await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
 
 

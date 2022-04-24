@@ -107,6 +107,13 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         place = np.sum(all_ranked_players["elo"] > player["elo"]) + 1
         place_str = convert_to_ordinal(place)
         displayed_elo_desc = place_str + " place"
+        if place == 1:
+            displayed_elo_desc = "🥇 " + displayed_elo_desc
+        elif place == 2:
+            displayed_elo_desc = "🥈 " + displayed_elo_desc
+        elif place == 3:
+            displayed_elo_desc = "🥉 " + displayed_elo_desc
+
 
         percentile = np.sum(all_ranked_players["elo"] < player["elo"])/len(all_ranked_players.index) # "less than" percentile
         top_percent = round((1 - percentile)*100)
