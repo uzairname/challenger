@@ -6,7 +6,7 @@ from hikari import Permissions
 @final
 class Config:
 
-    VERSION = '1.0.0 dev2'
+    VERSION = '1.0.0 dev3'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
     OWNER_ID = 623257053879861248  # Lilapela's ID

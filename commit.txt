@@ -1,2 +1,4 @@
-bugfix: update elo roles after declaring match
-fix update elo roles breaks if member left
+reduce k increase for provisional games
+update info
+reduce width of lb
+remove unnecessary prints

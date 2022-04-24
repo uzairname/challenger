@@ -74,7 +74,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     avatar = user.avatar_url
 
     #about
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot. 1v1 other players to climb the leaderboards, and have access to a variety of competitive features entirely within discord! Use the dropdown to explore more", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot. 1v1 other players to climb the leaderboards, and have access to a variety of competitive features entirely within discord! Use the dropdown to learn more", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
     about_embed.add_field(name=f"How to use", value=f"Use `/help-challenger` for instructions and commands", inline=True)
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
@@ -95,18 +95,15 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
 
     features_embed = hikari.Embed(title="Features", description="*_ _*", colour=Colors.PRIMARY).set_thumbnail(avatar)
     features_embed.add_field(name=":crossed_swords: 1v1 Matches", value="<:reply:966765324013801532>Easy to use lobbies and leaderboard. Players can enter a queue, get matched with one another, and declare the results. Staff can handle disputes by overriding match results")
-    features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on the [Elo rating system](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0). See a visualization of how it works here [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
-    features_embed.add_field(name=":large_orange_diamond: Elo Ranks", value="You can specify roles to be automatically assigned to players of a certain elo")
+    features_embed.add_field(name=":trophy: Scoring", value="Most scoring is based on a variation of the [elo](https://medium.com/purple-theory/what-is-elo-rating-c4eb7a9061e0) rating system. See a visualization of it [here](https://www.desmos.com/calculator/jh0wbxfkjp)")
+    features_embed.add_field(name=":large_orange_diamond: Elo Ranks", value="You can specify roles to be automatically assigned to players of a certain elo range.")
     features_embed.add_field(name=":chart_with_upwards_trend: Leaderboard", value="Compare everyone's elo with a leaderboard for your discord server")
-    features_embed.add_field(name=":scroll: History and stats", value="View everyone's match history and detailed competetive stats, including winrate")
+    features_embed.add_field(name=":scroll: History and stats", value="View everyone's match history and detailed competetive stats, including winrate, elo, and relative standing. You can also analyze your server's overall elo stats.")
 
     features_special_embed = hikari.Embed(title="Special", description="Features that set Challenger apart from other elo bots", colour=Colors.PRIMARY)
-    features_special_embed.add_field(name=":star: Advanced provisional and ranked elo (coming soon)", value="For everyone's first few games, Challenger uses a provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to find the players most probable skill level just based on a few matches. This means you don't have to grind at first to reach your appropriate elo. After that, Challenger uses a more accurate elo system based on the recently developed [Glicko rating system](http://www.glicko.net/glicko/glicko.pdf)")
-    features_special_embed.add_field(name=":star: Independent and flexible match calculation", value="The way elo is calculated allows for much greater control. Want to customize the elo parameters, even after several games have been played, want to ban a certain player and undo the effect they had on everyone's elo, or change an old match's result? Challenger makes it easy. Make any change to an old match, player, or elo setting, and all following affected players' and matches' elo will be recalculated.")
+    features_special_embed.add_field(name=":star: Advanced provisional and ranked elo (coming soon)", value="For everyone's first few games, Challenger uses a provisional elo system based on [Bayesian Elo](https://www.remi-coulom.fr/Bayesian-Elo/) to find the players most probable skill level just based on a few matches. This means you don't have to grind at first to reach your appropriate elo. After that, Challenger uses a more accurate elo model: the recently developed [Glicko rating system](http://www.glicko.net/glicko/glicko.pdf)")
+    features_special_embed.add_field(name=":star: Independent and flexible match calculation", value="The way matches are stored and calculated allows for much greater control. Want to customize the elo parameters, even after several games have been played, want to ban a certain player and undo the effect they had on everyone's elo, or change an old match's result? Challenger makes it easy. Make any change to an old match, player, or elo setting, and all following affected players' and matches' elo will be recalculated.")
 
-
-    permissions_embed = hikari.Embed(title="Permissions", description="Reasons for every permission required by the bot", color=Colors.PRIMARY)
-    permissions_embed.add_field("View Channels", "Required for the bot to view channels")
 
 
     future_embed = hikari.Embed(title="Todo", description="This bot is still in development. Any bug reports or suggested features would be appreciated!", colour=Colors.PRIMARY)
