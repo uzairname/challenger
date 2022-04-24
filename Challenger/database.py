@@ -25,6 +25,32 @@ class Client(pymongo.MongoClient):
 
 
 
+
+class Leaderboard_DB:
+
+    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "lobby_name", "required_role", "player", "time_joined"]).set_index("channel_id")
+    empty_player_df = pd.DataFrame([], columns=["user_id", "username", "tag", "time_registered", "elo", "is_ranked"]).set_index("user_id")
+    empty_match_df = pd.DataFrame([], columns=[
+        "match_id", "time_started", "outcome", "staff_declared",
+        "p1_id", "p1_declared", "p1_elo", "p1_elo_after", "p1_is_ranked", "p1_is_ranked_after",
+        "p2_id", "p2_declared", "p2_elo", "p2_elo_after", "p2_is_ranked", "p2_is_ranked_after"
+    ]).set_index("match_id")
+
+
+    def __init__(self, leaderboard_id):
+
+        if len(client) == 0:
+            self.client = Client()
+        else:
+            self.client = client[0]
+
+        self.leaderboard_id = leaderboard_id
+
+        self.guildDB = self.client["leaderboard_" + self.leaderboard_id]
+
+    pass
+
+
 class Guild_DB:
 
     empty_player_df = pd.DataFrame([], columns=["user_id", "tag", "username", "time_registered", "elo", "is_ranked"]).set_index("user_id")
@@ -41,7 +67,6 @@ class Guild_DB:
 
     #these are structured differently
     empty_config = pd.Series(index=["results_channel", "staff_role", "guild_name"], dtype="float64").replace(np.nan, None)
-    empty_config_df = pd.DataFrame([], columns=["guild_name", "default_results_channel", "staff_role"]) #TODO use this
 
     class tbl_names(Enum):
         PLAYERS = "players"
