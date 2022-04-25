@@ -28,7 +28,6 @@ class Client(pymongo.MongoClient):
 
 class Leaderboard_DB:
 
-    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "lobby_name", "required_role", "player", "time_joined"]).set_index("channel_id")
     empty_player_df = pd.DataFrame([], columns=["user_id", "username", "tag", "time_registered", "elo", "is_ranked"]).set_index("user_id")
     empty_match_df = pd.DataFrame([], columns=[
         "match_id", "time_started", "outcome", "staff_declared",
@@ -36,6 +35,7 @@ class Leaderboard_DB:
         "p2_id", "p2_declared", "p2_elo", "p2_elo_after", "p2_is_ranked", "p2_is_ranked_after"
     ]).set_index("match_id")
 
+    leaderboard_id:int
 
     def __init__(self, leaderboard_id):
 
@@ -43,6 +43,8 @@ class Leaderboard_DB:
             self.client = Client()
         else:
             self.client = client[0]
+
+
 
         self.leaderboard_id = leaderboard_id
 
@@ -61,7 +63,7 @@ class Guild_DB:
         "p2_id", "p2_elo", "p2_elo_after", "p2_declared", "p2_is_ranked", "p2_is_ranked_after"])\
         .set_index("match_id")
 
-    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "lobby_name", "required_role", "player", "time_joined"])
+    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "leaderboard", "lobby_name", "required_role", "player"]).set_index("channel_id")
     empty_elo_roles = pd.DataFrame([], columns=["role_id", "min_elo", "max_elo"]).set_index("role_id")
 
 
@@ -74,6 +76,8 @@ class Guild_DB:
         LOBBIES = "lobbies"
         CONFIG = "config"
         ELO_ROLES = "elo_roles"
+
+    leaderboards = []
 
 
     def __init__(self, guild_id):
@@ -332,3 +336,12 @@ class Guild_DB:
         self.guildDB[self.tbl_names.CONFIG.value].update_one({}, {"$set":configdict}, upsert=True)
 
 
+
+
+
+    def add_ranking(self, ranking: Leaderboard_DB):
+        self.rankings.append(Leaderboard_DB.leaderboard_id)
+
+    def get_rankings(self) -> list[Leaderboard_DB]:
+
+        return self.rankings

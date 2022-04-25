@@ -1,1 +1,1 @@
-Move help command contents to /about
+change lb
