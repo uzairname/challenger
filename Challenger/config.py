@@ -9,7 +9,7 @@ class Config:
     VERSION = '1.0.0 dev5'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
-    DISCORD_SERVER_LINK = "https://discord.gg/bunZ3gadBU"
+    DISCORD_SERVER_INVITE = "https://discord.gg/bunZ3gadBU"
     TOP_GG_LINK = "https://top.gg/bot/908432840566374450"
     OWNER_ID = 623257053879861248  # Lilapela's ID
     DEV_GUILD_ID = 907729885726933043 # Testing discord server

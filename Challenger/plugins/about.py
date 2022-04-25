@@ -32,7 +32,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed.set_footer(text="Lilapela#5348", icon=Config.OWNER_AVATAR)
 
     about_btn_row = ctx.rest.build_action_row()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_SERVER_LINK).set_label("Support Server").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_SERVER_INVITE).set_label("Support Server").add_to_container()
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.INVITE_LINK).set_label("Invite Bot").add_to_container()
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.GITHUB_LINK).set_label("Github").add_to_container()
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.TOP_GG_LINK).set_label("Top.gg").add_to_container()

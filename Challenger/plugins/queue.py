@@ -25,12 +25,6 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 
     DB = Guild_DB(ctx.guild_id)
 
-    #Ensure player has at the required role
-    if lobby["required_role"]:
-        if not lobby["required_role"] in ctx.member.role_ids:
-            await ctx.respond(f"{ctx.author.mention} You're missing the required role to join this lobby")
-            return
-
     player_id=ctx.author.id
 
     #Ensure player isn't already in queue
@@ -45,7 +39,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
         match = matches.iloc[0]
         if match["outcome"] is None:
             if match["p1_id"] == player_id and match["p1_declared"] is None or match["p2_id"] == player_id and match["p2_declared"] is None:
-                embed = hikari.Embed(title="You have an ongoing match", description="/declare the results or ask staff to set finalize the match (type /match-history for more details)", color=Colors.ERROR)
+                embed = hikari.Embed(title="You haven't finished match " + str(match.name), description="/declare the results or ask staff to set overrule the match (type /match-history for more details)", color=Colors.WARNING)
                 await ctx.edit_initial_response(embed=embed)
                 return
 

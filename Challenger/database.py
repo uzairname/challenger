@@ -63,7 +63,7 @@ class Guild_DB:
         "p2_id", "p2_elo", "p2_elo_after", "p2_declared", "p2_is_ranked", "p2_is_ranked_after"])\
         .set_index("match_id")
 
-    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "leaderboard", "lobby_name", "required_role", "player"]).set_index("channel_id")
+    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "leaderboard", "lobby_name", "player"]).set_index("channel_id")
     empty_elo_roles = pd.DataFrame([], columns=["role_id", "min_elo", "max_elo"]).set_index("role_id")
 
 
@@ -272,15 +272,11 @@ class Guild_DB:
     def upsert_lobby(self, queue:pd.Series): # only pass something returned from new_queue or get_queue
         queue = queue.replace(np.nan, None)
 
-        self.empty_lobby_df #Make sure nothning is numpy type
-        if queue["channel_id"] is not None:
-            queue["channel_id"] = int(queue["channel_id"])
+        #Make sure nothning is numpy type
+        queue["channel_id"] = int(queue.name)
+
         if queue["player"] is not None:
             queue["player"] = int(queue["player"])
-        if queue["required_role"] is not None:
-            queue["required_role"] = int(queue["required_role"])
-
-        required_role = 1
 
         queuedict = queue.to_dict()
         self.guildDB[self.tbl_names.LOBBIES.value].update_one({"channel_id":queuedict["channel_id"]}, {"$set":queuedict}, upsert=True)
