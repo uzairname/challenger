@@ -20,6 +20,7 @@ from tanjun.abc import SlashContext
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
 
 
 
@@ -30,38 +31,102 @@ async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanju
 
     DB = Guild_DB(Database_Config.B2T_GUILD_ID)
 
-    initial_players = DB.get_players()
-    # all_matches = DB.get_matches(chronological=True)
-    #
-    # initial_players["elo"] = 1000
-    #
-    # stds_1 = []
-    #
-    # for id, match in all_matches.iterrows():
-    #     initial_players.loc[match["p1_id"], "elo"] = match["p1_elo_after"]
-    #     initial_players.loc[match["p2_id"], "elo"] = match["p2_elo_after"]
-    #     stds_1.append(initial_players.loc[initial_players["is_ranked"] == True]["elo"].std())
+    matches = DB.get_matches(chronological=True)
+
+    matches.to_csv("matches.csv")
 
 
-    for i in plt.rcParams:
-        if plt.rcParams[i] == "black":
-            plt.rcParams[i] = "w"
-    # black background
-    params = {"legend.framealpha":0}
-    plt.rcParams.update(params)
+    points = []
+
+
+    def p(A, B): #probability of A beating B
+        return 1 / (1 + math.pow(10, -(A - B) / 400))
+
+    for id, match in matches.iterrows():
+
+        p1_elo = match["p1_elo"]
+        p2_elo = match["p2_elo"]
+
+        elo_diff = p1_elo - p2_elo
+
+        expected_score = p(p1_elo, p2_elo)
+        if match["outcome"] == Outcome.PLAYER_1:
+            actual_result = 1
+        elif match["outcome"] == Outcome.PLAYER_2:
+            actual_result = 0
+        elif match["outcome"] == Outcome.DRAW:
+            actual_result = 0.5
+        else:
+            continue
+
+        error = actual_result - expected_score
+
+        points.append([p1_elo, p2_elo, error])
+
+
+
+
+    df = pd.DataFrame(points, columns=["p1_elo", "p2_elo", "error"])
+
+    range = 100
+    grid_size = 30
+
+    weighted_errors = []
+    for i in np.arange(df["p1_elo"].min(), df["p1_elo"].max(), 30):
+
+        for j in np.arange(df["p2_elo"].min(), df["p2_elo"].max(), 30):
+
+            close_points = df.query("sqrt((p1_elo - @i) ** 2 + (p2_elo - @j) ** 2) < @range", inplace=False)
+            avg_err = close_points["error"].mean()
+            weighted_errors.append([i, j, avg_err])
+
+
+    weighted_df = pd.DataFrame(weighted_errors, columns=["p1_elo", "p2_elo", "avg_error"])
+
+
+
     plt.figure(figsize=(6,3))
-    plt.hist(initial_players.loc[initial_players["is_ranked"] == True]["elo"])
 
-    plt.legend()
+    #make and display heatmap
+    plt.scatter(weighted_df["p1_elo"], weighted_df["p2_elo"], c=weighted_df["avg_error"], cmap="seismic", s=80/30*grid_size, marker="s")
 
-    plt.savefig("plot.png", transparent=True)
+    print(weighted_df)
+
+    plt.xlabel("Player 1 Elo")
+    plt.ylabel("Player 2 Elo")
+
+
+    plt.title("Battles 2 Tournaments Elo prediction error")
+
+    plt.scatter(df["p1_elo"], df["p2_elo"], c=df["error"], cmap="seismic", s=10)
+
+
+    plt.colorbar()
+    plt.axis("equal")
+
+
+    plt.savefig("plot.png", bbox_inches="tight")
     plt.show()
+
+
+    plt.savefig("plot2.png", transparent=True, bbox_inches="tight")
+    plt.show()
+
+
 
 
     embed = hikari.Embed(title="test", description="test")
     embed.set_image("plot.png")
+
+    embed2 = hikari.Embed(title="test", description="test")
+    embed2.set_image("plot2.png")
+
     await ctx.edit_initial_response(embed=embed)
+    # await ctx.respond(embed=embed2)
+
+
     os.remove("plot.png")
+    os.remove("plot2.png")
 
 
 

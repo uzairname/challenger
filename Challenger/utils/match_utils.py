@@ -270,7 +270,6 @@ async def update_players_elo_roles(ctx:tanjun.abc.Context, bot:hikari.GatewayBot
                     if role_id in current_roles:
                         await bot.rest.remove_role_from_member(ctx.guild_id, user_id, role_id)
 
-
     except hikari.ForbiddenError:
         await ctx.respond(embed=Custom_Embed(type=Embed_Type.ERROR, title="Unable to update roles", description="Please make sure the bot's role is above all elo roles"))
 
