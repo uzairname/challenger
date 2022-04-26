@@ -45,10 +45,13 @@ class Leaderboard_DB:
             self.client = client[0]
 
 
-
         self.leaderboard_id = leaderboard_id
 
-        self.guildDB = self.client["leaderboard_" + self.leaderboard_id]
+        self.guildDB = self.client["leaderboard_" + str(self.leaderboard_id)]
+
+
+
+
 
     pass
 

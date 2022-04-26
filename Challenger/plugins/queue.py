@@ -1,3 +1,4 @@
+
 import asyncio
 
 import hikari
@@ -54,7 +55,6 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 
         lobby["player"] = player_id
         DB.upsert_lobby(lobby)
-
         await ctx.edit_initial_response(f"You silently joined the queue")
         await (await ctx.fetch_channel()).send("A player has joined the queue")
 

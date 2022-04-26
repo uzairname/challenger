@@ -18,9 +18,10 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     avatar = user.avatar_url
 
     # About ================================================================
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot that gives you a variety of competitive features entirely within discord! Scroll through the dropdown below to learn more", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot with a ton of competitive features entirely within discord! Scroll through the dropdown below to learn more", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
-    about_embed.add_field(name=f"How to use", value=f"If you're an admin, go to the \"Bot Setup\" page to get started. Go to the \"How to play\" page to learn about 1v1s", inline=True)
+    about_embed.add_field(name=f"How to Play", value=f" Go to the \"How to play\" page to learn about 1v1s", inline=True)
+    about_embed.add_field(name="Bot Setup", value="If you're an admin, go to the \"Setup\" page to learn about the bot", inline=True)
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
     missing_perms = Config.REQUIRED_PERMISSIONS & ~bot_perms
     if missing_perms:
@@ -32,7 +33,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed.set_footer(text="Lilapela#5348", icon=Config.OWNER_AVATAR)
 
     about_btn_row = ctx.rest.build_action_row()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_SERVER_LINK).set_label("Support Server").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_SERVER_INVITE).set_label("Support Server").add_to_container()
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.INVITE_LINK).set_label("Invite Bot").add_to_container()
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.GITHUB_LINK).set_label("Github").add_to_container()
     about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.TOP_GG_LINK).set_label("Top.gg").add_to_container()
@@ -93,7 +94,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
              "Features":[features_embed, faetures_embed_2],
              "How to play":[player_embed],
              "Utility":[util_embed],
-             "Bot Setup":[config_embed],
+             "Setup":[config_embed],
              "Future Plans": [future_embed]}
 
     page_components = {"Overview": [about_btn_row]}

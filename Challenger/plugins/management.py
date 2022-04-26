@@ -32,8 +32,6 @@ async def config_help(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.in
     for index, lobby in all_lobbies.iterrows():
         lobbies_list += "\nLobby \"**" + str(lobby["lobby_name"]) + "**\" in channel <#" + str(
             lobby["channel_id"]) + ">"
-        if lobby["required_role"]:
-            lobbies_list += "\nWith required role <#" + lobby["required_role"] + ">"
 
     staff_role = DB.get_config()["staff_role"]
     if staff_role is None:
@@ -79,8 +77,6 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
     for index, lobby in all_lobbies.iterrows():
         lobbies_list += "\nLobby \"**" + str(lobby["lobby_name"]) + "**\" in channel <#" + str(
             lobby["channel_id"]) + ">"
-        if lobby["required_role"]:
-            lobbies_list += "\nWith required role <#" + lobby["required_role"] + ">"
 
     selection = ""
     if action == "delete":
@@ -108,12 +104,11 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
 @tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
 @tanjun.with_str_slash_option("name", "lobby name", default=None)
-@tanjun.with_role_slash_option("role_required", "role required", default=None)
 @tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
 @tanjun.as_slash_command("lobbies", "add, update, or delete a lobby and its roles", default_to_ephemeral=False, always_defer=True)
 @ensure_staff
 @confirm_cancel_input(input_instructions=config_lobby_instructions)
-async def config_lobby(ctx:tanjun.abc.Context, action, name, role_required, channel, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
+async def config_lobby(ctx:tanjun.abc.Context, action, name, channel, bot=tanjun.injected(type=hikari.GatewayBot)) -> hikari.Embed:
 
     DB = Guild_DB(ctx.guild_id)
 
@@ -136,7 +131,6 @@ async def config_lobby(ctx:tanjun.abc.Context, action, name, role_required, chan
             if name is None:
                 return "Please enter a name", Embed_Type.ERROR
             new_queue["lobby_name"] = name
-            new_queue["required_role"] = role_required
             DB.upsert_lobby(new_queue)
             return "Added new lobby", Embed_Type.CONFIRM
 
@@ -145,7 +139,6 @@ async def config_lobby(ctx:tanjun.abc.Context, action, name, role_required, chan
         if name:
             existing_queue["lobby_name"] = name
 
-        existing_queue["required_role"] = role_required
         DB.upsert_lobby(existing_queue)
         return "Updated existing lobby", Embed_Type.CONFIRM
 
