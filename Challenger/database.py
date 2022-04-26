@@ -63,7 +63,7 @@ class Guild_DB:
         "p2_id", "p2_elo", "p2_elo_after", "p2_declared", "p2_is_ranked", "p2_is_ranked_after"])\
         .set_index("match_id")
 
-    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "leaderboard", "lobby_name", "required_role", "player"]).set_index("channel_id")
+    empty_lobby_df = pd.DataFrame([], columns=["channel_id", "leaderboard", "lobby_name", "required_role", "player"])
     empty_elo_roles = pd.DataFrame([], columns=["role_id", "min_elo", "max_elo"]).set_index("role_id")
 
 

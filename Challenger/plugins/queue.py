@@ -21,8 +21,6 @@ component = tanjun.Component(name="queue module")
 @get_channel_lobby
 async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=tanjun.injected(type=tanjun.Client)) -> None:
 
-    response = await ctx.respond("please wait", ensure_result=True)
-
     DB = Guild_DB(ctx.guild_id)
 
     #Ensure player has at the required role
@@ -58,11 +56,11 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
         DB.upsert_lobby(lobby)
 
         await ctx.edit_initial_response(f"You silently joined the queue")
-        await ctx.get_channel().send("A player has joined the queue")
+        await (await ctx.fetch_channel()).send("A player has joined the queue")
 
     else:
         await ctx.edit_initial_response("You silently joined the queue")
-        await ctx.get_channel().send("Queue is full. Creating match")
+        await (await ctx.fetch_channel()).send("Queue is full. Creating match")
 
         p1_info = DB.get_players(user_id=lobby['player']).iloc[0]
         p2_info = DB.get_players(user_id=player_id).iloc[0]
@@ -109,7 +107,7 @@ async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
     if lobby["player"] == player_id:
         await remove_from_queue(DB, lobby)
         await ctx.edit_initial_response("Left the queue")
-        await ctx.get_channel().send("A player has left the queue")
+        await (await ctx.fetch_channel()).send("A player has left the queue")
     else:
         await ctx.edit_initial_response("You're not in the queue")
 
