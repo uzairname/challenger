@@ -1,1 +1,2 @@
-delete queue file
+fix lb display
+join leave working

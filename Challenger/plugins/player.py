@@ -145,7 +145,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         players_per_page = 20
 
         place_str_len = 5
-        name_len = 7
+        name_len = 21
         elo_str_len = 5
 
         if page < 0:
