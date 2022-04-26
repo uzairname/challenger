@@ -145,7 +145,7 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         players_per_page = 20
 
         place_str_len = 5
-        name_len = 21
+        name_len = 7
         elo_str_len = 5
 
         if page < 0:
@@ -163,12 +163,12 @@ async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.
         lb_list = "```\n"
         for index, player, in players.iterrows():
             place += 1
-            displayed_name = str(player["username"])[:name_len] + ":"
-            displayed_elo = str(round(player["elo"]))
-            lb_list += (str(place) + ".").ljust(place_str_len)\
-                    + displayed_name.ljust(name_len)  + \
-                    displayed_elo.rjust(elo_str_len) + "\n"
-
+            place_str = (str(place) + ".")[:place_str_len]
+            displayed_name = (str(player["username"]) + ":")[:name_len]
+            displayed_elo = str(round(player["elo"]))[:elo_str_len]
+            lb_list +=  place_str.ljust(place_str_len)\
+                    +   displayed_name.ljust(name_len)\
+                    +   displayed_elo.rjust(elo_str_len) + "\n"
         lb_list += "```"
 
         lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)

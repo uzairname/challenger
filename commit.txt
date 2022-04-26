@@ -1,1 +1,3 @@
+Delete queue file
 Remove required_role from lobby
+fix leaderboard display

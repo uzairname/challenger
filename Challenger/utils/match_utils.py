@@ -4,12 +4,12 @@ import tanjun
 import re
 import numpy as np
 
-
 import time
 import asyncio
 import pandas as pd
-from Challenger.config import *
+from datetime import datetime
 
+from Challenger.config import *
 from .scoring import *
 from .constants import *
 from .style import *
@@ -211,6 +211,30 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match 
     return embed
 
 
+
+async def start_announce_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
+    """creates a new match between the 2 players and announces it to the channel"""
+
+    DB = Guild_DB(ctx.guild_id)
+
+    p1_ping = "<@" + str(p1_info.name) + ">"
+    p2_ping = "<@" + str(p2_info.name) + ">"
+
+    p1_is_ranked = p1_info["is_ranked"]
+    p2_is_ranked = p2_info["is_ranked"]
+
+    new_match = DB.get_new_match()
+
+    new_match[["time_started", "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = \
+        [datetime.now(), p1_info.name, p2_info.name, p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
+
+    DB.upsert_match(new_match)
+
+    embed = hikari.Embed(title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"], color=Colors.PRIMARY)
+
+    await ctx.get_channel().send(content=p1_ping+ " " + p2_ping, embed=embed, user_mentions=True)
+
+
 async def announce_in_updates_channel(ctx, embed, client:tanjun.Client, content=None):
     DB = Guild_DB(ctx.guild_id)
 
@@ -287,4 +311,4 @@ def player_col_for_match(match, user_id, column, opponent=False): #useful probab
         raise ValueError("Player not in match")
 
 __all__ = ["describe_match", "announce_in_updates_channel", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue",
-           "recalculate_matches", "determine_is_ranked", "player_col_for_match"]
+           "recalculate_matches", "determine_is_ranked", "player_col_for_match", "start_announce_new_match"]
