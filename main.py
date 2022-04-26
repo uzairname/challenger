@@ -4,7 +4,6 @@ import hikari
 import os
 from Challenger.bot import build_bot
 import pandas as pd
-
 import mongoengine as me
 
 if __name__ == "__main__":
@@ -13,6 +12,5 @@ if __name__ == "__main__":
     pd.options.display.width = 100
     pd.options.mode.chained_assignment = None
 
-    me.connect(host=os.environ.get("MONGODB_URL"))
 
     build_bot(os.environ.get('DISCORD_TOKEN')).run(status=hikari.Status.DO_NOT_DISTURB)

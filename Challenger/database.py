@@ -10,75 +10,102 @@ import mongoengine as me
 
 from Challenger.config import Database_Config
 
-@me.register_connection(alias='default')
 
 
 
-class User(me.Document): # Field in Player
+class User(me.Document):
     """
-    User class for storing data in MongoDB
+    Collection
     """
-    id = me.StringField(primary_key=True)
+    user_id = me.StringField(primary_key=True)
     username = me.StringField()
+
+    meta = {'collection': 'users'}
     data = me.DictField()
 
 
-class Player(me.Document): # Field in leaderboard, Match, Lobby
+class Player(me.EmbeddedDocument):
     """
-    Player class for storing data in MongoDB
+    Field in leaderboard
     """
-    user = me.ReferenceField(User, primary_key=True)
-    time_registered = me.DateTimeField(default=time.time) # time.time()
+    user_id = me.ReferenceField(User, primary_key=True)
+    time_registered = me.DateTimeField() # time.time()
     rating = me.FloatField()
     rating_deviation = me.FloatField()
+
     data = me.DictField()
 
 
-class Match(me.Document): #Field in Leaderboard
+
+class Match(me.EmbeddedDocument):
     """
-    Match class for storing data in MongoDB
+    Field in Leaderboard
     """
     id = me.IntField(primary_key=True)
-    player1 = me.ReferenceField(Player)
-    player2 = me.ReferenceField(Player)
-    data = me.DictField()
+    player1 = me.EmbeddedDocumentField(Player)
+    player2 = me.EmbeddedDocumentField(Player)
+    outcome = me.IntField()
+    time_started = me.DateTimeField()
 
 
-class Leaderboard(me.Document): # Goes in a collection
+
+class Lobby(me.EmbeddedDocument):
     """
-    Leaderboard class for storing data in MongoDB
+    Field in Guild_Leaderboard
     """
     id = me.IntField(primary_key=True)
     name = me.StringField()
-    players = me.ListField(me.ReferenceField(Player))
-    matches = me.ListField(me.ReferenceField(Match))
-    tournaments = me.ListField(me.ReferenceField('Tournament'))
+    player_in_q = me.LazyReferenceField(User)
+    required_roles = me.ListField(me.IntField())
+
+    data = me.DictField()
+
+
+
+class Leaderboard(me.Document):
+    """
+    Collection
+    """
+    id = me.IntField(primary_key=True)
+    name = me.StringField()
+    players = me.EmbeddedDocumentListField(Player)
+    matches = me.EmbeddedDocumentListField(Match)
+    # tournaments = me.ListField(me.ReferenceField('Tournament'))
+
     meta = {'collection': 'leaderboards'}
     data = me.DictField()
 
 
-class Lobby(me.Document): # Field in Guild
+class Guild_Leaderboard(me.EmbeddedDocument):
     """
-    Lobby class for storing data in MongoDB
+    Field in Guild
     """
     id = me.IntField(primary_key=True)
-    leaderboard = me.ReferenceField(Leaderboard)
     name = me.StringField()
-    player_in_q = me.ReferenceField(Player)
+    leaderboard = me.ReferenceField(Leaderboard)
+    lobbies = me.ListField(me.EmbeddedDocumentField(Lobby))
+
     data = me.DictField()
 
 
-class Guild(me.Document): # Goes in a collection
+
+class Guild(me.Document):
     """
-    Guild class for storing data in MongoDB
+    Collection
     """
     id = me.IntField(primary_key=True)
     admin_role_id = me.IntField()
     staff_role_id = me.IntField()
-    leaderboards = me.ListField(me.ReferenceField(Leaderboard))
-    lobbies = me.ListField(me.ReferenceField(Lobby))
+    leaderboards = me.EmbeddedDocumentListField(Guild_Leaderboard)
+
     meta = {'collection': 'guilds'}
     data = me.DictField()
+
+
+
+
+
+
 
 
 
@@ -91,16 +118,6 @@ class Mongo_Client(pymongo.MongoClient):
         start = time.perf_counter()
         super().__init__(url)
         print("Time taken to connect to mongo client", time.perf_counter()-start)
-
-
-
-
-
-
-
-class Database:
-
-    pass
 
 
 class Guild_DB:

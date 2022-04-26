@@ -33,7 +33,6 @@ class Test(unittest.TestCase):
 
 
 #noinspection PyMethodMayBeStatic
-@unittest.skip("Skipping")
 class Test_DB(unittest.TestCase):
 
     def setup_db(self):
