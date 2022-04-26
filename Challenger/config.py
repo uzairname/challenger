@@ -6,13 +6,15 @@ from hikari import Permissions
 @final
 class Config:
 
-    VERSION = '1.0.0 dev4'
+    VERSION = '1.0.0 dev5'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
     DISCORD_SERVER_LINK = "https://discord.gg/bunZ3gadBU"
     TOP_GG_LINK = "https://top.gg/bot/908432840566374450"
     OWNER_ID = 623257053879861248  # Lilapela's ID
     DEV_GUILD_ID = 907729885726933043 # Testing discord server
+
+    OWNER_AVATAR = "https://cdn.discordapp.com/avatars/623257053879861248/18473bb00ae3869688ab15c9a41da270.png"
 
     REQUIRED_PERMISSIONS = Permissions.VIEW_CHANNEL | Permissions.SEND_MESSAGES | Permissions.EMBED_LINKS | Permissions.MANAGE_ROLES
     PERMS_ERR_MSG = f"The bot is missing some required permissions either for this channel or the server"

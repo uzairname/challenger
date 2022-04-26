@@ -52,12 +52,6 @@ async def elo_stats(ctx):
     std_elo = all_players[all_players["is_ranked"]].std()["elo"]
     median_elo = all_players[all_players["is_ranked"]].median()["elo"]
 
-
-
-
-
-
-
     embed = hikari.Embed(title="Elo Stats For Server", description=f"Avg elo: {avg_elo:.2f}\n"
                                                                    f"Std elo: {std_elo:.2f}\n"
                                                                    f"Median elo: {median_elo:.2f}", color=Colors.PRIMARY)
@@ -72,13 +66,12 @@ async def elo_stats(ctx):
 @ensure_staff
 async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
 
-    message = await ctx.respond("Getting matches...", ensure_result=True)
+    await ctx.respond("Getting matches...")
 
     DB = Guild_DB(ctx.guild_id)
     all_matches = DB.get_matches()
 
     await ctx.edit_initial_response("Recalculating matches...")
-
 
     all_players = DB.get_players()
     reduced_players_df = all_players[["elo", "is_ranked"]]
@@ -90,12 +83,14 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
 
     start_time = time.perf_counter()
     DB.upsert_matches(updated_matches)
-
     players = DB.get_players(user_ids=list(updated_players.index))
+
     players_before = players.loc[updated_players.index, updated_players.columns]
     players[updated_players.columns] = updated_players
     DB.upsert_players(players)
 
+
+    # shows the result
     updated_players_strs = []
     for user_id, updated_player in updated_players.iterrows():
 
@@ -108,6 +103,7 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
             updated_elo_str += "?"
 
         updated_players_strs.append("<@" + str(user_id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n")
+
     print("upsert players time taken:" + str(time.perf_counter() - start_time))
 
 
@@ -118,7 +114,7 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
     print("update players elo roles time taken:" + str(time.perf_counter() - start_time))
 
 
-    explanation_str = "All matches and elo were updated based on match results and any new elo config settings"
+    done_str = "All matches and elo were updated based on match results and any new elo config settings"
     def get_updated_players_for_page(page_num):
         page_size = 10
         start_index = page_size * page_num
@@ -139,7 +135,7 @@ async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.Gate
     def is_last_page(page_num):
         return get_updated_players_for_page(page_num + 1) is None
 
-    await ctx.edit_initial_response(explanation_str)
+    await ctx.edit_initial_response(done_str)
 
     cur_page = 0
     while True:
