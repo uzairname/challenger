@@ -136,8 +136,6 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False, always_defer=True)
 async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
 
-    response = await ctx.fetch_initial_response()
-
     DB = Guild_DB(ctx.guild_id)
 
     def get_leaderboard_for_page(page):

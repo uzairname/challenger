@@ -6,52 +6,99 @@ import time
 import numpy as np
 import pandas as pd
 import pymongo
+import mongoengine as me
 
 from Challenger.config import Database_Config
 
+@me.register_connection(alias='default')
 
-from .temp import client #tf?
 
-class Client(pymongo.MongoClient):
+
+class User(me.Document): # Field in Player
+    """
+    User class for storing data in MongoDB
+    """
+    id = me.StringField(primary_key=True)
+    username = me.StringField()
+    data = me.DictField()
+
+
+class Player(me.Document): # Field in leaderboard, Match, Lobby
+    """
+    Player class for storing data in MongoDB
+    """
+    user = me.ReferenceField(User, primary_key=True)
+    time_registered = me.DateTimeField(default=time.time) # time.time()
+    rating = me.FloatField()
+    rating_deviation = me.FloatField()
+    data = me.DictField()
+
+
+class Match(me.Document): #Field in Leaderboard
+    """
+    Match class for storing data in MongoDB
+    """
+    id = me.IntField(primary_key=True)
+    player1 = me.ReferenceField(Player)
+    player2 = me.ReferenceField(Player)
+    data = me.DictField()
+
+
+class Leaderboard(me.Document): # Goes in a collection
+    """
+    Leaderboard class for storing data in MongoDB
+    """
+    id = me.IntField(primary_key=True)
+    name = me.StringField()
+    players = me.ListField(me.ReferenceField(Player))
+    matches = me.ListField(me.ReferenceField(Match))
+    tournaments = me.ListField(me.ReferenceField('Tournament'))
+    meta = {'collection': 'leaderboards'}
+    data = me.DictField()
+
+
+class Lobby(me.Document): # Field in Guild
+    """
+    Lobby class for storing data in MongoDB
+    """
+    id = me.IntField(primary_key=True)
+    leaderboard = me.ReferenceField(Leaderboard)
+    name = me.StringField()
+    player_in_q = me.ReferenceField(Player)
+    data = me.DictField()
+
+
+class Guild(me.Document): # Goes in a collection
+    """
+    Guild class for storing data in MongoDB
+    """
+    id = me.IntField(primary_key=True)
+    admin_role_id = me.IntField()
+    staff_role_id = me.IntField()
+    leaderboards = me.ListField(me.ReferenceField(Leaderboard))
+    lobbies = me.ListField(me.ReferenceField(Lobby))
+    meta = {'collection': 'guilds'}
+    data = me.DictField()
+
+
+
+class Mongo_Client(pymongo.MongoClient):
 
     def __init__(self):
 
-        start = time.perf_counter()
         url = os.environ.get("MONGODB_URL")
+
+        start = time.perf_counter()
         super().__init__(url)
-        print("Time taken to connect to mongo client", time.perf_counter()- start)
-
-        client.append(self)
+        print("Time taken to connect to mongo client", time.perf_counter()-start)
 
 
 
 
-class Leaderboard_DB:
-
-    empty_player_df = pd.DataFrame([], columns=["user_id", "username", "tag", "time_registered", "elo", "is_ranked"]).set_index("user_id")
-    empty_match_df = pd.DataFrame([], columns=[
-        "match_id", "time_started", "outcome", "staff_declared",
-        "p1_id", "p1_declared", "p1_elo", "p1_elo_after", "p1_is_ranked", "p1_is_ranked_after",
-        "p2_id", "p2_declared", "p2_elo", "p2_elo_after", "p2_is_ranked", "p2_is_ranked_after"
-    ]).set_index("match_id")
-
-    leaderboard_id:int
-
-    def __init__(self, leaderboard_id):
-
-        if len(client) == 0:
-            self.client = Client()
-        else:
-            self.client = client[0]
-
-
-        self.leaderboard_id = leaderboard_id
-
-        self.guildDB = self.client["leaderboard_" + str(self.leaderboard_id)]
 
 
 
-
+class Database:
 
     pass
 
@@ -85,10 +132,10 @@ class Guild_DB:
 
     def __init__(self, guild_id):
 
-        if len(client) == 0:
-            self.client = Client()
-        else:
-            self.client = client[0]
+        if Database_Config.mongodb_client is None:
+            Database_Config.mongodb_client = Mongo_Client()
+        self.client = Database_Config.mongodb_client
+
 
         self.guild_id = guild_id
 
@@ -338,13 +385,3 @@ class Guild_DB:
         configdict = config.to_dict()
         self.guildDB[self.tbl_names.CONFIG.value].update_one({}, {"$set":configdict}, upsert=True)
 
-
-
-
-
-    def add_ranking(self, ranking: Leaderboard_DB):
-        self.rankings.append(Leaderboard_DB.leaderboard_id)
-
-    def get_rankings(self) -> list[Leaderboard_DB]:
-
-        return self.rankings

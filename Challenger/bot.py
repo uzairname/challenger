@@ -41,7 +41,7 @@ async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.Gate
 
     if os.environ.get("ENVIRONMENT") == "production" or os.environ.get("ENVIRONMENT") == "staging":
         await client.declare_global_commands()
-        await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.COMPETING, name="everything"))
+        await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.LISTENING, name="/about for info!"))
 
     elif os.environ.get("ENVIRONMENT") == "development":
         client.load_modules("Challenger.plugins.experimental")

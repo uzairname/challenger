@@ -45,6 +45,8 @@ class Elo:
 @final
 class Database_Config:
 
+    mongodb_client = None
+
     B2T_GUILD_ID = 921447683154145331
 
     # database names for some known discord servers, for ease of use. "testing" is for unit testing
