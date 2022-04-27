@@ -55,7 +55,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
     #get the selected player
     if player:
         member = player
-        players = DB.get_players(user_id=player.id)
+        players = DB.get_players(user_id=player.channel_id)
     else:
         member = ctx.member
         players = DB.get_players(user_id=ctx.author.id)

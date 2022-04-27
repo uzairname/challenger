@@ -163,7 +163,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
 
     DB = Guild_DB(ctx.guild_id)
 
-    user_id = player.id if player else None
+    user_id = player.channel_id if player else None
 
     matches_per_page = 5
 
@@ -210,7 +210,7 @@ async def set_match(ctx: tanjun.abc.Context, match_number, winner, outcome, bot:
     match = matches.iloc[0]
 
     if winner:
-        winner_id = winner.id
+        winner_id = winner.channel_id
         if winner_id == match["p1_id"]:
             new_outcome = Outcome.PLAYER_1
         elif winner_id == match["p2_id"]:

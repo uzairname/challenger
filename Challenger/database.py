@@ -2,7 +2,9 @@ import os
 from typing import List
 from enum import Enum
 import time
+import uuid
 
+import bson
 import numpy as np
 import pandas as pd
 import pymongo
@@ -17,19 +19,18 @@ class User(me.Document):
     """
     Collection
     """
-    user_id = me.StringField(primary_key=True)
+    user_id = me.IntField(primary_key=True)
     username = me.StringField()
 
     meta = {'collection': 'users'}
-    data = me.DictField()
 
 
 
-class Leaderboard_Player(me.EmbeddedDocument):
+class Player(me.EmbeddedDocument):
     """
     Field in leaderboard
     """
-    user_id = me.ReferenceField(User, primary_key=True)
+    user = me.LazyReferenceField(User, primary_key=True)
     time_registered = me.DateTimeField() # time.time()
     rating = me.FloatField()
     rating_deviation = me.FloatField()
@@ -42,9 +43,9 @@ class Match(me.EmbeddedDocument):
     """
     Field in Leaderboard
     """
-    id = me.IntField(primary_key=True)
-    player1 = me.EmbeddedDocumentField(Leaderboard_Player)
-    player2 = me.EmbeddedDocumentField(Leaderboard_Player)
+    match_id = me.IntField(primary_key=True)
+    player1 = me.EmbeddedDocumentField(Player)
+    player2 = me.EmbeddedDocumentField(Player)
     outcome = me.IntField()
     time_started = me.DateTimeField()
 
@@ -54,27 +55,25 @@ class Leaderboard(me.Document):
     """
     Collection
     """
-    id = me.IntField(primary_key=True)
+    lb_id = me.ObjectIdField(primary_key=True)
     name = me.StringField()
-    players = me.EmbeddedDocumentListField(Leaderboard_Player)
+    players = me.EmbeddedDocumentListField(Player)
     matches = me.EmbeddedDocumentListField(Match)
     # tournaments = me.ListField(me.ReferenceField('Tournament'))
 
     meta = {'collection': 'leaderboards'}
-    data = me.DictField()
 
 
 
-class Lobby(me.EmbeddedDocument):
+class Lobby1v1(me.EmbeddedDocument):
     """
-    Field in Guild_Leaderboard
+    Field in Guild_Leaderboard, which is a field in Guild
     """
-    id = me.IntField(primary_key=True)
+    channel_id = me.IntField(primary_key=True)
     name = me.StringField()
     player_in_q = me.LazyReferenceField(User)
-    required_roles = me.ListField(me.IntField())
-
-    data = me.DictField()
+    elo_range = me.ListField(me.FloatField())
+    results_channel = me.IntField()
 
 
 
@@ -83,10 +82,10 @@ class Guild_Leaderboard(me.EmbeddedDocument):
     Field in Guild
     """
     leaderboard = me.LazyReferenceField(Leaderboard, primary_key=True)
-    name = me.StringField()
-    lobbies = me.ListField(me.EmbeddedDocumentField(Lobby))
-
-    data = me.DictField()
+    name = me.StringField(unique=True)
+    lobbies = me.ListField(me.EmbeddedDocumentField(Lobby1v1))
+    tournament_channel = me.IntField()
+    default_results_channel = me.IntField()
 
 
 
@@ -94,26 +93,33 @@ class Guild(me.Document):
     """
     Collection
     """
-    id = me.IntField(primary_key=True)
+    guild_id = me.IntField(primary_key=True)
     name = me.StringField()
     admin_role_id = me.IntField(default=None)
     staff_role_id = me.IntField(default=None)
-    leaderboards = me.EmbeddedDocumentListField(Guild_Leaderboard)
+    guild_leaderboards = me.EmbeddedDocumentListField(Guild_Leaderboard)
 
     meta = {'collection': 'guilds'}
-    data = me.DictField()
 
 
-    def add_leaderboard(self, leaderboard: Leaderboard) -> None:
-        self.leaderboards.append(leaderboard)
+    def connect_leaderboard(self, leaderboard: Leaderboard) -> None:
+        guild_leaderboard = Guild_Leaderboard(leaderboard=leaderboard, name=leaderboard.name)
+
+        self.guild_leaderboards.append(guild_leaderboard)
         return self.save()
 
-    def get_leaderboard(self, leaderboard_id: int) -> Leaderboard:
-        return self.leaderboards.filter(lambda lb: lb.leaderboard.id == leaderboard_id).first()
+    def get_guild_lb_by_name(self, name:str) -> Guild_Leaderboard:
+        for lb in self.guild_leaderboards:
+            if lb.name == name:
+                return lb
+
+    def get_leaderboards(self) -> List[Leaderboard]:
+        return [lb.leaderboard for lb in self.guild_leaderboards]
 
     def delete_leaderboard(self, leaderboard_id: int) -> None:
-        self.leaderboards.remove(self.get_leaderboard(leaderboard_id))
+        self.guild_leaderboards.remove(self.get_guild_lb_by_name(leaderboard_id))
         return self.save()
+
 
     def set_admin_role(self, role_id: int) -> None:
         self.admin_role_id = role_id
@@ -142,18 +148,49 @@ class Guild(me.Document):
 class database:
 
     @staticmethod
+    def add_user(user_id:int, username:str) -> User:
+        user = User(id=user_id, username=username)
+        user.save()
+        return user
+
+    @staticmethod
+    def get_user(user_id: int) -> User:
+        return User.objects(id=user_id).first()
+
+    @staticmethod
+    def delete_user(user_id: int) -> None:
+        User.objects(id=user_id).delete()
+
+
+    @staticmethod
     def add_guild(guild_id:int, name:str=None) -> Guild:
         guild = Guild(id=guild_id, name=name)
         guild.save()
         return guild
 
     @staticmethod
-    def get_guild(guild_id: int) -> Guild:
-        return Guild.objects(id=guild_id).first()
-
-    @staticmethod
     def delete_guild(guild_id: int) -> None:
         database.get_guild(guild_id).delete()
+
+
+    @staticmethod
+    def add_leaderboard(name:str) -> Leaderboard:
+        #generate uuid for leaderboard
+        id = bson.ObjectId()
+
+        leaderboard = Leaderboard(id=id, name=name)
+        leaderboard.save()
+        return leaderboard
+
+    @staticmethod
+    def get_leaderboard(leaderboard_id: int) -> Leaderboard:
+        return Leaderboard.objects(id=leaderboard_id).first()
+
+    @staticmethod
+    def delete_leaderboard(leaderboard_id: int) -> None:
+        database.get_leaderboard(leaderboard_id).delete()
+
+
 
 
 

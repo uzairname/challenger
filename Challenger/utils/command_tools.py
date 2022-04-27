@@ -27,7 +27,7 @@ def ensure_registered(func):
     async def wrapper(ctx, *args, **kwargs):
         DB = Guild_DB(ctx.guild_id)
 
-        player = DB.get_players(user_id=ctx.author.id)
+        player = DB.get_players(user_id=ctx.author.channel_id)
         if player.empty:
             await ctx.respond(f"Hi {ctx.author.mention}! Please register with /register to play", user_mentions=True)
             return
@@ -60,7 +60,7 @@ def ensure_staff(func):
     async def wrapper(ctx, *args, **kwargs):
 
         async def is_staff():
-            if ctx.author.id == App.OWNER_ID:
+            if ctx.author.channel_id == App.OWNER_ID:
                 return True
 
             DB = Guild_DB(ctx.guild_id)
@@ -115,11 +115,11 @@ def confirm_cancel_input(input_instructions:typing.Callable):
 
             with bot.stream(hikari.InteractionCreateEvent, timeout=App.COMPONENT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
-                ("interaction.message.id", response.id)
+                ("interaction.message.id", response.channel_id)
             ) as stream:
                 async for event in stream:
                     await event.interaction.create_initial_response(hikari.ResponseType.DEFERRED_MESSAGE_UPDATE)
-                    if event.interaction.user.id != ctx.author.id:
+                    if event.interaction.user.channel_id != ctx.author.channel_id:
                         continue
 
                     if event.interaction.custom_id == "Confirm":
@@ -173,7 +173,7 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_pa
             ("interaction.message.id", response.id)) as stream:
         async for event in stream:
             await event.interaction.create_initial_response(ResponseType.DEFERRED_MESSAGE_UPDATE)
-            if event.interaction.user.id != ctx.author.id:
+            if event.interaction.user.channel_id != ctx.author.id:
                 continue
 
             if event.interaction.custom_id == nextlabel and not is_last_page(cur_page):

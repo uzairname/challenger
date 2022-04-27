@@ -117,17 +117,17 @@ async def config_lobby(ctx:tanjun.abc.Context, action, name, channel, bot=tanjun
         if channel is None:
             return "Please enter a channel", Embed_Type.ERROR
 
-        existing_queues = DB.get_lobbies(channel_id=channel.id)
+        existing_queues = DB.get_lobbies(channel_id=channel.channel_id)
 
         if action == "delete":
             if existing_queues.empty:
-                return "No lobby in <#" + str(channel.id) + ">", Embed_Type.ERROR
+                return "No lobby in <#" + str(channel.channel_id) + ">", Embed_Type.ERROR
 
-            DB.delete_lobby(channel.id)
-            return "Deleted lobby from <#" + str(channel.id) + ">", Embed_Type.CONFIRM
+            DB.delete_lobby(channel.channel_id)
+            return "Deleted lobby from <#" + str(channel.channel_id) + ">", Embed_Type.CONFIRM
 
         if existing_queues.empty:
-            new_queue = DB.get_new_lobby(channel.id)
+            new_queue = DB.get_new_lobby(channel.channel_id)
             if name is None:
                 return "Please enter a name", Embed_Type.ERROR
             new_queue["lobby_name"] = name
@@ -197,7 +197,7 @@ async def config_staff(ctx: tanjun.abc.Context, action, role, bot=tanjun.injecte
             return "Select one role", Embed_Type.ERROR
 
         if action == "link role":
-            config["staff_role"] = role.id
+            config["staff_role"] = role.channel_id
             DB.upsert_config(config)
             return "Bot staff is now " + role.mention, Embed_Type.CONFIRM
 
@@ -303,7 +303,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
         elif action == "remove":
             action_str += "**Removing channel**\n"
 
-        selection += "<#" + str(channel.id) + ">"
+        selection += "<#" + str(channel.channel_id) + ">"
 
     embed = hikari.Embed(title="Add or remove results channel",
                         description="Set a channel for match announcements. Results are posted in the channel when a match is initially created, when the result is decided by the players, and when staff updates a match's result",
@@ -337,7 +337,7 @@ async def config_results_channel(ctx:tanjun.abc.Context, action, channel, bot=ta
         if channel is None:
             return "Select a channel", Embed_Type.ERROR
 
-        config["results_channel"] = channel.id
+        config["results_channel"] = channel.channel_id
         DB.upsert_config(config)
         return "Updated results channel", Embed_Type.CONFIRM
 
