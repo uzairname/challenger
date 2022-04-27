@@ -13,7 +13,7 @@ component = tanjun.Component(name="player module")
 
 
 @component.with_slash_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
 async def register(ctx: tanjun.abc.Context) -> None:
 
@@ -45,7 +45,7 @@ async def register(ctx: tanjun.abc.Context) -> None:
 
 
 @component.with_slash_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_member_slash_option("player", "(optional) their mention", default=None)
 @tanjun.as_slash_command("stats", "view your or someone's stats", default_to_ephemeral=False, always_defer=True)
 async def get_stats(ctx: tanjun.abc.Context, player) -> None:
@@ -132,7 +132,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
 
 
 @component.with_slash_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False, always_defer=True)
 async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
 

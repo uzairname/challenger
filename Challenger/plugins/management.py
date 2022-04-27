@@ -3,7 +3,7 @@ import tanjun
 import pandas as pd
 
 from Challenger.utils import *
-from Challenger.config import Config
+from Challenger.config import App
 from Challenger.database import Guild_DB
 
 
@@ -11,7 +11,7 @@ config = tanjun.slash_command_group("config", "Change the bot settings", default
 
 
 @config.with_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("help", "settings commands help", default_to_ephemeral=True, always_defer=True)
 async def config_help(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.injected(type=tanjun.abc.Client)):
 
@@ -101,7 +101,7 @@ async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channe
     return embed
 
 @config.with_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"update", "delete":"delete"}, default="update")
 @tanjun.with_str_slash_option("name", "lobby name", default=None)
 @tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
@@ -174,7 +174,7 @@ async def config_staff_instructions(ctx:tanjun.abc.Context, action, role:hikari.
     return embed
 
 @config.with_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="link role")
 @tanjun.with_role_slash_option("role", "role", default=None)
 @tanjun.as_slash_command("staff", "link a role to bot staff", default_to_ephemeral=False, always_defer=True)
@@ -233,7 +233,7 @@ async def config_elo_roles_instructions(ctx:tanjun.abc.Context, action, role, mi
     return embed
 
 @config.with_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"link role":"link role", "unlink role":"unlink role"}, default="link role")
 @tanjun.with_str_slash_option("max_elo", "max elo", default=float("inf"))
 @tanjun.with_str_slash_option("min_elo", "min elo", default=float("-inf"))
@@ -316,7 +316,7 @@ async def config_results_channel_instructions(ctx:tanjun.abc.Context, action, ch
     return embed
 
 @config.with_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("action", "what to do", choices={"update":"add/update channel", "remove":"reset to default"}, default="update")
 @tanjun.with_channel_slash_option("channel", "channel", default=None)
 @tanjun.as_slash_command("match-updates-channel", "Set a channel to send match results announcements to", default_to_ephemeral=False, always_defer=True)
@@ -354,7 +354,7 @@ async def reset_instructions(**kwargs):
     return embed
 
 @config.with_command
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("reset", "reset player and match data (asks for confirmation)", default_to_ephemeral=False)
 @ensure_staff
 @confirm_cancel_input(input_instructions=reset_instructions)

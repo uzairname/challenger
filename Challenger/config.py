@@ -4,7 +4,7 @@ from hikari import Permissions
 
 
 @final
-class Config:
+class App:
 
     VERSION = '1.0.0 dev5'
 
@@ -43,11 +43,25 @@ class Elo:
 
 
 @final
-class Database_Config:
+class DB:
 
     mongodb_client = None
 
+    mongodb_url_with_database = os.environ.get("MONGODB_URL").replace("mongodb.net/?", "mongodb.net/" + os.environ.get("ENVIRONMENT") + "?")
+
     B2T_GUILD_ID = 921447683154145331
+    TESTING_GUILD_ID = 947184983120957452
 
     # database names for some known discord servers, for ease of use. "testing" is for unit testing
-    KNOWN_GUILDS = {1: "testing", Config.DEV_GUILD_ID: "development", 947184983120957452: "PX", B2T_GUILD_ID:"B2T"}
+    KNOWN_GUILDS = {1: "testing", App.DEV_GUILD_ID: "development", 947184983120957452: "PX", B2T_GUILD_ID: "B2T"}
+
+
+
+import pandas as pd
+
+def set_pandas_display_options():
+
+    pd.set_option('display.max_columns', None)
+    pd.set_option("max_colwidth", 90)
+    pd.options.display.width = 100
+    pd.options.mode.chained_assignment = None

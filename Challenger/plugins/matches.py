@@ -16,7 +16,7 @@ import pandas as pd
 #join the queue
 
 
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 @get_channel_lobby
@@ -69,7 +69,7 @@ async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=
 
 
 #leave queue
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
 @get_channel_lobby
@@ -88,7 +88,7 @@ async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
 
 
 
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=True)
 @get_channel_lobby
 async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
@@ -99,7 +99,7 @@ async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
 
 
 
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False, always_defer=True)
 @ensure_registered
@@ -155,7 +155,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.Gateway
 
 
 
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_user_slash_option("player", "whose matches to see (optional)", default=None)
 @tanjun.as_slash_command("match-history", "All the match's results", default_to_ephemeral=True, always_defer=True)
 @ensure_registered
@@ -192,7 +192,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
 
 
 
-@tanjun.with_own_permission_check(Config.REQUIRED_PERMISSIONS, error_message=Config.PERMS_ERR_MSG)
+@tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL}, default=None)
 @tanjun.with_user_slash_option("winner", "set the winner (optional)", default=None)
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
@@ -264,7 +264,7 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
     print(players_after, "\n", players_before)
 
     # filter out players whose elo hasn't changed much
-    eq_threshhold = Elo.K/100
+    eq_threshhold = Elo.K / 100
     mask = abs(players_before["elo"]-players_after["elo"]).gt(eq_threshhold)
     players_before = players_before.loc[mask]
     players_after = players.loc[mask]

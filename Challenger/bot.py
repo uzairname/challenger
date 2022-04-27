@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from Challenger.database import Guild_DB
-from Challenger.config import Config
+from Challenger.config import App
 from Challenger.utils.command_tools import on_error
 
 
@@ -30,7 +30,7 @@ def build_client(bot:hikari.GatewayBot):
 
 async def on_guild_available(event:hikari.GuildAvailableEvent):
 
-    print(event.guild.name)
+    print("Guild available: " + event.guild.name)
     DB = Guild_DB(event.guild.id)
     DB.create_collections()
     config = DB.get_config()
@@ -45,5 +45,5 @@ async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.Gate
 
     elif os.environ.get("ENVIRONMENT") == "development":
         client.load_modules("Challenger.plugins.experimental")
-        await client.declare_global_commands(guild=Config.DEV_GUILD_ID)
-        await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name=Config.VERSION))
+        await client.declare_global_commands(guild=App.DEV_GUILD_ID)
+        await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name=App.VERSION))

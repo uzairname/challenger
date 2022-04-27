@@ -2,11 +2,11 @@ import unittest
 
 import pandas as pd
 
-from Challenger.config import Config
-from Challenger.database import Guild_DB
+from Challenger.config import *
+from Challenger.database import *
 from Challenger.utils import *
 
-from datetime import datetime, timedelta
+import mongoengine as me
 
 
 class Test_Bayeselo(unittest.TestCase):
@@ -21,77 +21,44 @@ class Test_Bayeselo(unittest.TestCase):
 
 
 
-@unittest.skip("skipping")
-class Test(unittest.TestCase):
-
-    def test_test(self):
-        DB = Guild_DB()
-        DB.delete_database()
-        DB.create_collections()
-
-        DB.test()
-
-
 #noinspection PyMethodMayBeStatic
 class Test_DB(unittest.TestCase):
 
-    def setup_db(self):
-        DB = Guild_DB(1)
-        DB.delete_database()
-        DB.create_collections()
+    def test_get_set_delete_guild(self):
 
-    def test_get_upsert_matches(self):
+        # Create a guild
+        database.add_guild(DB.TESTING_GUILD_ID, name="Test Guild")
 
-        """
-        Adds a new match and gets it back. checks if the match is the same
-        """
+        # Get the guild
+        guild = database.get_guild(DB.TESTING_GUILD_ID)
 
-        DB = Guild_DB(1)
-        DB.delete_all_matches()
+        # Check the name
+        self.assertEqual(guild.name, "Test Guild")
 
-        match = DB.get_new_match()
-        match["p1_id"] = 48736582983653827
-        match["p2_id"] = 34365829836532398
+        # Set the staff role
+        guild.set_staff_role(94833278723897239)
 
-        DB.upsert_match(match)
-        match2 = DB.get_matches(limit=1).iloc[0]
+        # Check the staff role
+        self.assertEqual(guild.staff_role_id, 94833278723897239)
 
-        assert match.equals(match2)
+        guild = database.get_guild(DB.TESTING_GUILD_ID)
+        self.assertEqual(guild.staff_role_id, 94833278723897239)
 
+        # Delete the guild
+        guild.delete()
 
-    def test_get_matches(self):
+        # Check the guild
+        guild = database.get_guild(DB.TESTING_GUILD_ID)
+        self.assertEqual(guild, None)
 
-        DB = Guild_DB(1)
-        DB.delete_all_matches()
-        assert DB.get_matches().equals(DB.empty_match_df)
-
-        for i in range(20):
-            match = DB.get_new_match()
-            match["p1_id"] = i%2
-            DB.upsert_match(match)
-
-        #ensure that filters are applied in this order: increasing, then offset, then number
-        matches = DB.get_matches(user_id=0, limit=5, chronological=False, skip=1) #the 5 matches before the second to last one
-
-        print("matches: \n" + str(matches))
-
-        expected_index = pd.Index([17, 15, 13, 11, 9])
-        assert matches.index.equals(expected_index)
-
-    def test_reset(self):
-
-        DB = Guild_DB(1)
-
-
-
-
-
+        print("get set test guild")
 
 
 
 if __name__ == "__main__":
-    pd.set_option('display.max_columns', None)
-    pd.set_option("max_colwidth", 90)
-    pd.options.display.width = 100
-    pd.options.mode.chained_assignment = None
+
+    print(os.environ.get("MONGODB_URL").replace("mongodb.net/?", "mongodb.net/" + os.environ.get("ENVIRONMENT") + "?"))
+
+    me.connect(host=DB.mongodb_url_with_database)
+
     unittest.main()

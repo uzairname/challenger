@@ -114,12 +114,12 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
 
 
 async def remove_from_q_timeout(ctx: tanjun.abc.Context, DB: Guild_DB):
-    await asyncio.sleep(Config.QUEUE_JOIN_TIMEOUT)
+    await asyncio.sleep(App.QUEUE_JOIN_TIMEOUT)
     queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0]  # would probably break if the channel was deleted after the player joined
     queue["player"] = None
     DB.upsert_lobby(queue)
     await ctx.respond("You have been removed from the queue")
-    await ctx.get_channel().send("A player was removed from the queue after " + str(Config.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
+    await ctx.get_channel().send("A player was removed from the queue after " + str(App.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
 async def remove_from_queue(DB:Guild_DB, lobby):

@@ -8,7 +8,7 @@ import pandas as pd
 import pymongo
 import mongoengine as me
 
-from Challenger.config import Database_Config
+from Challenger.config import DB
 
 
 
@@ -47,6 +47,7 @@ class Match(me.EmbeddedDocument):
     player2 = me.EmbeddedDocumentField(Leaderboard_Player)
     outcome = me.IntField()
     time_started = me.DateTimeField()
+
 
 
 class Leaderboard(me.Document):
@@ -94,6 +95,7 @@ class Guild(me.Document):
     Collection
     """
     id = me.IntField(primary_key=True)
+    name = me.StringField()
     admin_role_id = me.IntField(default=None)
     staff_role_id = me.IntField(default=None)
     leaderboards = me.EmbeddedDocumentListField(Guild_Leaderboard)
@@ -136,20 +138,22 @@ class Guild(me.Document):
         return self.save()
 
 
+#noinspection PyMethodMayBeStatic
+class database:
 
+    @staticmethod
+    def add_guild(guild_id:int, name:str=None) -> Guild:
+        guild = Guild(id=guild_id, name=name)
+        guild.save()
+        return guild
 
-def add_guild(guild_id: int) -> Guild:
-    guild = Guild(id=guild_id)
-    guild.save()
-    return guild
+    @staticmethod
+    def get_guild(guild_id: int) -> Guild:
+        return Guild.objects(id=guild_id).first()
 
-
-def get_guild(guild_id: int) -> Guild:
-    return Guild.objects(id=guild_id).first()
-
-
-def delete_guild(guild_id: int) -> None:
-    get_guild(guild_id).delete()
+    @staticmethod
+    def delete_guild(guild_id: int) -> None:
+        database.get_guild(guild_id).delete()
 
 
 
@@ -196,15 +200,15 @@ class Guild_DB:
 
     def __init__(self, guild_id):
 
-        if Database_Config.mongodb_client is None:
-            Database_Config.mongodb_client = Mongo_Client()
-        self.client = Database_Config.mongodb_client
+        if DB.mongodb_client is None:
+            DB.mongodb_client = Mongo_Client()
+        self.client = DB.mongodb_client
 
 
         self.guild_id = guild_id
 
-        if guild_id in Database_Config.KNOWN_GUILDS:
-            self.guild_identifier = Database_Config.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
+        if guild_id in DB.KNOWN_GUILDS:
+            self.guild_identifier = DB.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
         else:
             self.guild_identifier = str(guild_id)
 

@@ -6,7 +6,7 @@ from hikari.interactions.base_interactions import ResponseType
 import typing
 
 from Challenger.utils import *
-from Challenger.config import Config
+from Challenger.config import App
 
 
 @tanjun.as_slash_command("about", "About", default_to_ephemeral=False, always_defer=True)
@@ -23,20 +23,20 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     about_embed.add_field(name=f"How to Play", value=f" Go to the \"How to play\" page to learn about 1v1s", inline=True)
     about_embed.add_field(name="Bot Setup", value="If you're an admin, go to the \"Setup\" page to learn about the bot", inline=True)
     bot_perms = await tanjun.utilities.fetch_permissions(client, member)
-    missing_perms = Config.REQUIRED_PERMISSIONS & ~bot_perms
+    missing_perms = App.REQUIRED_PERMISSIONS & ~bot_perms
     if missing_perms:
         perms_message = f":x: This bot is missing the following required permissions: `{missing_perms}`\n\n Re-invite the bot with the link above"
     else:
         perms_message = f":white_check_mark: This bot has all the required permissions"
     about_embed.add_field(name="Permissions", value=perms_message, inline=True)
-    about_embed.add_field(name="Version", value=f"{Config.VERSION}", inline=True)
-    about_embed.set_footer(text="Lilapela#5348", icon=Config.OWNER_AVATAR)
+    about_embed.add_field(name="Version", value=f"{App.VERSION}", inline=True)
+    about_embed.set_footer(text="Lilapela#5348", icon=App.OWNER_AVATAR)
 
     about_btn_row = ctx.rest.build_action_row()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.DISCORD_SERVER_INVITE).set_label("Support Server").add_to_container()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.INVITE_LINK).set_label("Invite Bot").add_to_container()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.GITHUB_LINK).set_label("Github").add_to_container()
-    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, Config.TOP_GG_LINK).set_label("Top.gg").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, App.DISCORD_SERVER_INVITE).set_label("Support Server").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, App.INVITE_LINK).set_label("Invite Bot").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, App.GITHUB_LINK).set_label("Github").add_to_container()
+    about_btn_row.add_button(hikari.messages.ButtonStyle.LINK, App.TOP_GG_LINK).set_label("Top.gg").add_to_container()
 
 
     # Features ================================================================

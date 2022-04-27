@@ -29,7 +29,7 @@ import math
 async def temp_test(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
 
 
-    DB = Guild_DB(Database_Config.B2T_GUILD_ID)
+    DB = Guild_DB(DB.B2T_GUILD_ID)
 
     matches = DB.get_matches(chronological=True)
 
@@ -112,7 +112,7 @@ async def lol(ctx: tanjun.abc.Context, player):
 @tanjun.as_slash_command("histogram", "lol matches", always_defer=True)
 async def histogram(ctx: tanjun.abc.Context):
 
-    DB = Guild_DB(Database_Config.B2T_GUILD_ID)
+    DB = Guild_DB(DB.B2T_GUILD_ID)
 
     matches = DB.get_matches(chronological=True)
 

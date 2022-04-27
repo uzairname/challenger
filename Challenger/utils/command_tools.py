@@ -7,7 +7,7 @@ import hikari
 from hikari.interactions.base_interactions import ResponseType
 from .style import *
 from Challenger.database import Guild_DB
-from Challenger.config import Config
+from Challenger.config import App
 
 
 async def on_error(ctx: tanjun.abc.Context, exception: BaseException) -> None:
@@ -60,7 +60,7 @@ def ensure_staff(func):
     async def wrapper(ctx, *args, **kwargs):
 
         async def is_staff():
-            if ctx.author.id == Config.OWNER_ID:
+            if ctx.author.id == App.OWNER_ID:
                 return True
 
             DB = Guild_DB(ctx.guild_id)
@@ -113,7 +113,7 @@ def confirm_cancel_input(input_instructions:typing.Callable):
 
             confirm_embed = None
 
-            with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
+            with bot.stream(hikari.InteractionCreateEvent, timeout=App.COMPONENT_TIMEOUT).filter(
                 ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
                 ("interaction.message.id", response.id)
             ) as stream:
@@ -168,7 +168,7 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_pa
 
     await ctx.edit_initial_response(embeds=embeds, component=page_navigator)
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
+    with bot.stream(hikari.InteractionCreateEvent, timeout=App.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
             ("interaction.message.id", response.id)) as stream:
         async for event in stream:
@@ -218,7 +218,7 @@ async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.
 
     await ctx.edit_initial_response(embeds=page_embeds[default_page], components=page_components.get(default_page, [])+[page_dropdown])
 
-    with bot.stream(hikari.InteractionCreateEvent, timeout=Config.COMPONENT_TIMEOUT).filter(
+    with bot.stream(hikari.InteractionCreateEvent, timeout=App.COMPONENT_TIMEOUT).filter(
             ("interaction.type", hikari.interactions.InteractionType.MESSAGE_COMPONENT),
             ("interaction.user.id", ctx.author.id),
             ("interaction.message.id", response.id)) as stream:
