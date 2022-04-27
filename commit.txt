@@ -1,2 +1,1 @@
-mongoengine
-mongodb client stored in config
+WIP add db functions

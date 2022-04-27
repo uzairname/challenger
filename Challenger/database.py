@@ -24,7 +24,8 @@ class User(me.Document):
     data = me.DictField()
 
 
-class Player(me.EmbeddedDocument):
+
+class Leaderboard_Player(me.EmbeddedDocument):
     """
     Field in leaderboard
     """
@@ -42,10 +43,24 @@ class Match(me.EmbeddedDocument):
     Field in Leaderboard
     """
     id = me.IntField(primary_key=True)
-    player1 = me.EmbeddedDocumentField(Player)
-    player2 = me.EmbeddedDocumentField(Player)
+    player1 = me.EmbeddedDocumentField(Leaderboard_Player)
+    player2 = me.EmbeddedDocumentField(Leaderboard_Player)
     outcome = me.IntField()
     time_started = me.DateTimeField()
+
+
+class Leaderboard(me.Document):
+    """
+    Collection
+    """
+    id = me.IntField(primary_key=True)
+    name = me.StringField()
+    players = me.EmbeddedDocumentListField(Leaderboard_Player)
+    matches = me.EmbeddedDocumentListField(Match)
+    # tournaments = me.ListField(me.ReferenceField('Tournament'))
+
+    meta = {'collection': 'leaderboards'}
+    data = me.DictField()
 
 
 
@@ -62,27 +77,12 @@ class Lobby(me.EmbeddedDocument):
 
 
 
-class Leaderboard(me.Document):
-    """
-    Collection
-    """
-    id = me.IntField(primary_key=True)
-    name = me.StringField()
-    players = me.EmbeddedDocumentListField(Player)
-    matches = me.EmbeddedDocumentListField(Match)
-    # tournaments = me.ListField(me.ReferenceField('Tournament'))
-
-    meta = {'collection': 'leaderboards'}
-    data = me.DictField()
-
-
 class Guild_Leaderboard(me.EmbeddedDocument):
     """
     Field in Guild
     """
-    id = me.IntField(primary_key=True)
+    leaderboard = me.LazyReferenceField(Leaderboard, primary_key=True)
     name = me.StringField()
-    leaderboard = me.ReferenceField(Leaderboard)
     lobbies = me.ListField(me.EmbeddedDocumentField(Lobby))
 
     data = me.DictField()
@@ -94,15 +94,62 @@ class Guild(me.Document):
     Collection
     """
     id = me.IntField(primary_key=True)
-    admin_role_id = me.IntField()
-    staff_role_id = me.IntField()
+    admin_role_id = me.IntField(default=None)
+    staff_role_id = me.IntField(default=None)
     leaderboards = me.EmbeddedDocumentListField(Guild_Leaderboard)
 
     meta = {'collection': 'guilds'}
     data = me.DictField()
 
 
+    def add_leaderboard(self, leaderboard: Leaderboard) -> None:
+        self.leaderboards.append(leaderboard)
+        return self.save()
 
+    def get_leaderboard(self, leaderboard_id: int) -> Leaderboard:
+        return self.leaderboards.filter(lambda lb: lb.leaderboard.id == leaderboard_id).first()
+
+    def delete_leaderboard(self, leaderboard_id: int) -> None:
+        self.leaderboards.remove(self.get_leaderboard(leaderboard_id))
+        return self.save()
+
+    def set_admin_role(self, role_id: int) -> None:
+        self.admin_role_id = role_id
+        return self.save()
+
+    def get_admin_role(self) -> int:
+        return self.admin_role_id
+
+    def unset_admin_role(self) -> None:
+        self.admin_role_id = None
+        return self.save()
+
+    def set_staff_role(self, role_id: int) -> None:
+        self.staff_role_id = role_id
+        return self.save()
+
+    def get_staff_role(self) -> int:
+        return self.staff_role_id
+
+    def unset_staff_role(self) -> None:
+        self.staff_role_id = None
+        return self.save()
+
+
+
+
+def add_guild(guild_id: int) -> Guild:
+    guild = Guild(id=guild_id)
+    guild.save()
+    return guild
+
+
+def get_guild(guild_id: int) -> Guild:
+    return Guild.objects(id=guild_id).first()
+
+
+def delete_guild(guild_id: int) -> None:
+    get_guild(guild_id).delete()
 
 
 
