@@ -18,11 +18,12 @@ import pandas as pd
 
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
-@ensure_registered
-@get_channel_lobby
 async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=tanjun.injected(type=tanjun.Client)) -> None:
 
-    response = await ctx.respond("please wait", ensure_result=True)
+    # get the lobby
+    # get the player
+
+
 
     DB = Guild_DB(ctx.guild_id)
 

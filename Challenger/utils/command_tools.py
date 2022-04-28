@@ -60,7 +60,7 @@ def ensure_staff(func):
     async def wrapper(ctx, *args, **kwargs):
 
         async def is_staff():
-            if ctx.author.channel_id == App.OWNER_ID:
+            if ctx.author.id == App.OWNER_ID:
                 return True
 
             DB = Guild_DB(ctx.guild_id)

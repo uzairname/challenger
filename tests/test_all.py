@@ -25,26 +25,30 @@ class Test_Bayeselo(unittest.TestCase):
 # @unittest.skip("Skipping test_all.py")
 class Test_DB(unittest.TestCase):
 
-
+    @unittest.skip("Skipping test_all.py")
     def test_get_set_delete_guild(self):
 
         # Create a guild
-        database.add_guild(DB.TESTING_GUILD_ID, name="Test Guild")
+        guild = Guild(id=Database_Config.TESTING_GUILD_ID, name="Test Guild")
+        guild.save()
 
         # Get the guild
-        guild = Guild.objects(guild_id=DB.TESTING_GUILD_ID).first()
+        guild = Guild.objects(guild_id=Database_Config.TESTING_GUILD_ID).first()
 
         # Check the name
         self.assertEqual(guild.name, "Test Guild")
 
         # Set the staff role
-        guild.set_staff_role(94833278723897239)
+        guild.staff_role_id = 94833278723897239
 
         # Check the staff role
         self.assertEqual(guild.staff_role_id, 94833278723897239)
-
-        guild = Guild.objects(guild_id=DB.TESTING_GUILD_ID).first()
+        guild_ = Guild.objects(guild_id=Database_Config.TESTING_GUILD_ID).first()
+        self.assertEqual(guild_.staff_role_id, None)
+        guild.save()
         self.assertEqual(guild.staff_role_id, 94833278723897239)
+
+
 
         self.assertEqual(guild.admin_role_id, None)
 
@@ -52,63 +56,84 @@ class Test_DB(unittest.TestCase):
         guild.delete()
 
         # Check the guild
-        guild = Guild.objects(guild_id=DB.TESTING_GUILD_ID).first()
+        guild = Guild.objects(guild_id=Database_Config.TESTING_GUILD_ID).first()
         self.assertEqual(guild, None)
 
-        print("get set test guild")
 
 
+    @unittest.skip("Skipping test_all.py")
     def test_leaderboards_players_lobbies(self):
 
-        # Create a guild
-        guild = Guild(id=DB.TESTING_GUILD_ID, name="Test Guild")
+        # Create a guild if it doesn't exist
+        guild = Guild.objects(guild_id=Database_Config.TESTING_GUILD_ID).first()
 
-        self.assertEqual([lb.leaderboard for lb in guild.guild_leaderboards], [])
+        if guild is None:
+            guild = Guild(id=Database_Config.TESTING_GUILD_ID, name="Test Guild")
 
-        # Create a leaderboard
-        id = bson.ObjectId()
-        leaderboard = Leaderboard(lb_id=id, name="Test Guild Default Lb")
-        leaderboard.save()
+        self.assertEqual([lb.leaderboard for lb in guild.leaderboards], [])
 
-        # Create a guild leaderboard
-        guild_leaderboard = Guild_Leaderboard(leaderboard=leaderboard, name=leaderboard.name)
+        # if the guild has no leaderboards create a leaderboard and add it to the guild
+        if not guild.leaderboards:
+            guild.leaderboards.append(Leaderboard(name="Test Guild Default Lb"))
 
-        # Add it to the guild
-        guild.guild_leaderboards.append(guild_leaderboard)
+        self.assertEqual(guild.leaderboards[0].name, "Test Guild Default Lb")
 
-        self.assertEqual(guild.guild_leaderboards[0].leaderboard.fetch().name, "Test Guild Default Lb")
+        # add another lb to the guild
+        guild.leaderboards.append(Leaderboard(name="Test Guild Second Lb"))
+
+        lb_names = [lb.name for lb in guild.leaderboards]
+        self.assertEqual(lb_names, ["Test Guild Default Lb", "Test Guild Second Lb"])
 
 
-        main_lobby = Lobby1v1()
-        guild.get_guild_lb_by_name("Test Guild Default Lb").lobbies.append(main_lobby)
+        # Add a lobby to both the leaderboards. user chooses the loaderboard by name
 
-        # Create a user
-        database.add_user(user_id=23423094823234, username="Test User#1234")
-
-        # add the user to the guild's default leaderboard
-        guild.get_guild_lb_by_name("Test Guild Default Lb").leaderboard.fetch().players.append(Player(user=User.objects(user_id=23423094823234).first()))
-
-        self.assertEqual(guild.get_guild_lb_by_name("Test Guild Default Lb").leaderboard.fetch().players[0].user.fetch().username, "Test User#1234")
+        # make a lobby with the lb
+        new_lobby = Lobby(channel_id=1, name="test lobby 2nd lb")
+        guild.leaderboards.filter(name=lb_names[1]).first().lobbies.append(new_lobby)
 
 
 
+        # player registeres for lb 2. find or add a user, then add a player
+        test_user_id = 24899
+        user = User.objects(user_id=test_user_id).first()
+        if user is None:
+            user = User(user_id=test_user_id, username="Test User#1234")
+
+        # add a player to the leaderboard if not already in it. Player chooses the leaderboard by name
+        player = guild.leaderboards.filter(name=lb_names[0]).first().players.filter(user=test_user_id).first()
+        if not player:
+            guild.leaderboards.filter(name=lb_names[0]).first().players.append(Player(user=user))
+
+
+        # a player joins the lobby in channel 2
+        guild.leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().user_in_q = user
 
 
 
+        guild.save()
+        user.save()
 
+        guild = Guild.objects(guild_id=907729885726933043).first()
+        if not guild:
+            guild = Guild(guild_id=907729885726933043)
 
+        name="B"
 
-class test_(unittest.TestCase):
+        leaderboard = guild.leaderboards.filter(name=name).first()
+        print(leaderboard)
 
-    def test_(self):
-        database.add_guild(DB.TESTING_GUILD_ID, name="Test Guild")
+        leaderboard = Leaderboard(name=name)
+        leaderboard.players.append(Player(user=User(user_id=2526)))
+        guild.leaderboards.append(leaderboard)
+
+        guild.save()
 
 
 
 
 if __name__ == "__main__":
 
-    connection = me.connect(host=DB.mongodb_url_with_database)
+    connection = me.connect(host=Database_Config.mongodb_url_with_database)
 
     dev_database = connection.get_database("development")
     collections = dev_database.list_collection_names()

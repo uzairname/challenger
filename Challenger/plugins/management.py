@@ -4,10 +4,77 @@ import pandas as pd
 
 from Challenger.utils import *
 from Challenger.config import App
-from Challenger.database import Guild_DB
+from Challenger.database import *
 
 
 config = tanjun.slash_command_group("config", "Change the bot settings", default_to_ephemeral=False)
+
+
+
+# @config.with_command
+# @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
+# @tanjun.with_str_slash_option("name", "lobby name", default=None)
+# @tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
+
+@config.with_command
+@tanjun.with_str_slash_option("leaderboard", "the leaderboard to connect this lobby to")
+@tanjun.with_channel_slash_option("channel", "The channel for the 1v1 lobby")
+@tanjun.as_slash_command("lobby", "Add or remove lobbies")
+async def config_lobby(ctx:tanjun.abc.Context, channel, leaderboard):
+
+    leaderboard_name = leaderboard
+
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
+    if not guild:
+        guild = Guild(guild_id=ctx.guild_id)
+
+    #get a lobby matching the channel id if it exists
+    lobby = None
+    for leaderboard in guild.leaderboards:
+        lobby = leaderboard.lobbies.filter(channel_id=channel.id).first()
+        if lobby:
+            break
+
+    #get the specified leaderboard
+    leaderboard = guild.leaderboards.filter(name=leaderboard_name).first()
+    if not leaderboard:
+        await ctx.respond("No leaderboard found with that name")
+        return
+
+    #add or update the lobby
+    if lobby:
+        await ctx.respond("Nothing updated")
+    else:
+        lobby = Lobby(channel_id=channel.id)
+        leaderboard.lobbies.append(lobby)
+
+
+    guild.save()
+
+
+
+@config.with_command
+@tanjun.with_str_slash_option("name", "leaderboard's name", default=None)
+@tanjun.as_slash_command("leaderboard", "Add or remove leaderboards")
+async def config_leaderboard(ctx:tanjun.abc.Context, name):
+
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
+    if not guild:
+        guild = Guild(guild_id=ctx.guild_id)
+
+    leaderboard = guild.leaderboards.filter(name=name).first()
+
+    if leaderboard:
+        leaderboard.name = name
+    else:
+        leaderboard = Leaderboard(name=name)
+        guild.leaderboards.append(leaderboard)
+
+    guild.save()
+
+
+
+
 
 
 @config.with_command

@@ -10,7 +10,7 @@ import pandas as pd
 import pymongo
 import mongoengine as me
 
-from Challenger.config import DB
+from Challenger.config import Database_Config
 
 
 
@@ -18,9 +18,11 @@ from Challenger.config import DB
 class User(me.Document):
     """
     Collection
+    Global user, can be in multiple leaderboards and guilds
     """
     user_id = me.IntField(primary_key=True)
     username = me.StringField()
+    nickname= me.StringField()
 
     meta = {'collection': 'users'}
 
@@ -30,12 +32,10 @@ class Player(me.EmbeddedDocument):
     """
     Field in leaderboard
     """
-    user = me.LazyReferenceField(User, primary_key=True)
+    user = me.LazyReferenceField(User, required=True, unique=True)
     time_registered = me.DateTimeField() # time.time()
     rating = me.FloatField()
     rating_deviation = me.FloatField()
-
-    data = me.DictField()
 
 
 
@@ -43,7 +43,7 @@ class Match(me.EmbeddedDocument):
     """
     Field in Leaderboard
     """
-    match_id = me.IntField(primary_key=True)
+    match_id = me.IntField()
     player1 = me.EmbeddedDocumentField(Player)
     player2 = me.EmbeddedDocumentField(Player)
     outcome = me.IntField()
@@ -51,41 +51,35 @@ class Match(me.EmbeddedDocument):
 
 
 
-class Leaderboard(me.Document):
-    """
-    Collection
-    """
-    lb_id = me.ObjectIdField(primary_key=True)
-    name = me.StringField()
-    players = me.EmbeddedDocumentListField(Player)
-    matches = me.EmbeddedDocumentListField(Match)
-    # tournaments = me.ListField(me.ReferenceField('Tournament'))
-
-    meta = {'collection': 'leaderboards'}
-
-
-
-class Lobby1v1(me.EmbeddedDocument):
+class Lobby(me.EmbeddedDocument):
     """
     Field in Guild_Leaderboard, which is a field in Guild
     """
-    channel_id = me.IntField(primary_key=True)
+    channel_id = me.IntField(required=True)
     name = me.StringField()
-    player_in_q = me.LazyReferenceField(User)
+    user_in_q = me.LazyReferenceField(User)
     elo_range = me.ListField(me.FloatField())
-    results_channel = me.IntField()
+    updates_channel = me.IntField()
 
 
-
-class Guild_Leaderboard(me.EmbeddedDocument):
+class Leaderboard(me.EmbeddedDocument):
     """
     Field in Guild
     """
-    leaderboard = me.LazyReferenceField(Leaderboard, primary_key=True)
-    name = me.StringField(unique=True)
-    lobbies = me.ListField(me.EmbeddedDocumentField(Lobby1v1))
-    tournament_channel = me.IntField()
-    default_results_channel = me.IntField()
+    name = me.StringField()
+    players = me.EmbeddedDocumentListField(Player)
+    matches = me.EmbeddedDocumentListField(Match)
+    lobbies = me.EmbeddedDocumentListField(Lobby)
+    elo_roles = me.DictField()
+
+
+class Global_Leaderboard(me.Document):
+    """
+    Collection
+    Global leaderboard, can be in multiple guilds
+    """
+    leaderboard = me.EmbeddedDocumentField(Leaderboard)
+    meta = {'collection': 'global_leaderboards'}
 
 
 
@@ -95,104 +89,11 @@ class Guild(me.Document):
     """
     guild_id = me.IntField(primary_key=True)
     name = me.StringField()
-    admin_role_id = me.IntField(default=None)
-    staff_role_id = me.IntField(default=None)
-    guild_leaderboards = me.EmbeddedDocumentListField(Guild_Leaderboard)
+    admin_role_id = me.IntField()
+    staff_role_id = me.IntField()
+    leaderboards = me.EmbeddedDocumentListField(Leaderboard)
 
     meta = {'collection': 'guilds'}
-
-
-    def connect_leaderboard(self, leaderboard: Leaderboard) -> None:
-        guild_leaderboard = Guild_Leaderboard(leaderboard=leaderboard, name=leaderboard.name)
-
-        self.guild_leaderboards.append(guild_leaderboard)
-        return self.save()
-
-    def get_guild_lb_by_name(self, name:str) -> Guild_Leaderboard:
-        for lb in self.guild_leaderboards:
-            if lb.name == name:
-                return lb
-
-    def get_leaderboards(self) -> List[Leaderboard]:
-        return [lb.leaderboard for lb in self.guild_leaderboards]
-
-    def delete_leaderboard(self, leaderboard_id: int) -> None:
-        self.guild_leaderboards.remove(self.get_guild_lb_by_name(leaderboard_id))
-        return self.save()
-
-
-    def set_admin_role(self, role_id: int) -> None:
-        self.admin_role_id = role_id
-        return self.save()
-
-    def get_admin_role(self) -> int:
-        return self.admin_role_id
-
-    def unset_admin_role(self) -> None:
-        self.admin_role_id = None
-        return self.save()
-
-    def set_staff_role(self, role_id: int) -> None:
-        self.staff_role_id = role_id
-        return self.save()
-
-    def get_staff_role(self) -> int:
-        return self.staff_role_id
-
-    def unset_staff_role(self) -> None:
-        self.staff_role_id = None
-        return self.save()
-
-
-#noinspection PyMethodMayBeStatic
-class database:
-
-    @staticmethod
-    def add_user(user_id:int, username:str) -> User:
-        user = User(id=user_id, username=username)
-        user.save()
-        return user
-
-    @staticmethod
-    def get_user(user_id: int) -> User:
-        return User.objects(id=user_id).first()
-
-    @staticmethod
-    def delete_user(user_id: int) -> None:
-        User.objects(id=user_id).delete()
-
-
-    @staticmethod
-    def add_guild(guild_id:int, name:str=None) -> Guild:
-        guild = Guild(id=guild_id, name=name)
-        guild.save()
-        return guild
-
-    @staticmethod
-    def delete_guild(guild_id: int) -> None:
-        database.get_guild(guild_id).delete()
-
-
-    @staticmethod
-    def add_leaderboard(name:str) -> Leaderboard:
-        #generate uuid for leaderboard
-        id = bson.ObjectId()
-
-        leaderboard = Leaderboard(id=id, name=name)
-        leaderboard.save()
-        return leaderboard
-
-    @staticmethod
-    def get_leaderboard(leaderboard_id: int) -> Leaderboard:
-        return Leaderboard.objects(id=leaderboard_id).first()
-
-    @staticmethod
-    def delete_leaderboard(leaderboard_id: int) -> None:
-        database.get_leaderboard(leaderboard_id).delete()
-
-
-
-
 
 
 
@@ -237,15 +138,15 @@ class Guild_DB:
 
     def __init__(self, guild_id):
 
-        if DB.mongodb_client is None:
-            DB.mongodb_client = Mongo_Client()
-        self.client = DB.mongodb_client
+        if Database_Config.mongodb_client is None:
+            Database_Config.mongodb_client = Mongo_Client()
+        self.client = Database_Config.mongodb_client
 
 
         self.guild_id = guild_id
 
-        if guild_id in DB.KNOWN_GUILDS:
-            self.guild_identifier = DB.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
+        if guild_id in Database_Config.KNOWN_GUILDS:
+            self.guild_identifier = Database_Config.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
         else:
             self.guild_identifier = str(guild_id)
 

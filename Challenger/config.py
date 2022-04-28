@@ -43,7 +43,7 @@ class Elo:
 
 
 @final
-class DB:
+class Database_Config:
 
     mongodb_client = None
 
