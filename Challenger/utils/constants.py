@@ -1,7 +1,9 @@
+from enum import Enum
+
 
 BLANK = "*_ _*"
 
-class Outcome:
+class Outcome(str, Enum):
     PLAYER_1 = "player 1"
     PLAYER_2 = "player 2"
     DRAW = "draw"
@@ -10,7 +12,8 @@ class Outcome:
 
     PLAYED = [PLAYER_1, PLAYER_2, DRAW]
 
-class Declare:
+
+class Declare(str, Enum):
     WIN = "win"
     LOSS = "loss"
     DRAW = "draw"

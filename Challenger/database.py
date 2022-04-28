@@ -10,7 +10,7 @@ import pymongo
 import mongoengine as me
 
 from Challenger.config import Database_Config
-from Challenger.helpers import scoring
+from Challenger.utils import *
 
 
 
@@ -36,7 +36,6 @@ class Player(me.EmbeddedDocument):
     time_registered = me.DateTimeField() # time.time()
     rating = me.FloatField()
     rating_deviation = me.FloatField()
-
 
 
 

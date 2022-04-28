@@ -2,13 +2,14 @@ import hikari
 import tanjun
 import time
 
+from datetime import datetime
+import asyncio
+import pandas as pd
+
 from Challenger.helpers import *
 from Challenger.database import *
 from Challenger.config import *
 
-import asyncio
-
-import pandas as pd
 # from Challenger.utils import Outcome, Declare #dont need
 
 
@@ -23,6 +24,9 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
     guild = Guild.objects(guild_id=ctx.guild_id).first()
 
     user = User.objects(user_id=ctx.author.id).first()
+    if user is None:
+        await ctx.edit_initial_response("no user found")
+        return
 
     #get the lobby and leaderboard for the channel
     leaderboard = None
@@ -40,18 +44,15 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
 
     #get the player in the leaderboard
     player = None
-    for player in leaderboard.players:
-        if player.user.pk == user.id:
-            player = player
+    for p in leaderboard.players:
+        print(p.user.pk)
+        if p.user.pk == user.id:
+            player = p
 
     if player is None:
         await ctx.edit_initial_response(f"Please register for {leaderboard.name}")
 
 
-
-    if lobby.user_in_q.pk == ctx.author.id:
-        await ctx.edit_initial_response("You're already in the queue")
-        return
 
     #check if player has finished their last match...
 
@@ -62,6 +63,10 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
         await ctx.edit_initial_response(f"You silently joined the queue")
         await (await ctx.fetch_channel()).send("A player has joined the queue")
     else:
+
+        if lobby.user_in_q.pk == ctx.author.id:
+            await ctx.edit_initial_response("You're already in the queue")
+            return
 
         #cancel asyncio task
         opponent = lobby.user_in_q
@@ -89,7 +94,7 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
         match = Match(
             match_id=new_match_id,
             outcome=Outcome.PENDING,
-            time_started=time.time(),
+            time_started=datetime.now(),
 
             player1_id=player1.user.pk,
             player1_declared=Declare.UNDECIDED,

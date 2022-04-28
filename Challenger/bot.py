@@ -13,7 +13,7 @@ def build_bot(token):
     bot.subscribe(hikari.GuildAvailableEvent, on_guild_available)
 
     client = build_client(bot)
-    client.load_modules("Challenger.plugins")
+    client.load_modules("Challenger.components")
 
     return bot
 
@@ -44,6 +44,6 @@ async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.Gate
         await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.LISTENING, name="/about for info!"))
 
     elif os.environ.get("ENVIRONMENT") == "development":
-        client.load_modules("Challenger.plugins.experimental")
+        client.load_modules("Challenger.components.experimental")
         await client.declare_global_commands(guild=App.DEV_GUILD_ID)
         await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name=App.VERSION))

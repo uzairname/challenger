@@ -31,9 +31,9 @@ async def register(ctx: tanjun.abc.Context, leaderboard) -> None:
 
     #get the player from the leaderboard if it exists
     player = None
-    for player in leaderboard.players:
-        if player.user.pk == user.id:
-            player = player
+    for p in leaderboard.players:
+        if p.user.pk == user.id:
+            player = p
 
     if player is None:
         player = Player(user=user, time_registered=datetime.utcnow(), rating=Elo.STARTING_ELO, rating_deviation=Elo.STARTING_RD)

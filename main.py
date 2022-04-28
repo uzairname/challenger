@@ -14,5 +14,4 @@ if __name__ == "__main__":
     if os.environ.get("ENVIRONMENT") == "development":
         me.connect("development", host=os.environ.get("MONGODB_URL"))
 
-
     build_bot(os.environ.get('DISCORD_TOKEN')).run(status=hikari.Status.DO_NOT_DISTURB)

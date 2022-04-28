@@ -1,2 +1,1 @@
-add utils and helper folder
-register command
+join works
