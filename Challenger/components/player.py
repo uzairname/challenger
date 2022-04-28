@@ -4,8 +4,8 @@ import hikari
 
 from datetime import datetime
 
-from Challenger.utils import *
-from Challenger.database import Guild_DB
+from Challenger.helpers import *
+from Challenger.database import *
 from Challenger.config import *
 
 component = tanjun.Component(name="player module")
@@ -14,34 +14,40 @@ component = tanjun.Component(name="player module")
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
-@tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True)
-async def register(ctx: tanjun.abc.Context) -> None:
+@tanjun.with_str_slash_option("leaderboard", "the leaderboard to join")
+@tanjun.as_slash_command("register", "Join the fun!", default_to_ephemeral=True, always_defer=True)
+async def register(ctx: tanjun.abc.Context, leaderboard) -> None:
 
-    await ctx.respond("please wait")
+    leaderboard_name = leaderboard
 
-    DB = Guild_DB(ctx.guild_id)
-    player_id = ctx.author.id
-    players = DB.get_players(user_id=player_id)
+    user = User.objects(user_id=ctx.author.id).first()
+    if user is None:
+        user = User(user_id=ctx.author.id, username=ctx.author.username + "#" + ctx.author.discriminator)
+        user.save()
 
-    tag = ctx.author.username + "#" + ctx.author.discriminator
-    name = ctx.member.nickname or ctx.member.username
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
 
-    if players.empty:
-        player = DB.get_new_player(ctx.author.id)
-        player["username"] = name
-        player["tag"] = tag
-        player["time_registered"] = datetime.now()
-        player["is_ranked"] = False
-        player["elo"] = Elo.STARTING_ELO
-        DB.upsert_player(player)
+    leaderboard = guild.leaderboards.filter(name=leaderboard_name).first()
+
+    #get the player from the leaderboard if it exists
+    player = None
+    for player in leaderboard.players:
+        if player.user.pk == user.id:
+            player = player
+
+    if player is None:
+        player = Player(user=user, time_registered=datetime.utcnow(), rating=Elo.STARTING_ELO, rating_deviation=Elo.STARTING_RD)
+
+        print(player.user)
+        leaderboard.players.append(player)
         await ctx.get_channel().send(f"{ctx.author.mention} has registered! :)", user_mentions=True)
-        return
+    else:
+        await ctx.respond(f"You've already registered for {leaderboard_name}")
 
-    player = players.iloc[0]
-    player["username"] = name
-    player["tag"] = tag
-    DB.upsert_player(player)
-    await ctx.edit_initial_response("You've already registered. Updated your username")
+
+    guild.save()
+
+    return
 
 
 @component.with_slash_command
@@ -67,7 +73,7 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         return
 
     matches = DB.get_matches(user_id=player.name)
-    finished_matches = matches.loc[np.isin(matches["outcome"], Outcome.FINISHED)]
+    finished_matches = matches.loc[np.isin(matches["outcome"], Outcome.PLAYED)]
 
     opponent_elos = []
 

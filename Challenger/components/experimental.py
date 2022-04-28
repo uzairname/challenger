@@ -8,7 +8,7 @@ from hikari import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
 from hikari.messages import ButtonStyle
 
-from Challenger.utils import *
+from Challenger.helpers import *
 from Challenger.database import *
 from Challenger.config import *
 

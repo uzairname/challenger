@@ -32,6 +32,9 @@ class Elo:
     STARTING_ELO = 1000
     # Everyone's starting elo, also everyone's average elo
 
+    STARTING_RD = 350
+    # Everyone's starting rating deviation
+
     SCALE = 400
     # The elo difference which represents a 10x difference in skill. Used in elo calculation.
 
@@ -49,8 +52,8 @@ class Database_Config:
 
     mongodb_url_with_database = os.environ.get("MONGODB_URL").replace("mongodb.net/?", "mongodb.net/" + os.environ.get("ENVIRONMENT") + "?")
 
-    B2T_GUILD_ID = 921447683154145331
-    TESTING_GUILD_ID = 947184983120957452
+    B2T_GUILD_ID =     921447683154145331
+    TESTING_GUILD_ID = 999999999999999999
 
     # database names for some known discord servers, for ease of use. "testing" is for unit testing
     KNOWN_GUILDS = {1: "testing", App.DEV_GUILD_ID: "development", 947184983120957452: "PX", B2T_GUILD_ID: "B2T"}

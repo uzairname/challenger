@@ -1,6 +1,5 @@
 from typing import List
 
-from Challenger.utils import *
 from Challenger.config import *
 
 import math
@@ -13,14 +12,16 @@ class Outcome:
     PLAYER_2 = "player 2"
     DRAW = "draw"
     CANCEL = "cancelled"
+    PENDING = "undecided"
 
-    FINISHED = [PLAYER_1, PLAYER_2, DRAW]
+    PLAYED = [PLAYER_1, PLAYER_2, DRAW]
 
 class Declare:
     WIN = "win"
     LOSS = "loss"
     DRAW = "draw"
     CANCEL = "cancel"
+    UNDECIDED = "didn't declare"
 
 
 def calc_elo_change(p1_elo, p2_elo, result:Outcome) -> List[float]:

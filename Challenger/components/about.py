@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from hikari.interactions.base_interactions import ResponseType
 import typing
 
-from Challenger.utils import *
+from Challenger.helpers import *
 from Challenger.config import App
 
 

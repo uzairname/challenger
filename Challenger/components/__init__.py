@@ -1,3 +1,5 @@
+# All the tanjun command components
+
 from .about import about
 from .matches import matches
 from .player import player

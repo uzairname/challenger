@@ -107,7 +107,7 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
     """
 
     player_matches = all_matches.loc[np.logical_or(all_matches["p1_id"] == player_id, all_matches["p2_id"] == player_id)]
-    finished_matches = player_matches.loc[player_matches.index <= latest_match_id].loc[player_matches["outcome"].isin(Outcome.FINISHED)]
+    finished_matches = player_matches.loc[player_matches.index <= latest_match_id].loc[player_matches["outcome"].isin(Outcome.PLAYED)]
 
     return len(finished_matches) >= Elo.NUM_PLACEMENT_MATCHES
 
@@ -150,7 +150,7 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match 
     p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
     p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
 
-    if match["outcome"] in Outcome.FINISHED:
+    if match["outcome"] in Outcome.PLAYED:
 
         p1_elo_change = match["p1_elo_after"] - match["p1_elo"]
         p2_elo_change = match["p2_elo_after"] - match["p2_elo"]
@@ -216,6 +216,8 @@ async def start_announce_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
     """creates a new match between the 2 players and announces it to the channel"""
 
     DB = Guild_DB(ctx.guild_id)
+    new_match = DB.get_new_match()
+    DB.upsert_match(new_match)
 
     p1_ping = "<@" + str(p1_info.name) + ">"
     p2_ping = "<@" + str(p2_info.name) + ">"
@@ -223,12 +225,10 @@ async def start_announce_new_match(ctx:tanjun.abc.Context, p1_info, p2_info):
     p1_is_ranked = p1_info["is_ranked"]
     p2_is_ranked = p2_info["is_ranked"]
 
-    new_match = DB.get_new_match()
 
     new_match[["time_started", "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_is_ranked", "p2_is_ranked"]] = \
         [datetime.now(), p1_info.name, p2_info.name, p1_info["elo"], p2_info["elo"], p1_is_ranked, p2_is_ranked]
 
-    DB.upsert_match(new_match)
 
     embed = hikari.Embed(title="Match " + str(new_match.name) + " started", description=p1_info["tag"] + " vs " + p2_info["tag"], color=Colors.PRIMARY)
 

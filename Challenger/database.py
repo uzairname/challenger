@@ -2,7 +2,6 @@ import os
 from typing import List
 from enum import Enum
 import time
-import uuid
 
 import bson
 import numpy as np
@@ -11,6 +10,7 @@ import pymongo
 import mongoengine as me
 
 from Challenger.config import Database_Config
+from Challenger.helpers import scoring
 
 
 
@@ -32,10 +32,11 @@ class Player(me.EmbeddedDocument):
     """
     Field in leaderboard
     """
-    user = me.LazyReferenceField(User, required=True, unique=True)
+    user = me.LazyReferenceField(User)
     time_registered = me.DateTimeField() # time.time()
     rating = me.FloatField()
     rating_deviation = me.FloatField()
+
 
 
 
@@ -43,17 +44,26 @@ class Match(me.EmbeddedDocument):
     """
     Field in Leaderboard
     """
+
     match_id = me.IntField()
-    player1 = me.EmbeddedDocumentField(Player)
-    player2 = me.EmbeddedDocumentField(Player)
-    outcome = me.IntField()
+    outcome = me.EnumField(Outcome)
     time_started = me.DateTimeField()
+
+    player1_id = me.IntField()
+    player1_declared = me.EnumField(Declare)
+    player1_elo = me.FloatField()
+    player1_RD = me.FloatField()
+
+    player2_id = me.IntField()
+    player2_declared = me.EnumField(Declare)
+    player2_elo = me.FloatField()
+    player2_RD = me.FloatField()
 
 
 
 class Lobby(me.EmbeddedDocument):
     """
-    Field in Guild_Leaderboard, which is a field in Guild
+    Field in Leaderboard, which is a field in Guild
     """
     channel_id = me.IntField(required=True)
     name = me.StringField()

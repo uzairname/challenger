@@ -2,7 +2,7 @@ import hikari
 import tanjun
 import pandas as pd
 
-from Challenger.utils import *
+from Challenger.helpers import *
 from Challenger.config import App
 from Challenger.database import *
 

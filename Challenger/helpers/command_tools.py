@@ -37,6 +37,7 @@ def ensure_registered(func):
     return wrapper
 
 
+
 def get_channel_lobby(func) -> typing.Callable:
     #checks if there's a lobby in the channel and if so, passes it to the function
 

@@ -5,7 +5,7 @@ from datetime import datetime
 
 from Challenger.database import Guild_DB
 from Challenger.config import App
-from Challenger.utils.command_tools import on_error
+from Challenger.helpers.command_tools import on_error
 
 
 def build_bot(token):

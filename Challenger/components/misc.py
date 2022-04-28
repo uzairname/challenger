@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta
 import functools
 
-from Challenger.utils import *
+from Challenger.helpers import *
 from Challenger.database import Guild_DB
 from Challenger.config import *
 

@@ -4,7 +4,7 @@ import pandas as pd
 
 from Challenger.config import *
 from Challenger.database import *
-from Challenger.utils import *
+from Challenger.helpers import *
 
 import mongoengine as me
 
@@ -61,8 +61,9 @@ class Test_DB(unittest.TestCase):
 
 
 
-    @unittest.skip("Skipping test_all.py")
+    # @unittest.skip("Skipping test_all.py")
     def test_leaderboards_players_lobbies(self):
+
 
         # Create a guild if it doesn't exist
         guild = Guild.objects(guild_id=Database_Config.TESTING_GUILD_ID).first()
@@ -102,31 +103,32 @@ class Test_DB(unittest.TestCase):
         # add a player to the leaderboard if not already in it. Player chooses the leaderboard by name
         player = guild.leaderboards.filter(name=lb_names[0]).first().players.filter(user=test_user_id).first()
         if not player:
-            guild.leaderboards.filter(name=lb_names[0]).first().players.append(Player(user=user))
+            player = Player(user=user)
+            guild.leaderboards.filter(name=lb_names[0]).first().players.append(player)
 
 
         # a player joins the lobby in channel 2
         guild.leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().user_in_q = user
 
-
-
         guild.save()
         user.save()
 
-        guild = Guild.objects(guild_id=907729885726933043).first()
+
+
+        guild = Guild.objects(guild_id=45).first()
         if not guild:
-            guild = Guild(guild_id=907729885726933043)
+            guild = Guild(guild_id=45)
 
-        name="B"
+        leaderboard = guild.leaderboards.filter(name="Ast").first()
 
-        leaderboard = guild.leaderboards.filter(name=name).first()
-        print(leaderboard)
-
-        leaderboard = Leaderboard(name=name)
-        leaderboard.players.append(Player(user=User(user_id=2526)))
-        guild.leaderboards.append(leaderboard)
+        if leaderboard:
+            leaderboard.name = "Ast"
+        else:
+            leaderboard = Leaderboard(name="Ast")
+            guild.leaderboards.append(leaderboard)
 
         guild.save()
+
 
 
 
@@ -135,7 +137,7 @@ if __name__ == "__main__":
 
     connection = me.connect(host=Database_Config.mongodb_url_with_database)
 
-    dev_database = connection.get_database("development")
+    dev_database = connection.get_database("testing")
     collections = dev_database.list_collection_names()
     for collection in collections:
         dev_database.drop_collection(collection)

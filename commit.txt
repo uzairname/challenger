@@ -1,1 +1,2 @@
-working db lobbies leaderboard
+add utils and helper folder
+register command

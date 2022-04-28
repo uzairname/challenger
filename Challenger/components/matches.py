@@ -2,8 +2,8 @@ import hikari
 import tanjun
 import time
 
-from Challenger.utils import *
-from Challenger.database import Guild_DB
+from Challenger.helpers import *
+from Challenger.database import *
 from Challenger.config import *
 
 import asyncio
@@ -18,54 +18,97 @@ import pandas as pd
 
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
-async def join_q(ctx: tanjun.abc.Context, lobby:pd.Series, client:tanjun.Client=tanjun.injected(type=tanjun.Client)) -> None:
+async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(type=tanjun.Client)) -> None:
 
-    # get the lobby
-    # get the player
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
 
+    user = User.objects(user_id=ctx.author.id).first()
 
+    #get the lobby and leaderboard for the channel
+    leaderboard = None
+    lobby = None
+    for leaderboard in guild.leaderboards:
+        lobby = leaderboard.lobbies.filter(channel_id=ctx.channel_id).first()
+        if lobby:
+            leaderboard = leaderboard
+            break
 
-    DB = Guild_DB(ctx.guild_id)
-
-    player_id=ctx.author.id
-
-    #Ensure player isn't already in queue
-    if lobby["player"] == player_id:
-        await ctx.respond(f"{ctx.author.mention} you're already in the queue")
+    if not lobby:
+        await ctx.edit_initial_response("No lobby here")
         return
 
-    #Ensure player declared last match
-    matches = DB.get_matches(user_id=player_id)
 
-    if not matches.empty:
-        match = matches.iloc[0]
-        if match["outcome"] is None:
-            if match["p1_id"] == player_id and match["p1_declared"] is None or match["p2_id"] == player_id and match["p2_declared"] is None:
-                embed = hikari.Embed(title="You haven't finished match " + str(match.name), description="/declare the results or ask staff to set overrule the match (type /match-history for more details)", color=Colors.WARNING)
-                await ctx.edit_initial_response(embed=embed)
-                return
+    #get the player in the leaderboard
+    player = None
+    for player in leaderboard.players:
+        if player.user.pk == user.id:
+            player = player
 
-    #add player to queue
-    if not lobby["player"]:
+    if player is None:
+        await ctx.edit_initial_response(f"Please register for {leaderboard.name}")
 
-        asyncio.create_task(remove_from_q_timeout(ctx, DB), name=str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
 
-        lobby["player"] = player_id
-        DB.upsert_lobby(lobby)
+
+    if lobby.user_in_q.pk == ctx.author.id:
+        await ctx.edit_initial_response("You're already in the queue")
+        return
+
+    #check if player has finished their last match...
+
+    if lobby.user_in_q is None:
+        #create asyncio timeout
+        lobby.user_in_q = user
 
         await ctx.edit_initial_response(f"You silently joined the queue")
         await (await ctx.fetch_channel()).send("A player has joined the queue")
-
     else:
+
+        #cancel asyncio task
+        opponent = lobby.user_in_q
+        lobby.user_in_q = None
+
         await ctx.edit_initial_response("You silently joined the queue")
         await (await ctx.fetch_channel()).send("Queue is full. Creating match")
 
-        p1_info = DB.get_players(user_id=lobby['player']).iloc[0]
-        p2_info = DB.get_players(user_id=player_id).iloc[0]
+        # get both players by their user
+        player1 = None
+        player2 = None
+        for player in leaderboard.players:
+            if player.user.pk == user.id:
+                player1 = player
+            elif player.user.pk == opponent.id:
+                player2 = player
 
-        await remove_from_queue(DB, lobby)
+        if player1 is None or player2 is None:
+            raise Exception("Player not found") # TODO make this a util function
 
-        await start_announce_new_match(ctx, p1_info, p2_info)
+        new_match_id = 1
+        if len(leaderboard.matches) > 0:
+            new_match_id = leaderboard.matches[-1].match_id + 1
+
+        match = Match(
+            match_id=new_match_id,
+            outcome=Outcome.PENDING,
+            time_started=time.time(),
+
+            player1_id=player1.user.pk,
+            player1_declared=Declare.UNDECIDED,
+            player1_elo=player1.rating,
+            player1_RD=player1.rating_deviation,
+
+            player2_id=player2.user.pk,
+            player2_declared=Declare.UNDECIDED,
+            player2_elo=player2.rating,
+            player2_RD=player2.rating_deviation
+        ) # TODO make this a util function
+
+        leaderboard.matches.append(match)
+
+    guild.save()
+
+
+
+
 
 
 
