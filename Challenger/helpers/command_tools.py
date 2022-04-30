@@ -27,7 +27,7 @@ def ensure_registered(func):
     async def wrapper(ctx, *args, **kwargs):
         DB = Guild_DB(ctx.guild_id)
 
-        player = DB.get_players(user_id=ctx.author.channel_id)
+        player = DB.get_players(user_id=ctx.author.id)
         if player.empty:
             await ctx.respond(f"Hi {ctx.author.mention}! Please register with /register to play", user_mentions=True)
             return

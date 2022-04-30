@@ -21,6 +21,12 @@ from Challenger.config import *
 @tanjun.as_slash_command("join", "join the queue", default_to_ephemeral=True, always_defer=True)
 async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(type=tanjun.Client)) -> None:
 
+
+    # See who's in the queue for this lobby
+    # if there is a player in the queue, check if they are the same person
+    # if there's another player in the queue, create a new match
+
+
     guild = Guild.objects(guild_id=ctx.guild_id).first()
 
     user = User.objects(user_id=ctx.author.id).first()
@@ -31,16 +37,15 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
     #get the lobby and leaderboard for the channel
     leaderboard = None
     lobby = None
-    for leaderboard in guild.leaderboards:
-        lobby = leaderboard.lobbies.filter(channel_id=ctx.channel_id).first()
+    for lb in guild.leaderboards:
+        lobby = lb.lobbies.filter(channel_id=ctx.channel_id).first()
         if lobby:
-            leaderboard = leaderboard
+            leaderboard = lb
             break
 
     if not lobby:
         await ctx.edit_initial_response("No lobby here")
         return
-
 
     #get the player in the leaderboard
     player = None
@@ -52,13 +57,13 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
     if player is None:
         await ctx.edit_initial_response(f"Please register for {leaderboard.name}")
 
-
-
     #check if player has finished their last match...
 
     if lobby.user_in_q is None:
         #create asyncio timeout
         lobby.user_in_q = user
+        asyncio.create_task(remove_from_q_timeout(ctx.guild_id, leaderboard.name, ctx.channel_id, ctx),
+                            name=str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
 
         await ctx.edit_initial_response(f"You silently joined the queue")
         await (await ctx.fetch_channel()).send("A player has joined the queue")
@@ -85,7 +90,7 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
                 player2 = player
 
         if player1 is None or player2 is None:
-            raise Exception("Player not found") # TODO make this a util function
+            raise Exception("Player not found") # TODO make all the util functions
 
         new_match_id = 1
         if len(leaderboard.matches) > 0:
@@ -105,7 +110,7 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
             player2_declared=Declare.UNDECIDED,
             player2_elo=player2.rating,
             player2_RD=player2.rating_deviation
-        ) # TODO make this a util function
+        )
 
         leaderboard.matches.append(match)
 
@@ -120,19 +125,40 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
 #leave queue
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("leave", "leave the queue", default_to_ephemeral=True, always_defer=True)
-@ensure_registered
-@get_channel_lobby
-async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
+async def leave_q(ctx: tanjun.abc.Context) -> None:
 
-    DB = Guild_DB(ctx.guild_id)
-    player_id = ctx.author.id
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
 
-    if lobby["player"] == player_id:
-        await remove_from_queue(DB, lobby)
-        await ctx.edit_initial_response("Left the queue")
-        await (await ctx.fetch_channel()).send("A player has left the queue")
-    else:
+    user = User.objects(user_id=ctx.author.id).first()
+    if user is None:
+        await ctx.edit_initial_response("no user found")
+        return
+
+    # get the lobby and leaderboard for the channel
+    leaderboard = None
+    lobby = None
+    for lb in guild.leaderboards:
+        lobby = lb.lobbies.filter(channel_id=ctx.channel_id).first()
+        if lobby:
+            leaderboard = lb
+            break
+
+    if not lobby:
+        await ctx.edit_initial_response("No lobby here")
+        return
+
+
+    if lobby.player_in_q is None or lobby.player_in_q.pk != ctx.author.id:
         await ctx.edit_initial_response("You're not in the queue")
+        return
+
+    lobby.player_in_q = None
+    await remove_from_queue(ctx.guild_id, leaderboard.name, ctx.channel_id)
+
+    await ctx.edit_initial_response("You left the queue")
+    await (await ctx.fetch_channel()).send("A player has left the queue")
+
+    guild.save()
 
 
 
@@ -141,66 +167,116 @@ async def leave_q(ctx: tanjun.abc.Context, lobby) -> None:
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=True)
 @get_channel_lobby
 async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
-    if lobby["player"]:
-        await ctx.edit_initial_response("1 player in queue")
-    else:
+
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
+
+    user = User.objects(user_id=ctx.author.id).first()
+    if user is None:
+        await ctx.edit_initial_response("no user found")
+        return
+
+    # get the lobby for the channel
+    lobby = None
+    for lb in guild.leaderboards:
+        lobby = lb.lobbies.filter(channel_id=ctx.channel_id).first()
+        if lobby:
+            break
+
+    if not lobby:
+        await ctx.edit_initial_response("No lobby here")
+        return
+
+    if lobby.player_in_q is None:
         await ctx.edit_initial_response("Queue is empty")
+        return
+
+    await ctx.edit_initial_response("One player is in the queue")
 
 
 
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
-@tanjun.with_str_slash_option("result", "result", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
+@tanjun.with_str_slash_option("outcome", "outcome", choices={"win":Declare.WIN, "loss":Declare.LOSS, "draw":Declare.DRAW, "cancel":Declare.CANCEL})
 @tanjun.as_slash_command("declare", "declare a match's results", default_to_ephemeral=False, always_defer=True)
-@ensure_registered
-async def declare_match(ctx: tanjun.abc.SlashContext, result, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot),client=tanjun.injected(type=tanjun.abc.Client)) -> None:
+async def declare_match(ctx: tanjun.abc.SlashContext, outcome, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot), client=tanjun.injected(type=tanjun.abc.Client)) -> None:
 
-    DB = Guild_DB(ctx.guild_id)
+    player_declared = outcome
 
-    matches = DB.get_matches(user_id=ctx.author.id)
-    if matches.empty:
-        await ctx.edit_initial_response("You haven't played a match")
-        return
-    match = matches.iloc[0]
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
 
-
-    if match["outcome"] == result:
-        await ctx.edit_initial_response("Outcome is already " + str(result))
+    user = User.objects(user_id=ctx.author.id).first()
+    if user is None:
+        await ctx.edit_initial_response("no user found")
         return
 
-    #check if result was declared by staf
-    if match["staff_declared"]:
-        await ctx.edit_initial_response("Staff already finalized this match's result")
+    # get the leaderboard for the lobby
+    leaderboard = None
+    lobby = None
+    for lb in guild.leaderboards:
+        lobby = lb.lobbies.filter(channel_id=ctx.channel_id).first()
+        if lobby:
+            leaderboard = lb
+            break
+
+    if not lobby:
+        await ctx.edit_initial_response("No lobby here")
         return
 
-    #set the player's declared result in the match
-    is_p1 = match["p1_id"] == ctx.author.id
-    declare_to_result = {
-        Declare.WIN: Outcome.PLAYER_1 if is_p1 else Outcome.PLAYER_2,
-        Declare.LOSS: Outcome.PLAYER_2 if is_p1 else Outcome.PLAYER_1,
-        Declare.DRAW: Outcome.DRAW,
-        Declare.CANCEL: Outcome.CANCEL
-    }
-    new_outcome = declare_to_result[result]
-    if is_p1:
-        match["p1_declared"] = new_outcome
+    # get the most recent match player by this player in the leaberboard
+
+    match = None
+    highest_id = 0
+    for m in leaderboard.matches:
+        if m.player1_id == user.pk or m.player2_id == user.pk:
+            if m.match_id > highest_id:
+                highest_id = m.match_id
+                match = m
+
+    if match is None:
+        await ctx.edit_initial_response("You played no matches")
+        return
+
+
+    if match.finalized:
+        await ctx.edit_initial_response("Match is already finalized")
+        return
+
+
+    if match.outcome == desired_outcome(player_declared, 1 if match.player1_id == user.pk else 2):
+        await ctx.edit_initial_response(f"Outcome is already {match.outcome.value}")
+        return
+
+    if match.player1_id == user.pk:
+        match.player1_declared = player_declared
     else:
-        match["p2_declared"] = new_outcome
+        match.player2_declared = player_declared
 
-    #update the match in the database
-    DB.upsert_match(match)
 
-    await ctx.respond("Declared " + str(result) + " for match " + str(match.name))
+    if desired_outcome(match.player1_declared, 1) == desired_outcome(match.player2_declared, 2):
+        match.outcome = match.player1_declared
 
-    #check whether both declares match
-    if match["p1_declared"] == match["p2_declared"]:
-        updated_players_embed, num_updated = await update_match_result(ctx, match.name, new_outcome, bot=bot)
+        #TODO Update the match, calculate elos, and announce results
+
+        # get the relevant matches in a dataframe
+
+
+
+        updated_players_embed, num_updated = await update_match_result()
 
         if num_updated > 2:
             await announce_in_updates_channel(ctx, updated_players_embed, client)
 
         match = DB.get_matches(match_id=match.name).iloc[0]
+
         match_embed = describe_match(match, DB)
         await announce_in_updates_channel(ctx, match_embed, client=client)
+
+
+    guild.save()
+
+    await ctx.respond("Outcome declared")
+
+
+
 
 
 
@@ -242,7 +318,7 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
 
 
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
-@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCEL}, default=None)
+@tanjun.with_str_slash_option("outcome", "set the outcome", choices={"1":Outcome.PLAYER_1, "2":Outcome.PLAYER_2, "draw":Outcome.DRAW, "cancel":Outcome.CANCELLED}, default=None)
 @tanjun.with_user_slash_option("winner", "set the winner (optional)", default=None)
 @tanjun.with_str_slash_option("match_number", "Enter the match number")
 @tanjun.as_slash_command("setmatch", "set a match's outcome", default_to_ephemeral=False, always_defer=True)
@@ -294,7 +370,7 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
     """
 
     DB = Guild_DB(ctx.guild_id)
-    matches = DB.get_matches() #TODO dont get all the matches at once
+    matches = DB.get_matches()
     match = matches.loc[match_id]
 
     if staff_declared:
@@ -341,7 +417,7 @@ async def update_match_result(ctx:tanjun.abc.Context, match_id, new_outcome, bot
     elif new_outcome == Outcome.PLAYER_2:
         winner_id = match["p2_id"]
         displayed_outcome = str(DB.get_players(user_id=winner_id).iloc[0]["username"]) + " won"
-    elif new_outcome == Outcome.CANCEL:
+    elif new_outcome == Outcome.CANCELLED:
         displayed_outcome = "Cancelled"
     elif new_outcome == Outcome.DRAW:
         displayed_outcome = "Draw"

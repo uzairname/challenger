@@ -9,7 +9,7 @@ import pandas as pd
 import pymongo
 import mongoengine as me
 
-from Challenger.config import Database_Config
+from Challenger.config import Database
 from Challenger.utils import *
 
 
@@ -24,39 +24,66 @@ class User(me.Document):
     username = me.StringField()
     nickname= me.StringField()
 
-    meta = {'collection': 'users'}
+    meta = {
+        'collection': 'users',
+        'indexes': [{
+            'fields': ['user_id']
+        }]
+    }
 
 
-
-class Player(me.EmbeddedDocument):
+class Player(me.Document):
     """
     Field in leaderboard
     """
+    guild_id = me.IntField()
+    leaderboard_name = me.StringField()
+    user_id = me.IntField()
+
     user = me.LazyReferenceField(User)
     time_registered = me.DateTimeField() # time.time()
     rating = me.FloatField()
     rating_deviation = me.FloatField()
 
+    meta = {
+        'collection': 'users',
+        'indexes': [{
+                'fields': ['guild_id', 'leaderboard_name', 'user_id']
+        }]
+    }
 
 
-class Match(me.EmbeddedDocument):
+class Match(me.Document):
     """
     Field in Leaderboard
     """
 
+    guild_id = me.IntField()
+    leaderboard_name = me.StringField()
     match_id = me.IntField()
-    outcome = me.EnumField(Outcome)
+
+    outcome = me.EnumField(Outcome, default=Outcome.CANCELLED)
+    finalized = me.BooleanField()
     time_started = me.DateTimeField()
 
     player1_id = me.IntField()
-    player1_declared = me.EnumField(Declare)
+    player1_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
     player1_elo = me.FloatField()
     player1_RD = me.FloatField()
 
     player2_id = me.IntField()
-    player2_declared = me.EnumField(Declare)
+    player2_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
     player2_elo = me.FloatField()
     player2_RD = me.FloatField()
+
+    meta = {
+        'collection': 'matches',
+        "indexes":[{
+            "fields": ["guild_id", "leaderboard_name", "match_id"],
+            "unique": True
+        }]
+    }
+
 
 
 
@@ -71,24 +98,17 @@ class Lobby(me.EmbeddedDocument):
     updates_channel = me.IntField()
 
 
+
+
+
 class Leaderboard(me.EmbeddedDocument):
     """
     Field in Guild
     """
     name = me.StringField()
     players = me.EmbeddedDocumentListField(Player)
-    matches = me.EmbeddedDocumentListField(Match)
     lobbies = me.EmbeddedDocumentListField(Lobby)
     elo_roles = me.DictField()
-
-
-class Global_Leaderboard(me.Document):
-    """
-    Collection
-    Global leaderboard, can be in multiple guilds
-    """
-    leaderboard = me.EmbeddedDocumentField(Leaderboard)
-    meta = {'collection': 'global_leaderboards'}
 
 
 
@@ -103,6 +123,16 @@ class Guild(me.Document):
     leaderboards = me.EmbeddedDocumentListField(Leaderboard)
 
     meta = {'collection': 'guilds'}
+
+
+
+class Global_Leaderboard(me.Document):
+    """
+    Collection
+    Global leaderboard, can be in multiple guilds
+    """
+    leaderboard = me.EmbeddedDocumentField(Leaderboard)
+    meta = {'collection': 'global_leaderboards'}
 
 
 
@@ -147,19 +177,20 @@ class Guild_DB:
 
     def __init__(self, guild_id):
 
-        if Database_Config.mongodb_client is None:
-            Database_Config.mongodb_client = Mongo_Client()
-        self.client = Database_Config.mongodb_client
+        if Database.mongodb_client is None:
+            Database.mongodb_client = Mongo_Client()
+        self.client = Database.mongodb_client
 
 
         self.guild_id = guild_id
 
-        if guild_id in Database_Config.KNOWN_GUILDS:
-            self.guild_identifier = Database_Config.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
+        if guild_id in Database.KNOWN_GUILDS:
+            self.guild_identifier = Database.KNOWN_GUILDS[guild_id] # this is a unique name for the guild in the database
         else:
             self.guild_identifier = str(guild_id)
 
         self.guildDB = self.client["guild_" + self.guild_identifier]
+        print(self.guild_identifier)
 
 
     def test(self):
@@ -275,7 +306,7 @@ class Guild_DB:
         cur = self.guildDB[self.tbl_names.MATCHES.value].find(cur_filter, projection={"_id":False}).sort("match_id", sort_order).skip(skip)
 
         if limit is not None:
-            cur.limit(limit) #TODO: always limit to 100 or so, if needed
+            cur.limit(limit)
 
         matches_df = pd.DataFrame(list(cur), dtype="object")
         if not matches_df.empty:

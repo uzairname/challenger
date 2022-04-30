@@ -30,8 +30,8 @@ async def config_lobby(ctx:tanjun.abc.Context, channel, leaderboard):
 
     #get a lobby matching the channel id if it exists
     lobby = None
-    for leaderboard in guild.leaderboards:
-        lobby = leaderboard.lobbies.filter(channel_id=channel.id).first()
+    for lb in guild.leaderboards:
+        lobby = lb.lobbies.filter(channel_id=channel.id).first()
         if lobby:
             break
 

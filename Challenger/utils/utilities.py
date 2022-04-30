@@ -1,4 +1,4 @@
-
+from .constants import *
 
 def convert_to_ordinal(number):
     """
@@ -14,3 +14,16 @@ def convert_to_ordinal(number):
         return '%drd' % number
     else:
         return '%dth' % number
+
+
+def desired_outcome(player_declared:Declare, player:int) -> Outcome:
+    """
+    Returns the outcome of the game that the given player has declared
+    """
+
+    return {
+        Declare.WIN: Outcome.PLAYER_1 if player==1 else Outcome.PLAYER_2,
+        Declare.LOSS: Outcome.PLAYER_2 if player==1 else Outcome.PLAYER_1,
+        Declare.DRAW: Outcome.DRAW,
+        Declare.CANCEL: Outcome.CANCELLED
+    }[player_declared]

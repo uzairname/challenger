@@ -13,7 +13,7 @@ from Challenger.config import *
 from .scoring import *
 from .constants import *
 from .style import *
-from ..database import Guild_DB
+from ..database import *
 
 
 
@@ -113,26 +113,33 @@ def determine_is_ranked(all_matches, player_id, latest_match_id):
 
 
 
-async def remove_from_q_timeout(ctx: tanjun.abc.Context, DB: Guild_DB):
+async def remove_from_q_timeout(guild_id, leaderboard_name, channel_id, ctx:tanjun.abc.Context):
     await asyncio.sleep(App.QUEUE_JOIN_TIMEOUT)
-    queue = DB.get_lobbies(channel_id=ctx.channel_id).iloc[0]  # would probably break if the channel was deleted after the player joined
-    queue["player"] = None
-    DB.upsert_lobby(queue)
+
+    guild = Guild.objects.filter(guild_id=guild_id).first()
+    guild.leaderboards.filter(name=leaderboard_name).first().lobbies.filter(channel_id=channel_id).first().user_in_q = None
+    guild.save()
+
     await ctx.respond("You have been removed from the queue")
     await ctx.get_channel().send("A player was removed from the queue after " + str(App.QUEUE_JOIN_TIMEOUT // 60) + " minutes")
 
 
-async def remove_from_queue(DB:Guild_DB, lobby):
-    if lobby["player"] is None:
-        return
+def remove_from_queue(guild_id, leaderboard_name, channel_id):
+
+    guild = Guild.objects.filter(guild_id=guild_id).first()
+    guild.leaderboards.filter(name=leaderboard_name).first().lobbies.filter(channel_id=channel_id).first().user_in_q = None
+    guild.save()
+
     for i in asyncio.all_tasks():
-        if i.get_name() == str(lobby["player"]) + str(lobby.name) + "_queue_timeout":
+        if i.get_name() == get_timeout_name(leaderboard_name, channel_id):
             i.cancel()
-    lobby["player"] = None
-    DB.upsert_lobby(lobby)
 
 
-def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match id
+def get_timeout_name(guild_id, leaderboard_name, channel_id):
+    return str(guild_id)+str(channel_id) + leaderboard_name + "_queue_timeout"
+
+
+def describe_match(match: pd.Series, DB) -> hikari.Embed:
 
     p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["username"]
     p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]
@@ -172,7 +179,7 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed: # TODO take the match 
         outcome_str = p1_name + " won"
     elif match["outcome"] == Outcome.PLAYER_2:
         outcome_str = p2_name + " won"
-    elif match["outcome"] == Outcome.CANCEL:
+    elif match["outcome"] == Outcome.CANCELLED:
         outcome_str = "Cancelled"
         color = Colors.DARK
     elif match["outcome"] == Outcome.DRAW:

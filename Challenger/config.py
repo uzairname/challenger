@@ -6,7 +6,7 @@ from hikari import Permissions
 @final
 class App:
 
-    VERSION = '1.0.0 dev5'
+    VERSION = '1.1.0 dev1'
 
     GITHUB_LINK = "https://github.com/lilapela/competition"
     DISCORD_SERVER_INVITE = "https://discord.gg/bunZ3gadBU"
@@ -46,7 +46,7 @@ class Elo:
 
 
 @final
-class Database_Config:
+class Database:
 
     mongodb_client = None
 
@@ -54,9 +54,10 @@ class Database_Config:
 
     B2T_GUILD_ID =     921447683154145331
     TESTING_GUILD_ID = 999999999999999999
+    DEV_GUILD_ID = 907729885726933043 # Testing discord server
 
     # database names for some known discord servers, for ease of use. "testing" is for unit testing
-    KNOWN_GUILDS = {1: "testing", App.DEV_GUILD_ID: "development", 947184983120957452: "PX", B2T_GUILD_ID: "B2T"}
+    KNOWN_GUILDS = {1: "testing", DEV_GUILD_ID: "development", 947184983120957452: "PX", B2T_GUILD_ID: "B2T"}
 
 
 

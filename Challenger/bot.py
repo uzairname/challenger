@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from Challenger.database import Guild_DB
-from Challenger.config import App
+from Challenger.config import Database, App
 from Challenger.helpers.command_tools import on_error
 
 
@@ -41,9 +41,9 @@ async def on_started(client=tanjun.injected(type=tanjun.Client), bot:hikari.Gate
 
     if os.environ.get("ENVIRONMENT") == "production" or os.environ.get("ENVIRONMENT") == "staging":
         await client.declare_global_commands()
-        await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.LISTENING, name="/about for info!"))
+        await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.LISTENING, name="/about for info"))
 
     elif os.environ.get("ENVIRONMENT") == "development":
         client.load_modules("Challenger.components.experimental")
-        await client.declare_global_commands(guild=App.DEV_GUILD_ID)
+        await client.declare_global_commands(guild=Database.DEV_GUILD_ID)
         await bot.update_presence(status=hikari.Status.ONLINE, activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name=App.VERSION))

@@ -3,14 +3,16 @@ from enum import Enum
 
 BLANK = "*_ _*"
 
+
 class Outcome(str, Enum):
     PLAYER_1 = "player 1"
     PLAYER_2 = "player 2"
     DRAW = "draw"
-    CANCEL = "cancelled"
+    CANCELLED = "cancelled"
     PENDING = "undecided"
 
-    PLAYED = [PLAYER_1, PLAYER_2, DRAW]
+
+PLAYED = [Outcome.PLAYER_1, Outcome.PLAYER_2, Outcome.DRAW]
 
 
 class Declare(str, Enum):

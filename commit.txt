@@ -1,1 +1,3 @@
-join works
+Change matches document structure
+matches migration script
+declare works
