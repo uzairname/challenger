@@ -8,35 +8,24 @@ from Challenger.utils import *
 
 import mongoengine as me
 
-@unittest.skip("Skipping test_all.py")
-class Test_Bayeselo(unittest.TestCase):
-
-    def test_bayeselo(self):
-
-        results = [(1200, "win"), (1250, "loss"), (1350, "win"), (1300, "loss")]
-
-        calc_bayeselo(results)
-
-        self.assertEqual(True, True)
-
 
 
 #noinspection PyMethodMayBeStatic
 # @unittest.skip("Skipping test_all.py")
 class Test_DB(unittest.TestCase):
 
-    @unittest.skip("Skipping test_all.py")
+    # @unittest.skip("Skipping test_all.py")
     def test_get_set_delete_guild(self):
 
         # Create a guild
-        guild = Guild(id=Database.TESTING_GUILD_ID, name="Test Guild")
+        guild = Guild(id=Database.TESTING_GUILD_ID, name="other Test Guild")
         guild.save()
 
         # Get the guild
         guild = Guild.objects(guild_id=Database.TESTING_GUILD_ID).first()
 
         # Check the name
-        self.assertEqual(guild.name, "Test Guild")
+        self.assertEqual(guild.name, "other Test Guild")
 
         # Set the staff role
         guild.staff_role_id = 94833278723897239
@@ -61,7 +50,7 @@ class Test_DB(unittest.TestCase):
 
 
 
-    @unittest.skip("Skipping test_all.py")
+    # @unittest.skip("Skipping test_all.py")
     def test_leaderboards_players_lobbies(self):
 
 
@@ -96,33 +85,28 @@ class Test_DB(unittest.TestCase):
 
         # player registeres for lb 2. find or add a user, then add a player
         test_user_id = 24899
-        user = User.objects(user_id=test_user_id).first()
-        if user is None:
-            user = User(user_id=test_user_id, username="Test User#1234")
-
+        player = Player.objects(user_id=test_user_id, leaderboard_name=lb_names[1], guild_id=Database.TESTING_GUILD_ID).first()
         # add a player to the leaderboard if not already in it. Player chooses the leaderboard by name
-        player = guild.leaderboards.filter(name=lb_names[0]).first().players.filter(user=test_user_id).first()
-        if not player:
-            player = Player(user=user)
-            guild.leaderboards.filter(name=lb_names[0]).first().players.append(player)
+        if player is None:
+            player = Player(user_id=test_user_id, leaderboard_name=lb_names[1], guild_id=Database.TESTING_GUILD_ID, username="Test User#1234")
+            player.save()
 
 
         # a player joins the lobby in channel 2
-        guild.leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().user_in_q = user
+        guild.leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().player_in_q = player
 
         guild.save()
-        user.save()
 
+        self.assertEqual(Guild.objects(guild_id=Database.TESTING_GUILD_ID).first().leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().player_in_q.fetch().username, "Test User#1234")
+
+        #remove the player from the lobby
         guild = Guild.objects.filter(guild_id=Database.TESTING_GUILD_ID).first()
-        guild.leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().user_in_q = None
+        guild.leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().player_in_q = None
 
         guild.save()
 
         # check the player in queue
-        user_in_q = Guild.objects.filter(guild_id=Database.TESTING_GUILD_ID).first().leaderboards.filter(
-            name=lb_names[1]).first().lobbies.filter(channel_id=1).first().user_in_q
-        self.assertEqual(user_in_q, None)
-
+        self.assertEqual(Guild.objects(guild_id=Database.TESTING_GUILD_ID).first().leaderboards.filter(name=lb_names[1]).first().lobbies.filter(channel_id=1).first().player_in_q, None)
 
 
         guild = Guild.objects(guild_id=45).first()
@@ -140,9 +124,68 @@ class Test_DB(unittest.TestCase):
         guild.save()
 
 
+def matches_migration():
+    DB = Guild_DB(Database.DEV_GUILD_ID)
 
+    matches = DB.get_matches()
+
+    matches.to_csv("test_matches.csv")
+
+    #connect to the development database and put all the matches in from this csv
+
+    db_name = "development"
+    mongodb_url_with_database = os.environ.get("MONGODB_URL").replace("mongodb.net/?", "mongodb.net/" + db_name + "?")
+
+    connection = me.connect(host=mongodb_url_with_database)
+
+    connection.get_database().drop_collection("matches")
+    connection.get_database().drop_collection("players")
+
+    matches = pd.read_csv("test_matches.csv")
+    os.remove("test_matches.csv")
+
+    leaderboard_name = "Ast"
+    guild_id = Database.DEV_GUILD_ID
+
+    for i, match in matches.iterrows():
+        print(match.name)
+        outcome = match["outcome"]
+        if not match["outcome"] in [Outcome.CANCELLED, Outcome.PLAYER_1, Outcome.PLAYER_2, Outcome.DRAW]:
+            outcome = Outcome.CANCELLED
+
+        print(match["p1_id"], "\n", DB.get_players(user_id=match["p1_id"]))
+
+        player1 = Player(user_id=match["p1_id"], leaderboard_name=leaderboard_name, guild_id=guild_id, username=DB.get_players(user_id=match["p1_id"]).iloc[0]["username"])
+
+        player2 = Player(user_id=match["p2_id"], leaderboard_name=leaderboard_name, guild_id=guild_id, username=DB.get_players(user_id=match["p2_id"]).iloc[0]["username"])
+        try:
+            player1.save()
+        except me.NotUniqueError:
+            player1 = Player.objects(user_id=match["p1_id"], leaderboard_name=leaderboard_name, guild_id=guild_id).first()
+            pass
+        try:
+            player2.save()
+        except me.NotUniqueError:
+            player2 = Player.objects(user_id=match["p2_id"], leaderboard_name=leaderboard_name, guild_id=guild_id).first()
+            pass
+
+        match = Match(leaderboard_name=leaderboard_name, guild_id=guild_id, match_id=match["match_id"],
+                      outcome=outcome,
+                      time_started=match["time_started"],
+
+                      player1=player1, player2=player2,
+                      player1_elo=match["p1_elo"], player2_elo=match["p2_elo"],
+                      player1_RD=350, player2_RD=350,
+                      )
+        match.save()
+
+    me.disconnect_all()
 
 if __name__ == "__main__":
+
+    me.disconnect_all()
+
+    matches_migration()
 
     testing_db_name = "testing"
 
@@ -159,41 +202,3 @@ if __name__ == "__main__":
 
 
 
-
-def matches_migration(self):
-
-    DB = Guild_DB(Database.DEV_GUILD_ID)
-
-
-    me.disconnect_all()
-
-    db_name = "development"
-    mongodb_url_with_database = os.environ.get("MONGODB_URL").replace("mongodb.net/?","mongodb.net/" + db_name + "?")
-
-    connection = me.connect(host=mongodb_url_with_database)
-
-    connection.get_database().drop_collection("matches")
-
-    matches = pd.read_csv("test_matches.csv")
-    os.remove("test_matches.csv")
-
-    leaderboard_name = "Ast"
-    guild_id = Database.DEV_GUILD_ID
-
-    for i, match in matches.iterrows():
-        print(match.name)
-        outcome = match["outcome"]
-        if not match["outcome"] in [Outcome.CANCELLED, Outcome.PLAYER_1, Outcome.PLAYER_2, Outcome.DRAW]:
-            outcome = Outcome.CANCELLED
-        print(outcome)
-
-
-        match = Match(leaderboard_name=leaderboard_name, guild_id=guild_id, match_id=match["match_id"],
-                      outcome=outcome,
-                      time_started=match["time_started"],
-
-                      player1_id=match["p1_id"], player2_id=match["p2_id"],
-                      player1_elo=match["p1_elo"], player2_elo=match["p2_elo"],
-                      player1_RD=350, player2_RD=350,
-                      )
-        match.save()

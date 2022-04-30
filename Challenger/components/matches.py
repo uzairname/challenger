@@ -29,11 +29,6 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
 
     guild = Guild.objects(guild_id=ctx.guild_id).first()
 
-    user = User.objects(user_id=ctx.author.id).first()
-    if user is None:
-        await ctx.edit_initial_response("no user found")
-        return
-
     #get the lobby and leaderboard for the channel
     leaderboard = None
     lobby = None
@@ -47,66 +42,51 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
         await ctx.edit_initial_response("No lobby here")
         return
 
-    #get the player in the leaderboard
-    player = None
-    for p in leaderboard.players:
-        print(p.user.pk)
-        if p.user.pk == user.id:
-            player = p
-
+    player = Player.objects(guild_id=ctx.guild_id, user_id=ctx.author.id, leaderboard_name=leaderboard.name).first()
     if player is None:
         await ctx.edit_initial_response(f"Please register for {leaderboard.name}")
+        return
 
     #check if player has finished their last match...
 
-    if lobby.user_in_q is None:
-        #create asyncio timeout
-        lobby.user_in_q = user
-        asyncio.create_task(remove_from_q_timeout(ctx.guild_id, leaderboard.name, ctx.channel_id, ctx),
-                            name=str(ctx.author.id) + str(lobby.name) + "_queue_timeout")
+    await ctx.edit_initial_response(f"You silently joined the queue")
 
-        await ctx.edit_initial_response(f"You silently joined the queue")
+    if lobby.player_in_q is None:
+        #create asyncio timeout
+        lobby.player_in_q = player
+        asyncio.create_task(remove_from_q_timeout(ctx.guild_id, leaderboard.name, ctx.channel_id, ctx),
+                            name=get_timeout_name(ctx.guild_id, leaderboard.name, ctx.channel_id))
+
         await (await ctx.fetch_channel()).send("A player has joined the queue")
+
     else:
 
-        if lobby.user_in_q.pk == ctx.author.id:
+        if lobby.player_in_q == player:
             await ctx.edit_initial_response("You're already in the queue")
             return
 
-        #cancel asyncio task
-        opponent = lobby.user_in_q
-        lobby.user_in_q = None
+        player1 = lobby.player_in_q
+        player2 = player
 
-        await ctx.edit_initial_response("You silently joined the queue")
+        remove_from_queue(ctx.guild_id, leaderboard.name, ctx.channel_id)
+
         await (await ctx.fetch_channel()).send("Queue is full. Creating match")
 
         # get both players by their user
-        player1 = None
-        player2 = None
-        for player in leaderboard.players:
-            if player.user.pk == user.id:
-                player1 = player
-            elif player.user.pk == opponent.id:
-                player2 = player
 
-        if player1 is None or player2 is None:
-            raise Exception("Player not found") # TODO make all the util functions
 
-        new_match_id = 1
-        if len(leaderboard.matches) > 0:
-            new_match_id = leaderboard.matches[-1].match_id + 1
 
         match = Match(
             match_id=new_match_id,
             outcome=Outcome.PENDING,
             time_started=datetime.now(),
 
-            player1_id=player1.user.pk,
+            player1_id=player1,
             player1_declared=Declare.UNDECIDED,
             player1_elo=player1.rating,
             player1_RD=player1.rating_deviation,
 
-            player2_id=player2.user.pk,
+            player2_id=player2,
             player2_declared=Declare.UNDECIDED,
             player2_elo=player2.rating,
             player2_RD=player2.rating_deviation

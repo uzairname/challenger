@@ -131,7 +131,7 @@ def remove_from_queue(guild_id, leaderboard_name, channel_id):
     guild.save()
 
     for i in asyncio.all_tasks():
-        if i.get_name() == get_timeout_name(leaderboard_name, channel_id):
+        if i.get_name() == get_timeout_name(guild_id, leaderboard_name, channel_id):
             i.cancel()
 
 
@@ -318,4 +318,4 @@ def player_col_for_match(match, user_id, column, opponent=False): #useful probab
         raise ValueError("Player not in match")
 
 __all__ = ["describe_match", "announce_in_updates_channel", "update_players_elo_roles", "remove_from_q_timeout", "remove_from_queue",
-           "recalculate_matches", "determine_is_ranked", "player_col_for_match", "start_announce_new_match"]
+           "recalculate_matches", "determine_is_ranked", "player_col_for_match", "start_announce_new_match", "get_timeout_name"]

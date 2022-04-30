@@ -15,21 +15,21 @@ from Challenger.utils import *
 
 
 
-class User(me.Document):
-    """
-    Collection
-    Global user, can be in multiple leaderboards and guilds
-    """
-    user_id = me.IntField(primary_key=True)
-    username = me.StringField()
-    nickname= me.StringField()
-
-    meta = {
-        'collection': 'users',
-        'indexes': [{
-            'fields': ['user_id']
-        }]
-    }
+# class User(me.Document):
+#     """
+#     Collection
+#     Global user, can be in multiple leaderboards and guilds
+#     """
+#     user_id = me.IntField(primary_key=True)
+#     username = me.StringField()
+#     nickname= me.StringField()
+#
+#     meta = {
+#         'collection': 'users',
+#         'indexes': [{
+#             'fields': ['user_id']
+#         }]
+#     }
 
 
 class Player(me.Document):
@@ -40,15 +40,16 @@ class Player(me.Document):
     leaderboard_name = me.StringField()
     user_id = me.IntField()
 
-    user = me.LazyReferenceField(User)
+    username = me.StringField()
     time_registered = me.DateTimeField() # time.time()
     rating = me.FloatField()
     rating_deviation = me.FloatField()
 
     meta = {
-        'collection': 'users',
+        'collection': 'players',
         'indexes': [{
-                'fields': ['guild_id', 'leaderboard_name', 'user_id']
+            'fields': ['guild_id', 'leaderboard_name', 'user_id'],
+            'unique': True
         }]
     }
 
@@ -62,16 +63,16 @@ class Match(me.Document):
     leaderboard_name = me.StringField()
     match_id = me.IntField()
 
+    time_started = me.DateTimeField()
     outcome = me.EnumField(Outcome, default=Outcome.CANCELLED)
     finalized = me.BooleanField()
-    time_started = me.DateTimeField()
 
-    player1_id = me.IntField()
+    player1 = me.LazyReferenceField(Player)
     player1_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
     player1_elo = me.FloatField()
     player1_RD = me.FloatField()
 
-    player2_id = me.IntField()
+    player2 = me.LazyReferenceField(Player)
     player2_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
     player2_elo = me.FloatField()
     player2_RD = me.FloatField()
@@ -86,18 +87,15 @@ class Match(me.Document):
 
 
 
-
 class Lobby(me.EmbeddedDocument):
     """
     Field in Leaderboard, which is a field in Guild
     """
     channel_id = me.IntField(required=True)
     name = me.StringField()
-    user_in_q = me.LazyReferenceField(User)
+    player_in_q = me.LazyReferenceField(Player)
     elo_range = me.ListField(me.FloatField())
     updates_channel = me.IntField()
-
-
 
 
 
@@ -106,10 +104,8 @@ class Leaderboard(me.EmbeddedDocument):
     Field in Guild
     """
     name = me.StringField()
-    players = me.EmbeddedDocumentListField(Player)
-    lobbies = me.EmbeddedDocumentListField(Lobby)
     elo_roles = me.DictField()
-
+    lobbies = me.EmbeddedDocumentListField(Lobby)
 
 
 class Guild(me.Document):
@@ -122,7 +118,9 @@ class Guild(me.Document):
     staff_role_id = me.IntField()
     leaderboards = me.EmbeddedDocumentListField(Leaderboard)
 
-    meta = {'collection': 'guilds'}
+    meta = {
+        'collection': 'guilds',
+    }
 
 
 
