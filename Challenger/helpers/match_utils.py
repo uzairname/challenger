@@ -117,7 +117,7 @@ async def remove_from_q_timeout(guild_id, leaderboard_name, channel_id, ctx:tanj
     await asyncio.sleep(App.QUEUE_JOIN_TIMEOUT)
 
     guild = Guild.objects.filter(guild_id=guild_id).first()
-    guild.leaderboards.filter(name=leaderboard_name).first().lobbies.filter(channel_id=channel_id).first().user_in_q = None
+    guild.leaderboards.filter(name=leaderboard_name).first().lobbies.filter(channel_id=channel_id).first().player_in_q = None
     guild.save()
 
     await ctx.respond("You have been removed from the queue")
@@ -127,7 +127,7 @@ async def remove_from_q_timeout(guild_id, leaderboard_name, channel_id, ctx:tanj
 def remove_from_queue(guild_id, leaderboard_name, channel_id):
 
     guild = Guild.objects.filter(guild_id=guild_id).first()
-    guild.leaderboards.filter(name=leaderboard_name).first().lobbies.filter(channel_id=channel_id).first().user_in_q = None
+    guild.leaderboards.filter(name=leaderboard_name).first().lobbies.filter(channel_id=channel_id).first().player_in_q = None
     guild.save()
 
     for i in asyncio.all_tasks():
@@ -139,10 +139,12 @@ def get_timeout_name(guild_id, leaderboard_name, channel_id):
     return str(guild_id)+str(channel_id) + leaderboard_name + "_queue_timeout"
 
 
-def describe_match(match: pd.Series, DB) -> hikari.Embed:
+def describe_match(match:pd.Series) -> hikari.Embed:
 
-    p1_name = DB.get_players(user_id=match["p1_id"]).iloc[0]["username"]
-    p2_name = DB.get_players(user_id=match["p2_id"]).iloc[0]["username"]
+    start_time = time.time()
+    p1_username = Player.objects.filter(id=match["player_1"]).first().username
+    p2_username = Player.objects.filter(id=match["player_2"]).first().username
+    print("get player took " + str(time.time() - start_time))
 
     def displayed_elo(elo, is_ranked):
         if elo is None:
@@ -152,15 +154,15 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed:
         else:
             return str(round(elo)) + "?"
 
-    p1_prior_elo_displayed = displayed_elo(match["p1_elo"], match["p1_is_ranked"])
-    p2_prior_elo_displayed = displayed_elo(match["p2_elo"], match["p2_is_ranked"])
-    p1_after_elo_displayed = displayed_elo(match["p1_elo_after"], match["p1_is_ranked_after"])
-    p2_after_elo_displayed = displayed_elo(match["p2_elo_after"], match["p2_is_ranked_after"])
+    p1_prior_elo_displayed = displayed_elo(match["player_1_elo"], True)
+    p2_prior_elo_displayed = displayed_elo(match["player_2_elo"], True)
+    p1_after_elo_displayed = displayed_elo(match["player_1_elo"], True)
+    p2_after_elo_displayed = displayed_elo(match["player_1_elo"], True)
 
-    if match["outcome"] in Outcome.PLAYED:
 
-        p1_elo_change = match["p1_elo_after"] - match["p1_elo"]
-        p2_elo_change = match["p2_elo_after"] - match["p2_elo"]
+    if match["outcome"] in PLAYED:
+        p1_elo_change = 0
+        p2_elo_change = 0
         p1_elo_indicator = "▲" if p1_elo_change > 0 else "▼" if p1_elo_change < 0 else ""
         p2_elo_indicator = "▲" if p2_elo_change > 0 else "▼" if p2_elo_change < 0 else ""
         p1_elo_diff_str = str(round(abs(p1_elo_change)))
@@ -176,9 +178,9 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed:
 
     color = Colors.SUCCESS
     if match["outcome"] == Outcome.PLAYER_1:
-        outcome_str = p1_name + " won"
+        outcome_str = p1_username + " won"
     elif match["outcome"] == Outcome.PLAYER_2:
-        outcome_str = p2_name + " won"
+        outcome_str = p2_username + " won"
     elif match["outcome"] == Outcome.CANCELLED:
         outcome_str = "Cancelled"
         color = Colors.DARK
@@ -188,30 +190,30 @@ def describe_match(match: pd.Series, DB) -> hikari.Embed:
         outcome_str = "Undecided"
         color = Colors.WARNING
 
-    if match["p1_declared"] == Outcome.PLAYER_1:
+    if match["player_1_declared"] == Outcome.PLAYER_1:
         p1_declared = "Declared win"
-    elif match["p1_declared"] == Outcome.PLAYER_2:
+    elif match["player_1_declared"] == Outcome.PLAYER_2:
         p1_declared = "Declared loss"
-    elif match["p1_declared"] is None:
+    elif match["player_1_declared"] is None:
         p1_declared = "Didn't declare"
     else:
-        p1_declared = match["p1_declared"]
-    if match["p2_declared"] == Outcome.PLAYER_2:
+        p1_declared = match["player_1_declared"]
+    if match["player_2_declared"] == Outcome.PLAYER_2:
         p2_declared = "Declared win"
-    elif match["p2_declared"] == Outcome.PLAYER_1:
+    elif match["player_2_declared"] == Outcome.PLAYER_1:
         p2_declared = "Declared loss"
-    elif match["p2_declared"] is None:
+    elif match["player_2_declared"] is None:
         p2_declared = "Didn't declare"
     else:
-        p2_declared = match["p2_declared"]
+        p2_declared = match["player_2_declared"]
 
 
     embed = hikari.Embed(title="Match " + str(match.name), color=color)
 
     embed.add_field(name=outcome_str, value=BLANK)
-    embed.add_field(name=str(p1_name), value=p1_elo_change_str + "> " + p1_declared, inline=True)
+    embed.add_field(name=str(p1_username), value=p1_elo_change_str + "> " + p1_declared, inline=True)
     embed.add_field(name="vs", value=BLANK, inline=True)
-    embed.add_field(name=str(p2_name), value=p2_elo_change_str + "> " + p2_declared, inline=True)
+    embed.add_field(name=str(p2_username), value=p2_elo_change_str + "> " + p2_declared, inline=True)
 
     embed.set_footer(text=match["time_started"].strftime("%B %d, %Y, %H:%M") + " UTC")
 

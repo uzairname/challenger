@@ -15,35 +15,18 @@ from Challenger.utils import *
 
 
 
-# class User(me.Document):
-#     """
-#     Collection
-#     Global user, can be in multiple leaderboards and guilds
-#     """
-#     user_id = me.IntField(primary_key=True)
-#     username = me.StringField()
-#     nickname= me.StringField()
-#
-#     meta = {
-#         'collection': 'users',
-#         'indexes': [{
-#             'fields': ['user_id']
-#         }]
-#     }
-
-
 class Player(me.Document):
     """
     Field in leaderboard
     """
-    guild_id = me.IntField()
-    leaderboard_name = me.StringField()
-    user_id = me.IntField()
+    guild_id = me.IntField(required=True)
+    leaderboard_name = me.StringField(required=True)
+    user_id = me.IntField(required=True)
 
-    username = me.StringField()
-    time_registered = me.DateTimeField() # time.time()
-    rating = me.FloatField()
-    rating_deviation = me.FloatField()
+    username = me.StringField(null=True)
+    time_registered = me.DateTimeField(null=True) # time.time()
+    rating = me.FloatField(null=True)
+    rating_deviation = me.FloatField(null=True)
 
     meta = {
         'collection': 'players',
@@ -59,30 +42,30 @@ class Match(me.Document):
     Field in Leaderboard
     """
 
-    guild_id = me.IntField()
-    leaderboard_name = me.StringField()
-    match_id = me.IntField()
+    guild_id = me.IntField(required=True)
+    leaderboard_name = me.StringField(required=True)
+    match_id = me.IntField(required=True)
 
-    time_started = me.DateTimeField()
+    time_started = me.DateTimeField(null=True)
     outcome = me.EnumField(Outcome, default=Outcome.CANCELLED)
-    finalized = me.BooleanField()
+    finalized = me.BooleanField(null=True)
 
-    player1 = me.LazyReferenceField(Player)
-    player1_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
-    player1_elo = me.FloatField()
-    player1_RD = me.FloatField()
+    player_1 = me.LazyReferenceField(Player, reverse_delete_rule=me.CASCADE)
+    player_1_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
+    player_1_elo = me.FloatField(null=True)
+    player_1_RD = me.FloatField(null=True)
 
-    player2 = me.LazyReferenceField(Player)
-    player2_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
-    player2_elo = me.FloatField()
-    player2_RD = me.FloatField()
+    player_2 = me.LazyReferenceField(Player, reverse_delete_rule=me.CASCADE)
+    player_2_declared = me.EnumField(Declare, default=Declare.UNDECIDED)
+    player_2_elo = me.FloatField(null=True)
+    player_2_RD = me.FloatField(null=True)
 
     meta = {
         'collection': 'matches',
         "indexes":[{
-            "fields": ["guild_id", "leaderboard_name", "match_id"],
+            "fields": ["guild_id", "leaderboard_name", "-match_id"],
             "unique": True
-        }]
+        }],
     }
 
 
@@ -92,10 +75,14 @@ class Lobby(me.EmbeddedDocument):
     Field in Leaderboard, which is a field in Guild
     """
     channel_id = me.IntField(required=True)
-    name = me.StringField()
+    name = me.StringField(null=True)
     player_in_q = me.LazyReferenceField(Player)
     elo_range = me.ListField(me.FloatField())
-    updates_channel = me.IntField()
+    updates_channel = me.IntField(null=True)
+
+    meta = {
+        "strict": False
+    }
 
 
 
@@ -103,9 +90,13 @@ class Leaderboard(me.EmbeddedDocument):
     """
     Field in Guild
     """
-    name = me.StringField()
+    name = me.StringField(required=True)
     elo_roles = me.DictField()
     lobbies = me.EmbeddedDocumentListField(Lobby)
+
+    meta = {
+        "strict": False
+    }
 
 
 class Guild(me.Document):
@@ -113,13 +104,14 @@ class Guild(me.Document):
     Collection
     """
     guild_id = me.IntField(primary_key=True)
-    name = me.StringField()
-    admin_role_id = me.IntField()
-    staff_role_id = me.IntField()
+    name = me.StringField(null=True)
+    admin_role_id = me.IntField(null=True)
+    staff_role_id = me.IntField(null=True)
     leaderboards = me.EmbeddedDocumentListField(Leaderboard)
 
     meta = {
         'collection': 'guilds',
+        'strict': False,
     }
 
 

@@ -124,6 +124,34 @@ class Test_DB(unittest.TestCase):
         guild.save()
 
 
+
+    def test_matches(self):
+
+        matches_migration()
+
+        # in the development database
+        db_name = "development"
+        mongodb_url_with_database = os.environ.get("MONGODB_URL").replace("mongodb.net/?", "mongodb.net/" + db_name + "?")
+        me.disconnect_all()
+        connection = me.connect(host=mongodb_url_with_database)
+
+        matches = pd.read_csv("test_matches.csv")
+
+        leaderboard_name = "Ast"
+        guild_id = Database.DEV_GUILD_ID
+
+
+        match = Match.objects(guild_id=Database.DEV_GUILD_ID, leaderboard_name="Ast").order_by("-match_id").first()
+        print(match.match_id, match.outcome)
+
+
+
+
+
+
+
+
+
 def matches_migration():
     DB = Guild_DB(Database.DEV_GUILD_ID)
 
@@ -136,13 +164,13 @@ def matches_migration():
     db_name = "development"
     mongodb_url_with_database = os.environ.get("MONGODB_URL").replace("mongodb.net/?", "mongodb.net/" + db_name + "?")
 
+    me.disconnect_all()
     connection = me.connect(host=mongodb_url_with_database)
 
     connection.get_database().drop_collection("matches")
     connection.get_database().drop_collection("players")
 
     matches = pd.read_csv("test_matches.csv")
-    os.remove("test_matches.csv")
 
     leaderboard_name = "Ast"
     guild_id = Database.DEV_GUILD_ID
@@ -152,8 +180,6 @@ def matches_migration():
         outcome = match["outcome"]
         if not match["outcome"] in [Outcome.CANCELLED, Outcome.PLAYER_1, Outcome.PLAYER_2, Outcome.DRAW]:
             outcome = Outcome.CANCELLED
-
-        print(match["p1_id"], "\n", DB.get_players(user_id=match["p1_id"]))
 
         player1 = Player(user_id=match["p1_id"], leaderboard_name=leaderboard_name, guild_id=guild_id, username=DB.get_players(user_id=match["p1_id"]).iloc[0]["username"])
 
@@ -173,9 +199,9 @@ def matches_migration():
                       outcome=outcome,
                       time_started=match["time_started"],
 
-                      player1=player1, player2=player2,
-                      player1_elo=match["p1_elo"], player2_elo=match["p2_elo"],
-                      player1_RD=350, player2_RD=350,
+                      player_1=player1, player_2=player2,
+                      player_1_elo=match["p1_elo"], player_2_elo=match["p2_elo"],
+                      player_1_RD=350, player_2_RD=350,
                       )
         match.save()
 
@@ -184,8 +210,6 @@ def matches_migration():
 if __name__ == "__main__":
 
     me.disconnect_all()
-
-    matches_migration()
 
     testing_db_name = "testing"
 

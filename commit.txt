@@ -1,3 +1,4 @@
-create separate players collection
-migration script
-unit tests
+update match db
+player stats
+match creation works
+add null default values for db

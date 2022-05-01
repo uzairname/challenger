@@ -32,4 +32,4 @@ class Colors:
     ERROR = "#db4737"
 
 
-__all__ = ["BLANK", "Outcome", "Declare", "Colors"]
+__all__ = ["BLANK", "Outcome", "Declare", "Colors", "PLAYED"]

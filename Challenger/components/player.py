@@ -3,10 +3,12 @@ import tanjun
 import hikari
 
 from datetime import datetime
+from mongoengine.queryset.visitor import Q
 
 from Challenger.helpers import *
 from Challenger.database import *
 from Challenger.config import *
+
 
 component = tanjun.Component(name="player module")
 
@@ -52,65 +54,89 @@ async def register(ctx: tanjun.abc.Context, leaderboard) -> None:
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
+@tanjun.with_str_slash_option("leaderboard", "the leaderboard to get the stats for", default=None)
 @tanjun.with_member_slash_option("player", "(optional) their mention", default=None)
 @tanjun.as_slash_command("stats", "view your or someone's stats", default_to_ephemeral=False, always_defer=True)
-async def get_stats(ctx: tanjun.abc.Context, player) -> None:
+async def get_stats(ctx: tanjun.abc.Context, leaderboard, player) -> None:
 
-    DB = Guild_DB(ctx.guild_id)
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
 
-    #get the selected player
-    if player:
-        member = player
-        players = DB.get_players(user_id=player.channel_id)
+    if leaderboard is None:
+        lb = guild.leaderboards.first()
     else:
-        member = ctx.member
-        players = DB.get_players(user_id=ctx.author.id)
+        lb = guild.leaderboards.filter(name=leaderboard).first()
 
-    try:
-        player = players.iloc[0]
-    except IndexError:
-        await ctx.edit_initial_response("This player isn't registered")
+    if lb is None:
+        await ctx.respond(f"No leaderboard named {leaderboard}")
         return
 
-    matches = DB.get_matches(user_id=player.name)
-    finished_matches = matches.loc[np.isin(matches["outcome"], Outcome.PLAYED)]
+
+    if player is None:
+        player_ = Player.objects(guild_id=ctx.guild_id, leaderboard_name=lb.name, user_id=ctx.author.id).first()
+    else:
+        player_ = Player.objects(guild_id=ctx.guild_id, leaderboard_name=lb.name, user_id=player.id).first()
+
+    member = await ctx.rest.fetch_member(ctx.guild_id, player_.user_id)
+
+    if player_ is None:
+        await ctx.respond(f"This player isn't registered")
+        return
+
+    matches = Match.objects(guild_id=ctx.guild_id, leaderboard_name=lb.name).filter(Q(player_1=player_) | Q(player_2=player_))
+
+    matches_df = pd.DataFrame([a.to_mongo() for a in matches]).set_index("match_id").replace(np.nan, None)
 
     opponent_elos = []
+    total_draws = 0
+    total_wins = 0
+    total_losses = 0
 
-    for id, match in finished_matches.iterrows():
-        opponent_elos.append(player_col_for_match(match, player.name, "elo", opponent=True))
+    for id, match in matches_df.iterrows():
 
-    if len(opponent_elos) == 0:
+        winning_result = Outcome.PLAYER_1 if match["player_1"] == player_ else Outcome.PLAYER_2
+        losing_result = Outcome.PLAYER_2 if match["player_2"] == player_ else Outcome.PLAYER_1
+
+        is_finished = True
+        if match["outcome"] == winning_result:
+            total_wins += 1
+        if match["outcome"] == losing_result:
+            total_losses += 1
+        elif match["outcome"] == Outcome.DRAW:
+            total_draws += 1
+        else:
+            is_finished = False
+
+        if is_finished:
+
+            if match["player_1"] == player_:
+                opponent_elo = match["player_2_elo"]
+            else:
+                opponent_elo = match["player_1_elo"]
+            opponent_elos.append(opponent_elo)
+
+    total = total_wins + total_losses + total_draws
+
+    if total == 0:
         avg_opponent_elo_str = "No matches played yet"
     else:
         avg_opponent_elo_str = str(np.mean(opponent_elos).round(2))
 
 
-    total_draws = 0
-    total_wins = 0
-    total_losses = 0
-    for index, match in finished_matches.iterrows():
-        if match["outcome"] == Outcome.DRAW:
-            total_draws += 1
+    displayed_elo = str(round(player_.rating if player_.rating else 0, 1))
 
-        winning_result = Outcome.PLAYER_1 if match["p1_id"] == player.name else Outcome.PLAYER_2
-        losing_result = Outcome.PLAYER_2 if match["p1_id"] == player.name else Outcome.PLAYER_1
+    is_ranked = True
 
-        if match["outcome"] == winning_result:
-            total_wins += 1
-        elif match["outcome"] == losing_result:
-            total_losses += 1
-
-    total = finished_matches.shape[0]
-
-    displayed_elo = str(round((player["elo"]),1))
-    if not player["is_ranked"]:
+    if not is_ranked:
         displayed_elo += "?"
         displayed_elo_desc = "Unranked"
     else:
-        all_players = DB.get_players()
-        all_ranked_players = all_players.loc[all_players["is_ranked"] == True]
-        place = np.sum(all_ranked_players["elo"] > player["elo"]) + 1
+        all_players = Player.objects(guild_id=ctx.guild_id, leaderboard_name=lb.name)
+
+        all_players_df = pd.DataFrame([a.to_mongo() for a in all_players]).set_index("user_id")
+
+        all_ranked_players = all_players_df # ranked
+
+        place = np.sum(all_ranked_players["rating"] > player_["rating"]) + 1
         place_str = convert_to_ordinal(place)
         displayed_elo_desc = place_str + " place"
         if place == 1:
@@ -120,13 +146,12 @@ async def get_stats(ctx: tanjun.abc.Context, player) -> None:
         elif place == 3:
             displayed_elo_desc = "🥉 " + displayed_elo_desc
 
-        percentile = np.sum(all_ranked_players["elo"] < player["elo"])/len(all_ranked_players.index) # "less than" percentile
+        percentile = np.sum(all_ranked_players["rating"] < player_["rating"])/len(all_ranked_players.index) # "less than" percentile
         top_percent = round((1 - percentile)*100)
         displayed_elo_desc += " (top " + str(top_percent) + "%)"
 
 
-
-    stats_embed = hikari.Embed(title=f"{player['tag']}'s Stats", color=member.accent_color).set_thumbnail(member.avatar_url)
+    stats_embed = hikari.Embed(title=f"{player_['username']}'s Stats", color=Colors.PRIMARY).set_thumbnail(member.avatar_url)
     stats_embed.add_field(name="Score: " + displayed_elo, value=displayed_elo_desc)
     stats_embed.add_field(name="Average Opponent's elo", value=avg_opponent_elo_str)
     stats_embed.add_field(name="Wins", value=f"{total_wins}", inline=True)

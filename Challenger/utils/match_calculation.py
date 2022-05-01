@@ -5,86 +5,88 @@ from .elo_calculation import *
 
 
 
-def recalculate_matches(matches, match_id, new_outcome=None, updated_players=None, update_all=False) -> tuple[pd.DataFrame, pd.DataFrame]:
+def recalculate_matches(matches_df, match_id, new_outcome=None, updated_players_df=None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     starts from match_id and recalculates all matches after it.
-    if new_starting_elo is set, it will update everyone's elo before any matches were played
 
     params:
-        matches: a DataFrame of matches. must have index "match_id", and columns "p1_id", "p2_id", "p1_elo", "p2_elo", "p1_elo_after", "p2_elo_after", "p1_is_ranked", "p2_is_ranked", "p1_is_ranked_after", "p2_is_ranked_after", "outcome"
+        matches: a DataFrame of matches. must have index "match_id", and columns
+            "player_1_id", "player_2_id",
+            "player_1_elo", "player_2_elo",
+            "player_1_RD", "player_2_RD",
+            "outcome"
         match_id: the match id of the first match to be updated
         new_outcome: the new outcome of the match
         updated_players: pd.DataFrame of updated players. must have index user_id, columns "elo", "is_ranked"
 
     returns:
-        updated_matches a DataFrame of the matches with updated prior and after elos and ranked status for each match affected by the outcome change.
-        updated_players a DataFrame of each player's new elo and ranked status
+        updated_matches: a DataFrame of the matches with updated prior elos and SD for each match affected by the outcome change.
+        updated_players: a DataFrame of each player's new elo and ranked status
     """
 
-    matches = matches.copy()
-    updated_players = updated_players.copy() if updated_players is not None else None
 
-    if updated_players is None:
-        updated_players = pd.DataFrame([], columns=["user_id", "elo", "is_ranked"]).set_index("user_id")
+    matches_df = matches_df.copy()
+    updated_players_df = updated_players_df.copy() if updated_players_df is not None else None
 
-    match = matches.loc[match_id]
+    if updated_players_df is None:
+        updated_players_df = pd.DataFrame([], columns=["user_id", "elo", "is_ranked"]).set_index("user_id")
 
-    p1_id = match["p1_id"]
-    p2_id = match["p2_id"]
+
+    # for index, row in matches_df.iterrows():
+    match = matches_df.loc[match_id]
+
+    p1_id = match["player_1"]
+    p2_id = match["player_2"]
 
     #If this match should be affected in any way, calculate the players' new elos. If not, move on to the next match
-    if p1_id in updated_players.index or p2_id in updated_players.index or new_outcome is not None or update_all:
+    if p1_id in updated_players_df.index or p2_id in updated_players_df.index or new_outcome is not None:
 
-        #By default their prior elo is what it is in the database. If it changed, update it
+        #Determine their prior elo
+        p1_elo = matches_df.loc[match_id, "player_1_elo"]
+        p2_elo = matches_df.loc[match_id, "player_2_elo"]
 
-        p1_elo = matches.loc[match_id, "p1_elo"]
-        p2_elo = matches.loc[match_id, "p2_elo"]
-
-        for user_id, player in updated_players.iterrows():
+        for user_id, player in updated_players_df.iterrows():
             if user_id == p1_id:
-                p1_elo = updated_players.loc[user_id, "elo"]
-                matches.loc[match_id, "p1_elo"] = p1_elo
+                p1_elo = updated_players_df.loc[user_id, "elo"]
+                matches_df.loc[match_id, "player_1_elo"] = p1_elo
 
             if user_id == p2_id:
-                p2_elo = updated_players.loc[user_id, "elo"]
-                matches.loc[match_id, "p2_elo"] = p2_elo
+                p2_elo = updated_players_df.loc[user_id, "elo"]
+                matches_df.loc[match_id, "player_2_elo"] = p2_elo
 
-        #New outcome
+        #Determine the new outcome
         outcome = match["outcome"]
         if new_outcome is not None:
             outcome = new_outcome
-            matches.loc[match_id, "outcome"] = new_outcome
+            matches_df.loc[match_id, "outcome"] = new_outcome
 
         #determine whether they're ranked based on the new outcome
-        matches.loc[match_id, "p1_is_ranked"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id-1)
-        matches.loc[match_id, "p2_is_ranked"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id-1)
-        matches.loc[match_id, "p1_is_ranked_after"] = determine_is_ranked(matches, player_id=p1_id, latest_match_id=match_id)
-        matches.loc[match_id, "p2_is_ranked_after"] = determine_is_ranked(matches, player_id=p2_id, latest_match_id=match_id)
+        p1_is_ranked = determine_is_ranked(matches_df, player_id=p1_id, latest_match_id=match_id - 1)
+        p2_is_ranked = determine_is_ranked(matches_df, player_id=p2_id, latest_match_id=match_id - 1)
 
 
-        if matches.loc[match_id, "p1_is_ranked"]:
+        # Calculate the new elo and RD for each player
+        if p1_is_ranked:
             p1_elo_after = p1_elo + calc_elo_change(p1_elo, p2_elo, outcome)[0]
         else:
             p1_elo_after = p1_elo + calc_provisional_elo_change(p1_elo, p2_elo, outcome)[0]
 
-        if matches.loc[match_id, "p2_is_ranked"]:
+        if p2_is_ranked:
             p2_elo_after = p2_elo + calc_elo_change(p1_elo, p2_elo, outcome)[1]
         else:
             p2_elo_after = p2_elo + calc_provisional_elo_change(p1_elo, p2_elo, outcome)[1]
 
-        matches.loc[match_id, "p1_elo_after"] = p1_elo_after
-        matches.loc[match_id, "p2_elo_after"] = p2_elo_after
+        # Store the new elos
+        updated_players_df.loc[p1_id, "elo"] = p1_elo_after
+        updated_players_df.loc[p2_id, "elo"] = p2_elo_after
+        updated_players_df.loc[p1_id, "is_ranked"] = p1_is_ranked
+        updated_players_df.loc[p2_id, "is_ranked"] = p2_is_ranked
 
-
-        updated_players.loc[p1_id, "elo"] = p1_elo_after
-        updated_players.loc[p2_id, "elo"] = p2_elo_after
-        updated_players.loc[p1_id, "is_ranked"] = matches.loc[match_id, "p1_is_ranked_after"]
-        updated_players.loc[p2_id, "is_ranked"] = matches.loc[match_id, "p2_is_ranked_after"]
-
-    if match_id + 1 in matches.index:
-        return recalculate_matches(matches=matches, match_id=match_id + 1, updated_players=updated_players, update_all=update_all)
+    #repeat for following matches
+    if match_id + 1 in matches_df.index:
+        return recalculate_matches(matches_df=matches_df, match_id=match_id + 1, updated_players_df=updated_players_df)
     else:
-        return matches, updated_players
+        return matches_df, updated_players_df
 
 
 

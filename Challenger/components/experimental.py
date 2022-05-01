@@ -82,7 +82,7 @@ async def lol(ctx: tanjun.abc.Context, player):
     for id, match in matches.iterrows():
         elos.append(player_col_for_match(match, ctx.author.id, "elo_after"))
     for id, match in matches2.iterrows():
-        elos2.append(player_col_for_match(match, player.channel_id, "elo_after"))
+        elos2.append(player_col_for_match(match, player.id, "elo_after"))
 
 
     for i in plt.rcParams:

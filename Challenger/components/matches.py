@@ -9,10 +9,11 @@ import pandas as pd
 from Challenger.helpers import *
 from Challenger.database import *
 from Challenger.config import *
+from Challenger.utils import *
 
 # from Challenger.utils import Outcome, Declare #dont need
 
-
+from mongoengine.queryset.visitor import Q
 
 #join the queue
 
@@ -65,7 +66,8 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
             await ctx.edit_initial_response("You're already in the queue")
             return
 
-        player1 = lobby.player_in_q
+
+        player1 = lobby.player_in_q.fetch()
         player2 = player
 
         remove_from_queue(ctx.guild_id, leaderboard.name, ctx.channel_id)
@@ -73,31 +75,40 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
         await (await ctx.fetch_channel()).send("Queue is full. Creating match")
 
         # get both players by their user
-
-
+        match = Match.objects(guild_id=Database.DEV_GUILD_ID, leaderboard_name="Ast").order_by("-match_id").first()
+        if match is not None:
+            new_match_id = match.match_id + 1
+        else:
+            new_match_id = 1
 
         match = Match(
+            guild_id = ctx.guild_id,
+            leaderboard_name = leaderboard.name,
             match_id=new_match_id,
             outcome=Outcome.PENDING,
             time_started=datetime.now(),
 
-            player1_id=player1,
-            player1_declared=Declare.UNDECIDED,
-            player1_elo=player1.rating,
-            player1_RD=player1.rating_deviation,
+            player_1=player1,
+            player_1_declared=Declare.UNDECIDED,
+            player_1_elo=player1.rating,
+            player_1_RD=player1.rating_deviation,
 
-            player2_id=player2,
-            player2_declared=Declare.UNDECIDED,
-            player2_elo=player2.rating,
-            player2_RD=player2.rating_deviation
+            player_2=player2,
+            player_2_declared=Declare.UNDECIDED,
+            player_2_elo=player2.rating,
+            player_2_RD=player2.rating_deviation
         )
+        match.save()
 
-        leaderboard.matches.append(match)
+        embed = hikari.Embed(title="Match " + str(new_match_id) + " started",
+                             description=str(player1.username) + " vs " + str(player2.username), color=Colors.PRIMARY)
+
+        p1_ping = "<@" + str(player1.user_id) + ">"
+        p2_ping = "<@" + str(player2.user_id) + ">"
+
+        await ctx.get_channel().send(content=p1_ping + " " + p2_ping, embed=embed, user_mentions=True)
 
     guild.save()
-
-
-
 
 
 
@@ -108,11 +119,6 @@ async def join_q(ctx: tanjun.abc.Context, client:tanjun.Client=tanjun.injected(t
 async def leave_q(ctx: tanjun.abc.Context) -> None:
 
     guild = Guild.objects(guild_id=ctx.guild_id).first()
-
-    user = User.objects(user_id=ctx.author.id).first()
-    if user is None:
-        await ctx.edit_initial_response("no user found")
-        return
 
     # get the lobby and leaderboard for the channel
     leaderboard = None
@@ -127,33 +133,22 @@ async def leave_q(ctx: tanjun.abc.Context) -> None:
         await ctx.edit_initial_response("No lobby here")
         return
 
-
-    if lobby.player_in_q is None or lobby.player_in_q.pk != ctx.author.id:
+    if lobby.player_in_q is None or lobby.player_in_q.fetch().user_id != ctx.author.id:
         await ctx.edit_initial_response("You're not in the queue")
         return
 
-    lobby.player_in_q = None
     await remove_from_queue(ctx.guild_id, leaderboard.name, ctx.channel_id)
-
     await ctx.edit_initial_response("You left the queue")
     await (await ctx.fetch_channel()).send("A player has left the queue")
-
     guild.save()
-
 
 
 
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.as_slash_command("queue", "queue status", default_to_ephemeral=True)
-@get_channel_lobby
-async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
+async def queue_status(ctx: tanjun.abc.Context) -> None:
 
     guild = Guild.objects(guild_id=ctx.guild_id).first()
-
-    user = User.objects(user_id=ctx.author.id).first()
-    if user is None:
-        await ctx.edit_initial_response("no user found")
-        return
 
     # get the lobby for the channel
     lobby = None
@@ -166,10 +161,11 @@ async def queue_status(ctx: tanjun.abc.Context, lobby) -> None:
         await ctx.edit_initial_response("No lobby here")
         return
 
+
+    # respond
     if lobby.player_in_q is None:
         await ctx.edit_initial_response("Queue is empty")
         return
-
     await ctx.edit_initial_response("One player is in the queue")
 
 
@@ -183,10 +179,7 @@ async def declare_match(ctx: tanjun.abc.SlashContext, outcome, bot:hikari.Gatewa
 
     guild = Guild.objects(guild_id=ctx.guild_id).first()
 
-    user = User.objects(user_id=ctx.author.id).first()
-    if user is None:
-        await ctx.edit_initial_response("no user found")
-        return
+
 
     # get the leaderboard for the lobby
     leaderboard = None
@@ -201,56 +194,67 @@ async def declare_match(ctx: tanjun.abc.SlashContext, outcome, bot:hikari.Gatewa
         await ctx.edit_initial_response("No lobby here")
         return
 
-    # get the most recent match player by this player in the leaberboard
+    player = Player.objects(guild_id=ctx.guild_id, leaderboard_name=leaderboard.name, user_id=ctx.author.id).first()
+    if player is None:
+        await ctx.edit_initial_response("Please register")
+        return
 
-    match = None
-    highest_id = 0
-    for m in leaderboard.matches:
-        if m.player1_id == user.pk or m.player2_id == user.pk:
-            if m.match_id > highest_id:
-                highest_id = m.match_id
-                match = m
+    # get the most recent match player by this player in the leaderboard
+
+    #player 1 or player 2 matches the player
+    match = Match.objects(guild_id=ctx.guild_id, leaderboard_name=leaderboard.name).order_by('-match_id').filter(Q(player_1=player) | Q(player_2=player)).first()
 
     if match is None:
         await ctx.edit_initial_response("You played no matches")
         return
 
-
     if match.finalized:
         await ctx.edit_initial_response("Match is already finalized")
         return
 
+    def desired_outcome(player, declare):
+        return {
+            Declare.WIN: Outcome.PLAYER_1 if player==1 else Outcome.PLAYER_2,
+            Declare.LOSS: Outcome.PLAYER_2 if player==1 else Outcome.PLAYER_1,
+            Declare.DRAW: Outcome.DRAW,
+            Declare.CANCEL: Outcome.CANCELLED,
+            Declare.UNDECIDED: Outcome.PENDING
+        }[declare]
 
-    if match.outcome == desired_outcome(player_declared, 1 if match.player1_id == user.pk else 2):
+
+    player = 1 if match.player_1 == player else 2
+    if match.outcome == desired_outcome(player, player_declared):
         await ctx.edit_initial_response(f"Outcome is already {match.outcome.value}")
         return
 
-    if match.player1_id == user.pk:
-        match.player1_declared = player_declared
+    if player == 1:
+        match.player_1_declared = player_declared
     else:
-        match.player2_declared = player_declared
+        match.player_2_declared = player_declared
 
-
-    if desired_outcome(match.player1_declared, 1) == desired_outcome(match.player2_declared, 2):
-        match.outcome = match.player1_declared
+    if desired_outcome(1, match.player_1_declared) == desired_outcome(2, match.player_2_declared):
 
         #TODO Update the match, calculate elos, and announce results
 
         # get the relevant matches in a dataframe
+        affected_matches = Match.objects(guild_id=ctx.guild_id, leaderboard_name=leaderboard.name, match_id__gte=match.match_id)
+
+        df = pd.DataFrame([a.to_mongo() for a in affected_matches]).set_index("match_id").replace(np.nan, None)
+        print(df)
+
+        updated_matches, updated_players =  match_calculation.recalculate_matches(df, match.match_id, new_outcome=desired_outcome(2, match.player_1_declared))
+        print(updated_matches)
+        print(updated_players)
+
+        # update the matches
+        for index, m in updated_matches.iterrows():
+            print(m)
+            Match.objects(guild_id=ctx.guild_id, leaderboard_name=leaderboard.name, match_id=index).update(set__outcome=m['outcome'], set__player_1_elo=m['player_1_elo'], set__player_2_elo=m['player_2_elo'], set__player_1_RD=m['player_1_RD'], set__player_2_RD=m['player_2_RD'])
 
 
 
-        updated_players_embed, num_updated = await update_match_result()
 
-        if num_updated > 2:
-            await announce_in_updates_channel(ctx, updated_players_embed, client)
-
-        match = DB.get_matches(match_id=match.name).iloc[0]
-
-        match_embed = describe_match(match, DB)
-        await announce_in_updates_channel(ctx, match_embed, client=client)
-
-
+    match.save()
     guild.save()
 
     await ctx.respond("Outcome declared")
@@ -262,13 +266,22 @@ async def declare_match(ctx: tanjun.abc.SlashContext, outcome, bot:hikari.Gatewa
 
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
 @tanjun.with_user_slash_option("player", "whose matches to see (optional)", default=None)
+@tanjun.with_user_slash_option("leaderboard", "which leaderboard to get the matches from", default=None)
 @tanjun.as_slash_command("match-history", "All the match's results", default_to_ephemeral=True, always_defer=True)
-@ensure_registered
-async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
+async def match_history_cmd(ctx: tanjun.abc.Context, player, leaderboard, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
 
-    DB = Guild_DB(ctx.guild_id)
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
 
-    user_id = player.channel_id if player else None
+    if leaderboard:
+        lb = guild.leaderboards.filter(name=leaderboard).first()
+        if lb is None:
+            await ctx.edit_initial_response(f"No leaderboard named {leaderboard}")
+            return
+    else:
+        lb = guild.leaderboards.first()
+
+
+
 
     matches_per_page = 5
 
@@ -277,20 +290,22 @@ async def match_history_cmd(ctx: tanjun.abc.Context, player, bot:hikari.GatewayB
         if page_number < 0:
             return None
 
-        matches = DB.get_matches(user_id=user_id, limit=matches_per_page, chronological=False, skip=page_number * matches_per_page)
+        matches = Match.objects(guild_id=ctx.guild_id, leaderboard_name=lb.name).order_by('-match_id')[page_number*matches_per_page:(page_number+1)*matches_per_page]
 
-        if matches.index.size == 0:
+        matches_df = pd.DataFrame([m.to_mongo() for m in matches]).set_index("match_id").replace(np.nan, None)
+
+
+        if matches_df.index.size == 0:
             if page_number == 0: # no matches at all
                 return [hikari.Embed(title="No matches to show", description=BLANK, color=Colors.PRIMARY)]
             return None
 
         embeds = []
-        for match_id, match in matches.sort_index(ascending=True).iterrows():
-            embed = describe_match(match, DB)
+        for match_id, match in matches_df.sort_index(ascending=True).iterrows():
+            embed = describe_match(match)
             embeds.append(embed)
 
         return embeds
-
 
 
     await create_paginator(ctx, bot, get_matches_for_page, nextlabel="Older", prevlabel="Newer")
