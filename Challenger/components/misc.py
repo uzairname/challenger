@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import functools
 
 from Challenger.helpers import *
-from Challenger.database import Guild_DB
+from Challenger.database import *
 from Challenger.config import *
 
 
@@ -62,57 +62,52 @@ async def elo_stats(ctx):
     await ctx.respond(embed=embed)
 
 
+@tanjun.with_str_slash_option("leaderboard", "the leaderboard")
 @tanjun.as_slash_command("refresh-all-matches", "recalculate the elo for every match", default_to_ephemeral=False)
 @ensure_staff
-async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
+async def recalculate_all_matches(ctx: tanjun.abc.SlashContext, leaderboard, bot: hikari.GatewayBot = tanjun.injected(type=hikari.GatewayBot)) -> None:
+    leaderboard_name = leaderboard
 
     await ctx.respond("Getting matches...")
 
-    DB = Guild_DB(ctx.guild_id)
-    all_matches = DB.get_matches()
+    all_matches = Match.objects(guild_id=ctx.guild_id, leaderboard_name=leaderboard_name)
+    all_players = Player.objects(guild_id=ctx.guild_id, leaderboard_name=leaderboard_name)
 
     await ctx.edit_initial_response("Recalculating matches...")
+    all_matches_df = pd.DataFrame([a.to_mongo() for a in all_matches]).set_index("match_id").replace(np.nan, None)
+    players_before = pd.DataFrame([a.to_mongo() for a in all_players]).set_index("_id").replace(np.nan, None)
 
-    all_players = DB.get_players()
-    reduced_players_df = all_players[["elo", "is_ranked"]]
-    reduced_players_df["elo"] = Elo.STARTING_ELO
+    players_reset = players_before.copy()
+    players_reset["elo"] = Elo.STARTING_ELO
+    players_reset["RD"] = Elo.STARTING_RD
+    updated_matches, updated_players = recalculate_matches(all_matches_df, 1, updated_players=players_reset)
 
-    start_time = time.perf_counter()
-    updated_matches, updated_players = recalculate_matches(all_matches, match_id=1, updated_players=reduced_players_df, update_all=True)
-    print("calculate matches time taken:" + str(time.perf_counter() - start_time))
-
-    start_time = time.perf_counter()
-    DB.upsert_matches(updated_matches)
-    players = DB.get_players(user_ids=list(updated_players.index))
-
-    players_before = players.loc[updated_players.index, updated_players.columns]
-    players[updated_players.columns] = updated_players
-    DB.upsert_players(players)
+    affected_players = updated_players.index.union(players_before.index)
 
 
-    # shows the result
+    # update database
+    await ctx.edit_initial_response("Updating Matches...")
+    for player_id, p in updated_players.iterrows():
+        print(player_id)
+        Player.objects.with_id(player_id).update(set__elo=p["elo"], set__RD=p["RD"])
+
+    for match_id, m in updated_matches.iterrows():
+        Match.objects(guild_id=ctx.guild_id, leaderboard_name=leaderboard_name, match_id=match_id).update(set__outcome=m['outcome'], set__player_1_elo=m['player_1_elo'], set__player_2_elo=m['player_2_elo'], set__player_1_RD=m['player_1_RD'], set__player_2_RD=m['player_2_RD'])
+
+
+    # show the result
     updated_players_strs = []
-    for user_id, updated_player in updated_players.iterrows():
-
-        prior_elo_str = str(round(players_before.loc[user_id, "elo"]))
-        if not players_before.loc[user_id, "is_ranked"]:
-            prior_elo_str += "?"
-
-        updated_elo_str = str(round(updated_player["elo"]))
-        if not updated_player["is_ranked"]:
-            updated_elo_str += "?"
-
-        updated_players_strs.append("<@" + str(user_id) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n")
-
-    print("upsert players time taken:" + str(time.perf_counter() - start_time))
+    for _id, player in players_before.iterrows():
+        prior_elo_str = str(round(player["elo"]))
+        updated_elo_str = str(round(updated_players.loc[_id,"elo"]))
+        updated_players_strs.append("<@" + str(player["user_id"]) + "> " + prior_elo_str + " -> " + updated_elo_str + "\n")
 
 
-    start_time = time.perf_counter()
-    await ctx.edit_initial_response("Updating elo roles...")
-    async for message in update_players_elo_roles(ctx, bot, updated_players):
-        await ctx.edit_last_response(message)
-    print("update players elo roles time taken:" + str(time.perf_counter() - start_time))
+    #update elo roles
 
+    # await ctx.edit_initial_response("Updating elo roles...")
+    # async for message in update_players_elo_roles(ctx, bot, updated_players):
+    #     await ctx.edit_last_response(message)
 
     done_str = "All matches and elo were updated based on match results and any new elo config settings"
     def get_updated_players_for_page(page_num):

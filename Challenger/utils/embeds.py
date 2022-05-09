@@ -1,20 +1,13 @@
 import hikari
+from .constants import Colors
 
-
-
-class Colors:
-    PRIMARY = "#fccb6f"
-    SECONDARY = "#00baab"
-    DARK = "#656565"
-    SUCCESS = "#49c47b"
-    WARNING = "#e6d220"
-    ERROR = "#db4737"
 
 class Embed_Type:
     ERROR = 1
     CONFIRM = 2
     CANCEL = 3
     INFO = 4
+
 
 class Custom_Embed(hikari.Embed):
 
@@ -30,4 +23,4 @@ class Custom_Embed(hikari.Embed):
             super().__init__(color=color or Colors.PRIMARY, title=title or "Info", description=description, url=url, timestamp=timestamp)
 
 
-__all__ = ["Colors", "Embed_Type", "Custom_Embed"]
+__all__ = ["Embed_Type", "Custom_Embed"]

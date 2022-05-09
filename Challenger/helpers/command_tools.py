@@ -1,11 +1,10 @@
-import tanjun
 import functools
-import logging
 import typing
-
 import hikari
+import tanjun
 from hikari.interactions.base_interactions import ResponseType
-from .style import *
+
+from Challenger.utils import *
 from Challenger.database import Guild_DB
 from Challenger.config import App
 
@@ -17,42 +16,9 @@ async def on_error(ctx: tanjun.abc.Context, exception: BaseException) -> None:
     embed = hikari.Embed(
         title=f"Unexpected {type(exception).__name__}",
         color=Colors.ERROR,
-        description=f"```python\n{str(exception)[:1950]}```",
+        description=f"```python\n{str(exception)}```"[:1950],
     )
     await ctx.respond(embed=embed)
-
-
-def ensure_registered(func):
-    @functools.wraps(func)
-    async def wrapper(ctx, *args, **kwargs):
-        DB = Guild_DB(ctx.guild_id)
-
-        player = DB.get_players(user_id=ctx.author.id)
-        if player.empty:
-            await ctx.respond(f"Hi {ctx.author.mention}! Please register with /register to play", user_mentions=True)
-            return
-
-        return await func(ctx=ctx, *args, **kwargs)
-
-    return wrapper
-
-
-
-def get_channel_lobby(func) -> typing.Callable:
-    #checks if there's a lobby in the channel and if so, passes it to the function
-
-    @functools.wraps(func)
-    async def wrapper(ctx, *args, **kwargs):
-        DB = Guild_DB(ctx.guild_id)
-
-        queues = DB.get_lobbies(ctx.channel_id)
-        if queues.empty:
-            await ctx.edit_initial_response("This channel doesn't have a lobby")
-            return
-
-        return await func(ctx=ctx, lobby=queues.iloc[0], *args, **kwargs)
-
-    return wrapper
 
 
 
@@ -143,9 +109,8 @@ def confirm_cancel_input(input_instructions:typing.Callable):
 
 async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_page:typing.Callable, starting_page=0, nextlabel="Next", prevlabel="Previous", nextemoji="➡️", prevemoji="⬅️"):
     """
+    Creates a paginator for a list of items
     params:
-        ctx: context of the command
-        response: message that the page navigator will be attached to
         get_page: function that takes in a page number and returns a list of embeds to show on the page, or None if page is blank
     """
 
@@ -198,8 +163,6 @@ async def create_paginator(ctx:tanjun.abc.Context, bot:hikari.GatewayBot, get_pa
         pass
 
 
-
-
 async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.Mapping[str, list[hikari.Embed]], page_components=None):
     """
         pages: a mapping of page name to a list of embeds. Length can't be more than 25
@@ -232,4 +195,4 @@ async def create_page_dropdown(ctx:tanjun.abc.Context, bot, page_embeds: typing.
             await ctx.edit_initial_response(embeds=page_embeds[page], components=page_components.get(page, []) + [page_dropdown])
 
 
-__all__ = ["ensure_staff", "get_channel_lobby", "ensure_registered", "confirm_cancel_input", "on_error", "create_paginator", "create_page_dropdown"]
+__all__ = ["ensure_staff", "confirm_cancel_input", "on_error", "create_paginator", "create_page_dropdown"]

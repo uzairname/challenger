@@ -1,4 +1,3 @@
-from .constants import *
 
 def convert_to_ordinal(number):
     """

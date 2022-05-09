@@ -25,8 +25,8 @@ class Player(me.Document):
 
     username = me.StringField(null=True)
     time_registered = me.DateTimeField(null=True) # time.time()
-    rating = me.FloatField(null=True)
-    rating_deviation = me.FloatField(null=True)
+    elo = me.FloatField(null=True)
+    RD = me.FloatField(null=True)
 
     meta = {
         'collection': 'players',

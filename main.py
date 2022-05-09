@@ -2,6 +2,7 @@
 
 import hikari
 import os
+
 from Challenger.bot import build_bot
 from Challenger.config import set_pandas_display_options
 

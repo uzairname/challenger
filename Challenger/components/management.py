@@ -11,10 +11,6 @@ config = tanjun.slash_command_group("config", "Change the bot settings", default
 
 
 
-# @config.with_command
-# @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
-# @tanjun.with_str_slash_option("name", "lobby name", default=None)
-# @tanjun.with_channel_slash_option("channel", "the channel to update or delete", default=None)
 
 @config.with_command
 @tanjun.with_str_slash_option("leaderboard", "the leaderboard to connect this lobby to")
@@ -47,7 +43,6 @@ async def config_lobby(ctx:tanjun.abc.Context, channel, leaderboard):
     else:
         lobby = Lobby(channel_id=channel.id)
         leaderboard.lobbies.append(lobby)
-
 
     guild.save()
 

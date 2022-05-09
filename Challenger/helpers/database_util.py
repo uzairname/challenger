@@ -2,7 +2,6 @@ from Challenger.database import *
 import mongoengine
 
 
-
 def get_matches_by_guild_leaderboard(guild_id, leaderboard_name):
     pass
 

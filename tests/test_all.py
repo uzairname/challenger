@@ -159,7 +159,7 @@ def matches_migration():
 
     matches.to_csv("test_matches.csv")
 
-    #connect to the development database and put all the matches in from this csv
+    #connect to the development or production database and put all the matches in from this csv
 
     db_name = "development"
     mongodb_url_with_database = os.environ.get("MONGODB_URL").replace("mongodb.net/?", "mongodb.net/" + db_name + "?")
@@ -208,6 +208,8 @@ def matches_migration():
     me.disconnect_all()
 
 if __name__ == "__main__":
+
+    matches_migration()
 
     me.disconnect_all()
 

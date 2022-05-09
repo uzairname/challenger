@@ -18,7 +18,7 @@ async def about_command(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.in
     avatar = user.avatar_url
 
     # About ================================================================
-    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot with a ton of competitive features entirely within discord! Scroll through the dropdown below to learn more", colour=Colors.PRIMARY).set_thumbnail(avatar)
+    about_embed = hikari.Embed(title="About", description=f"Hi {ctx.author.mention}! Challenger is an Elo ranking bot with a variety of competitive features entirely within discord! Scroll through the dropdown below to learn more", colour=Colors.PRIMARY).set_thumbnail(avatar)
 
     about_embed.add_field(name=f"How to Play", value=f" Go to the \"How to play\" page to learn about 1v1s", inline=True)
     about_embed.add_field(name="Bot Setup", value="If you're an admin, go to the \"Setup\" page to learn about the bot", inline=True)
