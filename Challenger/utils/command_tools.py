@@ -66,6 +66,7 @@ def ensure_staff(func):
             DB = Guild_DB(ctx.guild_id)
 
             staff_role = DB.get_config()["staff_role"]
+            print(staff_role)
 
             if staff_role is None:
                 guild = await ctx.fetch_guild()
@@ -76,7 +77,9 @@ def ensure_staff(func):
                     role_mapping[role_id] = guild.get_role(role_id)
 
                 user_perms = tanjun.utilities.calculate_permissions(member=ctx.member, guild=guild, roles=role_mapping)
-                return user_perms & hikari.Permissions.MANAGE_GUILD == user_perms
+                print(user_perms & hikari.Permissions.MANAGE_GUILD)
+
+                return user_perms & hikari.Permissions.MANAGE_GUILD
 
             return bool(staff_role in ctx.member.role_ids)
 

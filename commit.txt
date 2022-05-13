@@ -1,0 +1,2 @@
+fix staff permission check
+fix lb display
