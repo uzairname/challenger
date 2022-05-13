@@ -61,7 +61,7 @@ def player_col_for_match(match, user_id, column): #useful probably
         return match["p2_" + column]
     else:
         raise ValueError("Player not in match")
-
+ 
 @tanjun.with_user_slash_option("player", "player")
 @tanjun.as_slash_command("lol", "lol", always_defer=True)
 async def lol(ctx: tanjun.abc.Context, player):

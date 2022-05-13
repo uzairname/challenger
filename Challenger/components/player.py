@@ -164,8 +164,70 @@ async def get_stats(ctx: tanjun.abc.Context, leaderboard, player) -> None:
 
 @component.with_slash_command
 @tanjun.with_own_permission_check(App.REQUIRED_PERMISSIONS, error_message=App.PERMS_ERR_MSG)
+@tanjun.with_str_slash_option("leaderboard", "leaderboard name", default=None)
 @tanjun.as_slash_command("lb", "leaderboard", default_to_ephemeral=False, always_defer=True)
-async def get_leaderboard(ctx: tanjun.abc.Context, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
+async def get_leaderboard(ctx: tanjun.abc.Context, leaderboard, bot:hikari.GatewayBot=tanjun.injected(type=hikari.GatewayBot)) -> None:
+
+    leaderboard_name = leaderboard
+
+    guild = Guild.objects(guild_id=ctx.guild_id).first()
+
+    if leaderboard_name is None:
+        lb = guild.leaderboards.first()
+    else:
+        lb = guild.leaderboards.filter(name=leaderboard_name).first()
+
+    if lb is None:
+        await ctx.respond(f"No leaderboard named {leaderboard_name}")
+        return
+
+
+
+    def get_leaderboard_for_page(page):
+
+        players_per_page = 20
+
+        place_str_len = 5
+        name_len = 21
+        elo_str_len = 5
+
+        if page < 0:
+            return None
+
+        players = Player.objects(guild_id=ctx.guild_id, leaderboard_name=lb.name).order_by("-rating").skip(page*players_per_page).limit(players_per_page)
+        players_df = pd.DataFrame([a.to_mongo() for a in players]).set_index("user_id")
+
+        if len(players) == 0:
+            if page == 0:
+                return [hikari.Embed(title="Leaderboard", description="No ranked players", color=Colors.PRIMARY)]
+            return None
+
+        place = page * players_per_page
+
+        lb_list = "```\n"
+        for index, player, in players_df.iterrows():
+            place += 1
+            place_str = (str(place) + ".")[:place_str_len]
+            displayed_name = (str(player["username"]) + ":")[:name_len]
+            displayed_elo = str(round(player["rating"]))[:elo_str_len]
+            lb_list +=  place_str.ljust(place_str_len)\
+                    +   displayed_name.ljust(name_len)\
+                    +   displayed_elo.rjust(elo_str_len) + "\n"
+        lb_list += "```"
+
+        lb_embed = hikari.Embed(title="Leaderboard", description=f"Leaderboard page {page + 1}", color=Colors.PRIMARY)
+        lb_embed.add_field(name="Rank" + " "*5*2 + "Username" + " "*35*2 + "Score", value=lb_list, inline=False)
+        lb_embed.set_footer(text="Don't see yourself? Only players who completed their " + str(Elo.NUM_PLACEMENT_MATCHES) + " placement games are ranked")
+        return [lb_embed]
+
+    await create_paginator(ctx, bot, get_leaderboard_for_page, nextlabel="Lower", prevlabel="Higher")
+
+
+
+
+    return
+
+
 
     DB = Guild_DB(ctx.guild_id)
 
