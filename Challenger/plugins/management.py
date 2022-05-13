@@ -57,7 +57,7 @@ async def config_help(ctx:tanjun.abc.Context, client:tanjun.abc.Client=tanjun.in
 
 
 
-async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel:hikari.InteractionChannel, role_required):
+async def config_lobby_instructions(ctx:tanjun.abc.Context, action, name, channel:hikari.InteractionChannel, role_required=None):
     """
     Displays all configured lobbies in the guild as a field added onto the embed
     params:
